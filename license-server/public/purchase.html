@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Beli Lisensi – Packing Recorder</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', 'Segoe UI', Tahoma, sans-serif;
+      background: linear-gradient(135deg, #f0f4ff 0%, #e8f0fe 50%, #f5f0ff 100%);
+      min-height: 100vh;
+      color: #1e293b;
+      padding: 32px 16px;
+    }
+
+    .page-wrap {
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* ── Header ── */
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .logo-mark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 52px;
+      height: 52px;
+      background: linear-gradient(135deg, #3b5bdb, #7c3aed);
+      border-radius: 14px;
+      margin-bottom: 14px;
+    }
+    .logo-mark svg { width: 28px; height: 28px; fill: #fff; }
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #1e293b;
+      letter-spacing: -0.3px;
+    }
+    .header p {
+      margin-top: 6px;
+      font-size: 0.9rem;
+      color: #64748b;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(59, 91, 219, 0.10);
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+
+    /* ── Features ── */
+    .features { list-style: none; margin-bottom: 20px; }
+    .features li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 0;
+      font-size: 0.9rem;
+      color: #334155;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .features li:last-child { border-bottom: none; }
+    .features li::before {
+      content: '✓';
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      background: #dcfce7;
+      color: #16a34a;
+      border-radius: 50%;
+      font-size: 0.75rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    /* ── Price ── */
+    .price-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #f0f4ff;
+      border-radius: 12px;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+    }
+    .price-label { font-size: 0.85rem; color: #64748b; font-weight: 500; }
+    .price-amount {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #3b5bdb;
+      letter-spacing: -0.5px;
+    }
+    .price-note { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; }
+
+    /* ── Form ── */
+    .form-group { margin-bottom: 16px; }
+    .form-group label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 6px;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 0.92rem;
+      font-family: inherit;
+      color: #1e293b;
+      background: #f8fafc;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      outline: none;
+    }
+    .form-group input:focus {
+      border-color: #3b5bdb;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.12);
+    }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, #3b5bdb, #7c3aed);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      letter-spacing: 0.3px;
+    }
+    .btn-primary:hover:not(:disabled) { opacity: 0.9; }
+    .btn-primary:active:not(:disabled) { transform: scale(0.99); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Error ── */
+    .error-msg {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.85rem;
+      margin-top: 12px;
+    }
+    .hidden { display: none !important; }
+
+    /* ── QR Payment Section ── */
+    .qr-section { text-align: center; }
+    .qr-section h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: #1e293b;
+    }
+    .qr-section p.sub {
+      font-size: 0.82rem;
+      color: #64748b;
+      margin-bottom: 18px;
+    }
+
+    .qr-frame {
+      display: inline-block;
+      background: #fff;
+      border: 3px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .qr-frame img {
+      width: 220px;
+      height: 220px;
+      display: block;
+      border-radius: 6px;
+    }
+
+    .expiry-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      color: #64748b;
+      margin-bottom: 18px;
+    }
+    .expiry-timer { font-weight: 700; color: #f59e0b; }
+    .expiry-timer.urgent { color: #dc2626; }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+    .status-badge.waiting {
+      background: #fef9c3;
+      color: #92400e;
+    }
+    .status-badge.checking {
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid currentColor;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Success ── */
+    .success-section { text-align: center; }
+    .success-icon {
+      font-size: 3rem;
+      margin-bottom: 12px;
+    }
+    .success-section h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #16a34a;
+      margin-bottom: 6px;
+    }
+    .success-section p {
+      font-size: 0.85rem;
+      color: #64748b;
+      margin-bottom: 20px;
+    }
+
+    .license-key-box {
+      background: #f0fdf4;
+      border: 2px dashed #86efac;
+      border-radius: 12px;
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+    .license-key-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+    .license-key-value {
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #1e293b;
+      letter-spacing: 2px;
+      word-break: break-all;
+    }
+    .copy-btn {
+      margin-top: 10px;
+      padding: 7px 18px;
+      border: 1.5px solid #86efac;
+      background: #dcfce7;
+      color: #16a34a;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .copy-btn:hover { background: #bbf7d0; }
+
+    .save-warning {
+      font-size: 0.8rem;
+      color: #92400e;
+      background: #fef9c3;
+      border-radius: 8px;
+      padding: 10px 14px;
+      text-align: left;
+      line-height: 1.5;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      text-align: center;
+      font-size: 0.78rem;
+      color: #94a3b8;
+      margin-top: 24px;
+    }
+    .footer a { color: #3b5bdb; text-decoration: none; }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24"><path d="M17 8C8 10 5.9 16.17 3.82 19.83 2.45 19.11 1 17.76 1 16V8l8-5 8 5v.06zM11 13H9v2H7v2h2v2h2v-2h2v-2h-2v-2zm6-1.97V16c0 3.31-4 5-4 5s-4-1.69-4-5V11.03L17 8.1v2.93z"/></svg>
+    </div>
+    <h1>Packing Recorder</h1>
+    <p>Beli lisensi permanen — bayar sekali, pakai selamanya</p>
+  </div>
+
+  <!-- Step 1: Product + Email Form -->
+  <div id="step-purchase" class="card">
+    <ul class="features">
+      <li>Rekam video packing otomatis via barcode</li>
+      <li>Cari & putar ulang rekaman kapan saja</li>
+      <li>Lisensi permanen untuk 1 komputer</li>
+      <li>Update gratis selamanya</li>
+    </ul>
+
+    <div class="price-row">
+      <div>
+        <div class="price-label">Harga Lisensi</div>
+        <div class="price-note">Pembayaran sekali, tidak berulang</div>
+      </div>
+      <div class="price-amount">Rp 55.000</div>
+    </div>
+
+    <div class="form-group">
+      <label for="email-input">Email (untuk menerima konfirmasi)</label>
+      <input
+        type="email"
+        id="email-input"
+        placeholder="nama@email.com"
+        autocomplete="email"
+        required
+      />
+    </div>
+
+    <button class="btn-primary" id="pay-btn">Bayar dengan QRIS &rarr;</button>
+    <div id="form-error" class="error-msg hidden"></div>
+  </div>
+
+  <!-- Step 2: QR Code Payment -->
+  <div id="step-qr" class="card hidden">
+    <div class="qr-section">
+      <h3>Scan QRIS untuk Bayar</h3>
+      <p class="sub">Buka aplikasi dompet digital kamu (GoPay, OVO, DANA, dll.), lalu scan kode di bawah.</p>
+
+      <div class="qr-frame">
+        <img id="qr-img" src="" alt="QRIS QR Code" />
+      </div>
+
+      <div class="expiry-row">
+        <span>Kode berlaku:</span>
+        <span id="expiry-timer" class="expiry-timer">–</span>
+      </div>
+
+      <div id="payment-status" class="status-badge waiting">
+        <span class="spinner"></span>
+        Menunggu pembayaran&hellip;
+      </div>
+
+      <div id="qr-error" class="error-msg hidden" style="margin-top:14px;"></div>
+    </div>
+  </div>
+
+  <!-- Step 3: Success -->
+  <div id="step-success" class="card hidden">
+    <div class="success-section">
+      <div class="success-icon">🎉</div>
+      <h3>Pembayaran Berhasil!</h3>
+      <p>Salin kunci lisensi di bawah dan masukkan ke dalam aplikasi Packing Recorder.</p>
+
+      <div class="license-key-box">
+        <div class="license-key-label">Kunci Lisensi Kamu</div>
+        <div id="license-key-display" class="license-key-value">—</div>
+        <button class="copy-btn" id="copy-btn">Salin Kunci</button>
+      </div>
+
+      <div class="save-warning">
+        ⚠️ <strong>Simpan kunci ini!</strong> Screenshot atau catat kunci lisensi sekarang.
+        Kunci tidak dapat dikirim ulang secara otomatis.
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Butuh bantuan? Hubungi <a href="mailto:support@example.com">support@example.com</a>
+  </div>
+
+</div>
+
+<script>
+  const SERVER = ''; // same origin
+
+  const stepPurchase = document.getElementById('step-purchase');
+  const stepQR       = document.getElementById('step-qr');
+  const stepSuccess  = document.getElementById('step-success');
+  const payBtn       = document.getElementById('pay-btn');
+  const emailInput   = document.getElementById('email-input');
+  const formError    = document.getElementById('form-error');
+  const qrImg        = document.getElementById('qr-img');
+  const expiryTimer  = document.getElementById('expiry-timer');
+  const paymentStatus = document.getElementById('payment-status');
+  const qrError      = document.getElementById('qr-error');
+  const licenseKeyDisplay = document.getElementById('license-key-display');
+  const copyBtn      = document.getElementById('copy-btn');
+
+  let pollInterval = null;
+  let expiryInterval = null;
+  let currentOrderId = null;
+
+  function showError(el, msg) {
+    el.textContent = msg;
+    el.classList.remove('hidden');
+  }
+
+  function show(el) { el.classList.remove('hidden'); }
+  function hide(el) { el.classList.add('hidden'); }
+
+  // ── Start payment ──────────────────────────────────────────────────────────
+  payBtn.addEventListener('click', async () => {
+    hide(formError);
+    const email = emailInput.value.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showError(formError, 'Masukkan alamat email yang valid.');
+      return;
+    }
+
+    payBtn.disabled = true;
+    payBtn.textContent = 'Membuat pembayaran…';
+
+    try {
+      const res = await fetch(`${SERVER}/create-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || 'Gagal membuat order.');
+      }
+
+      currentOrderId = data.orderId;
+      qrImg.src = data.qrCodeUrl;
+      hide(stepPurchase);
+      show(stepQR);
+
+      startExpiryCountdown(data.expiryTime);
+      startPolling();
+    } catch (err) {
+      showError(formError, err.message || 'Terjadi kesalahan. Coba lagi.');
+      payBtn.disabled = false;
+      payBtn.textContent = 'Bayar dengan QRIS →';
+    }
+  });
+
+  // ── Expiry countdown ───────────────────────────────────────────────────────
+  function startExpiryCountdown(expiryTimeStr) {
+    // expiryTime format from Midtrans: "2024-01-01 12:00:00"
+    const expiryMs = new Date(expiryTimeStr.replace(' ', 'T')).getTime();
+
+    function tick() {
+      const remaining = Math.max(0, expiryMs - Date.now());
+      const mins = Math.floor(remaining / 60000);
+      const secs = Math.floor((remaining % 60000) / 1000);
+      expiryTimer.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      if (remaining < 120000) expiryTimer.classList.add('urgent');
+      if (remaining === 0) {
+        clearInterval(expiryInterval);
+        expiryTimer.textContent = 'Kadaluarsa';
+        stopPolling();
+        paymentStatus.innerHTML = '❌ QR kode kadaluarsa. Muat ulang halaman untuk mencoba lagi.';
+        paymentStatus.className = 'status-badge';
+        paymentStatus.style.background = '#fef2f2';
+        paymentStatus.style.color = '#dc2626';
+      }
+    }
+    tick();
+    expiryInterval = setInterval(tick, 1000);
+  }
+
+  // ── Poll for payment status ────────────────────────────────────────────────
+  function startPolling() {
+    pollInterval = setInterval(async () => {
+      try {
+        const res = await fetch(`${SERVER}/check-order/${currentOrderId}`);
+        const data = await res.json();
+
+        if (data.status === 'paid' && data.licenseKey) {
+          stopPolling();
+          showSuccess(data.licenseKey);
+        } else if (data.status === 'expire' || data.status === 'cancel' || data.status === 'deny') {
+          stopPolling();
+          showError(qrError, 'Pembayaran dibatalkan atau kadaluarsa. Muat ulang halaman untuk mencoba lagi.');
+        }
+      } catch (_) {
+        // Network glitch — keep polling
+      }
+    }, 3000);
+  }
+
+  function stopPolling() {
+    if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+    if (expiryInterval) { clearInterval(expiryInterval); expiryInterval = null; }
+  }
+
+  // ── Show success ───────────────────────────────────────────────────────────
+  function showSuccess(key) {
+    hide(stepQR);
+    licenseKeyDisplay.textContent = key;
+    show(stepSuccess);
+  }
+
+  // ── Copy to clipboard ──────────────────────────────────────────────────────
+  copyBtn.addEventListener('click', () => {
+    const key = licenseKeyDisplay.textContent;
+    if (!key || key === '—') return;
+    navigator.clipboard.writeText(key).then(() => {
+      copyBtn.textContent = '✓ Tersalin!';
+      setTimeout(() => { copyBtn.textContent = 'Salin Kunci'; }, 2000);
+    });
+  });
+</script>
+</body>
+</html>

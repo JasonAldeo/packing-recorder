@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; media-src 'self' blob: data:; script-src 'self'; style-src 'self'; img-src 'self' data:;" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Packing Recorder</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <nav class="tab-nav">
+    <div class="nav-brand">Packing Recorder</div>
+    <div class="nav-tabs">
+      <button class="tab-btn active" data-tab="scan" data-i18n="tab.scan">Scan</button>
+      <button class="tab-btn" data-tab="recordings" data-i18n="tab.recordings">Recordings</button>
+      <button class="tab-btn" data-tab="search" data-i18n="tab.search">Search</button>
+      <button class="tab-btn" data-tab="settings" data-i18n="tab.settings">Settings</button>
+    </div>
+    <div class="nav-right">
+      <select id="locale-select" class="locale-select" title="Language / Bahasa">
+        <option value="en">EN</option>
+        <option value="id">ID</option>
+      </select>
+      <!-- Trial badge (hidden when licensed) -->
+      <div id="trial-badge" class="trial-badge hidden">
+        <span id="trial-badge-text">Trial: 7 days left</span>
+        <button id="trial-buy-btn" class="trial-buy-btn" data-i18n="trial.buyBtn">Buy License</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── License Overlay (shown when trial expires and no valid license) ── -->
+  <div id="license-overlay" class="license-overlay hidden">
+    <div class="license-overlay-card">
+      <div class="license-overlay-icon">🔒</div>
+      <h2 class="license-overlay-title" data-i18n="overlay.title">Trial Period Ended</h2>
+      <p class="license-overlay-sub" data-i18n="overlay.sub">Your 7-day free trial has expired. Purchase a license to continue using Packing Recorder.</p>
+
+      <div class="license-price-tag">
+        <span class="license-price-label" data-i18n="overlay.priceLabel">One-time license</span>
+        <span class="license-price-amount">Rp 55.000</span>
+      </div>
+
+      <button id="overlay-buy-btn" class="license-btn-primary" data-i18n="overlay.buyBtn">
+        Buy License (QRIS)
+      </button>
+
+      <div class="license-divider">
+        <span data-i18n="overlay.divider">Already have a license?</span>
+      </div>
+
+      <div class="license-input-row">
+        <input
+          type="text"
+          id="license-key-input"
+          class="license-key-input"
+          placeholder="XXXX-XXXX-XXXX-XXXX"
+          maxlength="19"
+          spellcheck="false"
+          autocomplete="off"
+        />
+        <button id="activate-btn" class="license-btn-activate" data-i18n="overlay.activateBtn">Activate</button>
+      </div>
+
+      <div id="license-feedback" class="license-feedback hidden"></div>
+    </div>
+  </div>
+
+  <div class="tab-content">
+
+    <!-- ── Scan Tab ── -->
+    <div id="tab-scan" class="tab-panel active">
+      <div class="container">
+
+        <!-- Test-mode panel (hidden unless no camera is detected) -->
+        <div id="test-mode-panel" class="test-mode-panel hidden">
+          <span class="test-mode-label" data-i18n="test.warning">&#9888; TEST MODE &mdash; No camera detected. Using simulated stream.</span>
+          <div class="test-scan-row">
+            <input type="text" id="test-scan-input" data-i18n-placeholder="test.placeholder" placeholder="Type a shipping code&hellip;" />
+            <button id="test-scan-btn" data-i18n="test.simulateScan">Simulate Scan</button>
+            <button id="test-manual-btn" data-i18n="test.simulateManual">Simulate Manual Scan</button>
+          </div>
+        </div>
+
+        <section class="card status-section">
+          <h2 data-i18n="scan.statusTitle">Status</h2>
+          <div id="status-message" class="status waiting">Waiting for scan...</div>
+          <div id="current-code" class="current-code"></div>
+          <div id="timer-display" class="timer hidden"><span data-i18n="scan.timerLabel">Recording:</span> <span id="timer">00:00</span></div>
+          <button id="stop-recording-btn" class="stop-recording-btn hidden" data-i18n="scan.stopBtn">&#9632; Stop Recording</button>
+          <div id="saved-info" class="saved-info hidden"></div>
+        </section>
+
+        <section class="card camera-section">
+          <h2 data-i18n="scan.cameraTitle">Camera Preview</h2>
+          <div class="video-wrapper">
+            <video id="camera-preview" autoplay muted playsinline></video>
+            <div id="recording-badge" class="recording-badge hidden">● REC</div>
+          </div>
+          <div id="camera-error" class="error-msg hidden"></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- ── Recordings Tab ── -->
+    <div id="tab-recordings" class="tab-panel">
+      <div class="container">
+        <section class="card recordings-section">
+          <h2 data-i18n="rec.title">Recordings</h2>
+
+          <!-- Standard Recordings -->
+          <div class="rec-sub-section">
+            <h3 class="rec-sub-title" data-i18n="rec.standardTitle">Standard Recordings</h3>
+            <div class="rec-filter-bar">
+              <label class="rec-filter-label" for="rec-date-filter" data-i18n="rec.filterLabel">Filter by date:</label>
+              <input type="date" id="rec-date-filter" class="rec-date-input" />
+              <button id="rec-reset-filter-btn" class="rec-reset-btn hidden" data-i18n="rec.resetFilter">&#10005; Reset</button>
+              <span id="rec-filter-count" class="rec-filter-count hidden"></span>
+            </div>
+            <div id="no-recordings" class="no-recordings" data-i18n="rec.noRecordings">No recordings yet.</div>
+            <ul id="recordings-list"></ul>
+          </div>
+
+          <div class="rec-divider"></div>
+
+          <!-- Manual Recordings -->
+          <div class="rec-sub-section">
+            <h3 class="rec-sub-title manual" data-i18n="rec.manualTitle">Manual Recordings</h3>
+            <div class="rec-filter-bar">
+              <label class="rec-filter-label" for="manual-date-filter" data-i18n="rec.filterLabel">Filter by date:</label>
+              <input type="date" id="manual-date-filter" class="rec-date-input" />
+              <button id="manual-reset-filter-btn" class="rec-reset-btn hidden" data-i18n="rec.resetFilter">&#10005; Reset</button>
+              <span id="manual-filter-count" class="rec-filter-count hidden"></span>
+            </div>
+            <div id="no-manual-recordings" class="no-recordings" data-i18n="rec.noManualRecordings">No manual recordings yet.</div>
+            <ul id="manual-recordings-list"></ul>
+          </div>
+
+        </section>
+      </div>
+    </div>
+
+    <!-- ── Search Tab ── -->
+    <div id="tab-search" class="tab-panel">
+      <div class="container">
+        <section class="card search-section">
+          <h2 data-i18n="search.title">Search &amp; Playback</h2>
+          <div class="search-bar">
+            <div class="search-input-wrap">
+              <input type="text" id="search-input" data-i18n-placeholder="search.placeholder" placeholder="Enter shipping code..." />
+              <button id="search-clear-btn" class="search-clear-btn hidden" aria-label="Clear">&times;</button>
+            </div>
+            <button id="search-btn" class="search-btn" data-i18n="search.btn">Search</button>
+          </div>
+          <div id="search-results" class="search-results hidden">
+            <h3 data-i18n="search.results">Results</h3>
+            <ul id="results-list"></ul>
+          </div>
+          <div id="playback-section" class="playback-section hidden">
+            <h3><span data-i18n="search.nowPlaying">Now Playing:</span> <span id="playing-filename"></span></h3>
+            <video id="playback-video" controls></video>
+            <div class="playback-actions">
+              <button id="save-as-btn" data-i18n="search.saveAs">&#8681; Save As&hellip;</button>
+              <span id="save-as-status" class="save-as-status hidden"></span>
+            </div>
+          </div>
+          <div id="search-error" class="error-msg hidden"></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- ── Settings Tab ── -->
+    <div id="tab-settings" class="tab-panel">
+      <div class="container">
+        <section class="card settings-section">
+          <h2 data-i18n="settings.title">Settings</h2>
+
+          <!-- Save Folder -->
+          <div class="setting-row">
+            <div class="setting-label">
+              <span class="setting-title" data-i18n="settings.folderTitle">Videos Save Folder</span>
+              <span id="videos-dir-display" class="setting-value">Loading...</span>
+            </div>
+            <button id="pick-dir-btn" data-i18n="settings.browse">Browse&hellip;</button>
+          </div>
+
+          <div class="setting-divider"></div>
+
+          <!-- Auto Delete -->
+          <div class="setting-row">
+            <div class="setting-label">
+              <span class="setting-title" data-i18n="settings.autoDeleteTitle">Auto-delete recordings older than</span>
+              <span class="setting-hint" data-i18n="settings.autoDeleteHint">Set to 0 to disable. Runs automatically on every launch.</span>
+            </div>
+            <div class="setting-input-group">
+              <input type="number" id="auto-delete-days" min="0" max="3650" placeholder="0" />
+              <span class="setting-unit" data-i18n="settings.daysUnit">days</span>
+              <button id="save-auto-delete-btn" data-i18n="settings.save">Save</button>
+            </div>
+          </div>
+          <div id="auto-delete-status" class="setting-status hidden"></div>
+
+          <div class="setting-divider"></div>
+
+          <!-- Test Mode -->
+          <div class="setting-row">
+            <div class="setting-label">
+              <span class="setting-title" data-i18n="settings.testModeTitle">Test Mode</span>
+              <span class="setting-hint" data-i18n="settings.testModeHint">Replaces the camera with a simulated stream and shows manual scan controls. Use when testing without a real camera or barcode scanner.</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="test-mode-toggle" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="setting-divider"></div>
+
+          <!-- Manual Scan QR Code -->
+          <div class="setting-row">
+            <div class="setting-label">
+              <span class="setting-title" data-i18n="settings.qrTitle">Manual Scan QR Code</span>
+              <span class="setting-hint" data-i18n="settings.qrHint">Print and affix this QR code to your station. Scan it to start/stop a manual recording.</span>
+            </div>
+            <button id="print-qr-btn" data-i18n="settings.printQR">&#128438; Print QR&hellip;</button>
+          </div>
+          <div class="qr-code-section hidden" id="qr-code-section">
+            <img id="qr-code-img" alt="MANUALSCAN QR Code" />
+            <div class="qr-code-label" data-i18n="settings.qrLabel">Scan to start &amp; stop manual recording</div>
+          </div>
+
+        </section>
+      </div>
+    </div>
+
+  </div><!-- /tab-content -->
+
+  <script src="i18n.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>
