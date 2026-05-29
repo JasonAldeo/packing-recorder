@@ -186,10 +186,12 @@ function getVideosDir() {
 }
 
 let mainWindow;
+// Map of stationId -> BrowserWindow for station windows
+const stationWindows = new Map();
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1000,
+    width: 1200,
     height: 800,
     title: 'Packing Recorder',
     webPreferences: {
@@ -221,69 +223,69 @@ ipcMain.handle('ensure-videos-dir', () => {
   return getVideosDir();
 });
 
-// ─── Streaming video write ────────────────────────────────────────────────────
-// Replaces the old single-shot 'save-video' handler to avoid passing the entire
-// recording buffer over IPC at once (which caused freezes / errors on long recordings).
+// ─── Streaming video write — per-station ──────────────────────────────────────
+// Each station has its own write state keyed by stationId string.
 
-let _writeStream = null;
-let _writeTempPath = null;
-let _writeFinalPath = null;
-let _writeFilename = null;
+const _writeStates = new Map();
+// stationId -> { stream, tempPath, finalPath, filename }
 
-ipcMain.handle('begin-video-write', (event, { shippingCode }) => {
-  // Clean up any abandoned previous stream
-  if (_writeStream) {
-    try { _writeStream.destroy(); } catch (_) {}
-    if (_writeTempPath && fs.existsSync(_writeTempPath)) {
-      try { fs.unlinkSync(_writeTempPath); } catch (_) {}
+ipcMain.handle('begin-video-write', (event, { stationId, shippingCode }) => {
+  const sid = String(stationId || 'station1');
+
+  // Clean up any abandoned previous stream for this station
+  if (_writeStates.has(sid)) {
+    const prev = _writeStates.get(sid);
+    try { prev.stream.destroy(); } catch (_) {}
+    if (prev.tempPath && fs.existsSync(prev.tempPath)) {
+      try { fs.unlinkSync(prev.tempPath); } catch (_) {}
     }
-    _writeStream = null;
+    _writeStates.delete(sid);
   }
 
   const videosDir = getVideosDir();
   const sanitizedCode = shippingCode.replace(/[^a-zA-Z0-9_\-]/g, '_');
-  let filename = `${sanitizedCode}.webm`;
+  // Include station ID prefix in filename
+  const stationPrefix = sid.replace(/[^a-zA-Z0-9_\-]/g, '_');
+  let filename = `${stationPrefix}_${sanitizedCode}.webm`;
   let filePath = path.join(videosDir, filename);
 
   if (fs.existsSync(filePath)) {
     const timestamp = Date.now();
-    filename = `${sanitizedCode}_${timestamp}.webm`;
+    filename = `${stationPrefix}_${sanitizedCode}_${timestamp}.webm`;
     filePath = path.join(videosDir, filename);
   }
 
   const tempPath = filePath + '.tmp';
-  _writeStream = fs.createWriteStream(tempPath);
-  _writeTempPath = tempPath;
-  _writeFinalPath = filePath;
-  _writeFilename = filename;
+  const writeStream = fs.createWriteStream(tempPath);
+  _writeStates.set(sid, { stream: writeStream, tempPath, finalPath: filePath, filename });
   return { ok: true };
 });
 
-ipcMain.handle('write-video-chunk', (event, chunk) => {
+ipcMain.handle('write-video-chunk', (event, stationId, chunk) => {
+  const sid = String(stationId || 'station1');
   return new Promise((resolve, reject) => {
-    if (!_writeStream) return reject(new Error('No active write stream'));
+    const state = _writeStates.get(sid);
+    if (!state) return reject(new Error(`No active write stream for station: ${sid}`));
     const buffer = Buffer.from(chunk);
-    _writeStream.write(buffer, (err) => {
+    state.stream.write(buffer, (err) => {
       if (err) reject(err); else resolve();
     });
   });
 });
 
-ipcMain.handle('end-video-write', () => {
+ipcMain.handle('end-video-write', (event, stationId) => {
+  const sid = String(stationId || 'station1');
   return new Promise((resolve, reject) => {
-    if (!_writeStream) return reject(new Error('No active write stream'));
-    const stream = _writeStream;
-    const tmpPath = _writeTempPath;
-    const finalPath = _writeFinalPath;
-    const filename = _writeFilename;
-    _writeStream = null; _writeTempPath = null; _writeFinalPath = null; _writeFilename = null;
+    const state = _writeStates.get(sid);
+    if (!state) return reject(new Error(`No active write stream for station: ${sid}`));
+    _writeStates.delete(sid);
 
-    stream.end((err) => {
+    state.stream.end((err) => {
       if (err) return reject(err);
       try {
-        fs.renameSync(tmpPath, finalPath);
-        const stats = fs.statSync(finalPath);
-        resolve({ filename, filePath: finalPath, size: stats.size });
+        fs.renameSync(state.tempPath, state.finalPath);
+        const stats = fs.statSync(state.finalPath);
+        resolve({ filename: state.filename, filePath: state.finalPath, size: stats.size });
       } catch (e) {
         reject(e);
       }
@@ -291,15 +293,77 @@ ipcMain.handle('end-video-write', () => {
   });
 });
 
-ipcMain.handle('abort-video-write', () => {
-  if (_writeStream) {
-    try { _writeStream.destroy(); } catch (_) {}
-    _writeStream = null;
+ipcMain.handle('abort-video-write', (event, stationId) => {
+  const sid = String(stationId || 'station1');
+  const state = _writeStates.get(sid);
+  if (state) {
+    try { state.stream.destroy(); } catch (_) {}
+    if (state.tempPath && fs.existsSync(state.tempPath)) {
+      try { fs.unlinkSync(state.tempPath); } catch (_) {}
+    }
+    _writeStates.delete(sid);
   }
-  if (_writeTempPath && fs.existsSync(_writeTempPath)) {
-    try { fs.unlinkSync(_writeTempPath); } catch (_) {}
+});
+
+// ─── Multi-window: Station Windows ────────────────────────────────────────────
+
+ipcMain.handle('open-station-window', (event, stationId) => {
+  const sid = String(stationId);
+
+  // If already open, focus it
+  if (stationWindows.has(sid)) {
+    const existing = stationWindows.get(sid);
+    if (!existing.isDestroyed()) {
+      existing.focus();
+      return { windowId: existing.id };
+    }
   }
-  _writeTempPath = null; _writeFinalPath = null; _writeFilename = null;
+
+  const settings = loadSettings();
+  const stationsCfg = settings.stations || [];
+  const stationCfg = stationsCfg.find(s => s.id === sid) || {};
+  const label = stationCfg.label || `Station ${sid.replace('station', '')}`;
+
+  const win = new BrowserWindow({
+    width: 800,
+    height: 700,
+    title: `${label} — Packing Recorder`,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false
+    }
+  });
+
+  win.loadFile('index.html', { query: { station: sid } });
+
+  win.on('closed', () => {
+    stationWindows.delete(sid);
+    // Notify main window that this station window closed
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('station-window-closed', sid);
+    }
+  });
+
+  stationWindows.set(sid, win);
+  return { windowId: win.id };
+});
+
+ipcMain.handle('get-open-station-windows', () => {
+  const result = [];
+  for (const [sid, win] of stationWindows.entries()) {
+    if (!win.isDestroyed()) result.push(sid);
+  }
+  return result;
+});
+
+ipcMain.handle('close-station-window', (event, stationId) => {
+  const sid = String(stationId);
+  const win = stationWindows.get(sid);
+  if (win && !win.isDestroyed()) {
+    win.close();
+  }
 });
 
 // Search for video by shipping code
@@ -310,7 +374,7 @@ ipcMain.handle('search-video', (event, shippingCode) => {
   const sanitizedCode = shippingCode.replace(/[^a-zA-Z0-9_\-]/g, '_');
   const files = fs.readdirSync(videosDir);
   const matches = files
-    .filter(f => f.startsWith(sanitizedCode) && f.endsWith('.webm'))
+    .filter(f => f.includes(sanitizedCode) && f.endsWith('.webm'))
     .map(f => ({
       filename: f,
       filePath: path.join(videosDir, f),
@@ -336,15 +400,26 @@ ipcMain.handle('list-all-videos', () => {
     .filter(f => f.endsWith('.webm'))
     .map(f => {
       const stats = fs.statSync(path.join(videosDir, f));
-      // Strip .webm and optional trailing _<13-digit-timestamp>
+      // Parse: stationN_SHIPPINGCODE[_timestamp].webm
       const base = f.replace(/\.webm$/, '');
-      const match = base.match(/^(.+?)(?:_(\d{13}))?$/);
-      const shippingCode = match ? match[1] : base;
+      // Try to extract station prefix
+      const stationMatch = base.match(/^(station\d+)_(.+?)(?:_(\d{13}))?$/);
+      let stationId = null;
+      let shippingCode = base;
+      if (stationMatch) {
+        stationId = stationMatch[1];
+        shippingCode = stationMatch[2];
+      } else {
+        // Legacy filename without station prefix
+        const legacyMatch = base.match(/^(.+?)(?:_(\d{13}))?$/);
+        shippingCode = legacyMatch ? legacyMatch[1] : base;
+      }
       const isManual = shippingCode.startsWith('MANUAL_');
       return {
         filename: f,
         filePath: path.join(videosDir, f),
         shippingCode,
+        stationId,
         isManual,
         size: stats.size,
         modified: stats.mtimeMs
@@ -441,6 +516,31 @@ ipcMain.handle('generate-manual-qr', async () => {
     width: 300,
     margin: 2
   });
+});
+
+// Generate QR code data URL for a station ID
+ipcMain.handle('generate-station-qr', async (event, stationId) => {
+  return QRCode.toDataURL(`STATION:${stationId}`, {
+    errorCorrectionLevel: 'H',
+    width: 300,
+    margin: 2
+  });
+});
+
+// Open the station QR print page
+ipcMain.handle('open-print-stations', (event, stationsData) => {
+  const win = new BrowserWindow({
+    width: 800,
+    height: 900,
+    title: 'Print Station QR Codes',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false
+    }
+  });
+  win.loadFile('print-stations.html', { query: { data: JSON.stringify(stationsData) } });
 });
 
 // Open folder picker dialog and persist choice

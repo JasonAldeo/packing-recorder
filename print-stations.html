@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Print Station QR Codes – Packing Recorder</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+    }
+
+    /* Screen view: show all pages with a separator */
+    .qr-page {
+      width: 100%;
+      max-width: 600px;
+      margin: 32px auto;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 48px 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.07);
+    }
+
+    .qr-page img {
+      width: 260px;
+      height: 260px;
+      border-radius: 8px;
+    }
+
+    .qr-app-name {
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #94a3b8;
+    }
+
+    .qr-station-name {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #1e293b;
+      text-align: center;
+    }
+
+    .qr-station-name.manual {
+      color: #7c3aed;
+    }
+
+    .qr-divider {
+      width: 60px;
+      height: 3px;
+      background: linear-gradient(90deg, #3b5bdb, #7c3aed);
+      border-radius: 2px;
+    }
+
+    .qr-instructions {
+      width: 100%;
+      display: flex;
+      gap: 16px;
+    }
+
+    .qr-lang-block {
+      flex: 1;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+
+    .qr-lang-label {
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #3b5bdb;
+      margin-bottom: 8px;
+    }
+
+    .qr-lang-block p {
+      font-size: 0.82rem;
+      line-height: 1.6;
+      color: #334155;
+    }
+
+    .qr-code-value {
+      font-size: 0.72rem;
+      font-family: 'Consolas', 'Courier New', monospace;
+      color: #94a3b8;
+      background: #f1f5f9;
+      padding: 4px 12px;
+      border-radius: 6px;
+    }
+
+    .screen-only {
+      text-align: center;
+      padding: 20px;
+      font-size: 0.88rem;
+      color: #64748b;
+    }
+
+    .print-btn {
+      display: block;
+      margin: 0 auto 32px;
+      padding: 12px 32px;
+      background: linear-gradient(135deg, #3b5bdb, #7c3aed);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .print-btn:hover { opacity: 0.88; }
+
+    /* ── Print styles ── */
+    @media print {
+      body { background: #fff; }
+
+      .screen-only,
+      .print-btn { display: none !important; }
+
+      .qr-page {
+        margin: 0;
+        max-width: 100%;
+        width: 100%;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        padding: 40px;
+        page-break-after: always;
+        break-after: page;
+      }
+
+      .qr-page:last-child {
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="screen-only">
+  <p>Preview of station QR codes. Click <strong>Print</strong> to print all pages.</p>
+</div>
+<button class="print-btn screen-only" onclick="window.print()">&#128438; Print All QR Codes</button>
+
+<div id="qr-container"></div>
+
+<script>
+(async () => {
+  // Parse station data from URL query param
+  const params = new URLSearchParams(window.location.search);
+  let stationsData = [];
+  try {
+    stationsData = JSON.parse(params.get('data') || '[]');
+  } catch (_) {}
+
+  const container = document.getElementById('qr-container');
+
+  // Generate station pages
+  for (const st of stationsData) {
+    const page = document.createElement('div');
+    page.className = 'qr-page';
+
+    // QR code
+    const img = document.createElement('img');
+    img.alt = `QR Code for ${st.label}`;
+    page.appendChild(img);
+
+    // App name
+    const appName = document.createElement('div');
+    appName.className = 'qr-app-name';
+    appName.textContent = 'Packing Recorder';
+    page.appendChild(appName);
+
+    // Station name
+    const stName = document.createElement('div');
+    stName.className = 'qr-station-name';
+    stName.textContent = st.label;
+    page.appendChild(stName);
+
+    // Divider
+    const div = document.createElement('div');
+    div.className = 'qr-divider';
+    page.appendChild(div);
+
+    // Instructions bilingual
+    const instrWrap = document.createElement('div');
+    instrWrap.className = 'qr-instructions';
+
+    const en = document.createElement('div');
+    en.className = 'qr-lang-block';
+    en.innerHTML = `
+      <div class="qr-lang-label">English</div>
+      <p>
+        Scan this QR code to <strong>activate ${st.label}</strong>.<br>
+        Then scan a shipping barcode to start recording.<br>
+        Scan this QR code again to <strong>stop</strong> the current recording.<br>
+        <br>
+        If you scan this code while the station is waiting (armed), it will <strong>cancel</strong> the armed state.
+      </p>
+    `;
+
+    const id = document.createElement('div');
+    id.className = 'qr-lang-block';
+    id.innerHTML = `
+      <div class="qr-lang-label">Bahasa Indonesia</div>
+      <p>
+        Scan kode QR ini untuk <strong>mengaktifkan ${st.label}</strong>.<br>
+        Kemudian scan barcode pengiriman untuk memulai rekaman.<br>
+        Scan kode QR ini lagi untuk <strong>menghentikan</strong> rekaman yang sedang berjalan.<br>
+        <br>
+        Jika di-scan saat stasiun sedang menunggu (aktif), akan <strong>membatalkan</strong> status aktif.
+      </p>
+    `;
+
+    instrWrap.appendChild(en);
+    instrWrap.appendChild(id);
+    page.appendChild(instrWrap);
+
+    // QR code value label
+    const codeVal = document.createElement('div');
+    codeVal.className = 'qr-code-value';
+    codeVal.textContent = `STATION:${st.num}`;
+    page.appendChild(codeVal);
+
+    container.appendChild(page);
+
+    // Generate QR via electronAPI
+    try {
+      const dataUrl = await window.electronAPI.generateStationQR(st.num);
+      img.src = dataUrl;
+    } catch (_) {}
+  }
+
+  // MANUALSCAN page
+  const manualPage = document.createElement('div');
+  manualPage.className = 'qr-page';
+
+  const manualImg = document.createElement('img');
+  manualImg.alt = 'Manual Scan QR Code';
+  manualPage.appendChild(manualImg);
+
+  const manualAppName = document.createElement('div');
+  manualAppName.className = 'qr-app-name';
+  manualAppName.textContent = 'Packing Recorder';
+  manualPage.appendChild(manualAppName);
+
+  const manualTitle = document.createElement('div');
+  manualTitle.className = 'qr-station-name manual';
+  manualTitle.textContent = 'Manual Scan';
+  manualPage.appendChild(manualTitle);
+
+  const manualDiv = document.createElement('div');
+  manualDiv.className = 'qr-divider';
+  manualPage.appendChild(manualDiv);
+
+  const manualInstr = document.createElement('div');
+  manualInstr.className = 'qr-instructions';
+
+  const manualEn = document.createElement('div');
+  manualEn.className = 'qr-lang-block';
+  manualEn.innerHTML = `
+    <div class="qr-lang-label">English</div>
+    <p>
+      <strong>First</strong>, scan your station QR code to activate that station.<br>
+      <strong>Then</strong> scan this QR code to start a <strong>manual recording</strong> on that station.<br>
+      Scan the station QR code again to stop the recording.
+    </p>
+  `;
+
+  const manualId = document.createElement('div');
+  manualId.className = 'qr-lang-block';
+  manualId.innerHTML = `
+    <div class="qr-lang-label">Bahasa Indonesia</div>
+    <p>
+      <strong>Pertama</strong>, scan kode QR stasiun Anda untuk mengaktifkan stasiun.<br>
+      <strong>Kemudian</strong> scan kode QR ini untuk memulai <strong>rekaman manual</strong> di stasiun tersebut.<br>
+      Scan kode QR stasiun lagi untuk menghentikan rekaman.
+    </p>
+  `;
+
+  manualInstr.appendChild(manualEn);
+  manualInstr.appendChild(manualId);
+  manualPage.appendChild(manualInstr);
+
+  const manualCodeVal = document.createElement('div');
+  manualCodeVal.className = 'qr-code-value';
+  manualCodeVal.textContent = 'MANUALSCAN';
+  manualPage.appendChild(manualCodeVal);
+
+  container.appendChild(manualPage);
+
+  try {
+    const dataUrl = await window.electronAPI.generateManualQR();
+    manualImg.src = dataUrl;
+  } catch (_) {}
+})();
+</script>
+</body>
+</html>

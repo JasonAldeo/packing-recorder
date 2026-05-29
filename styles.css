@@ -17,6 +17,25 @@ body {
   margin: 0 auto;
 }
 
+.scan-container {
+  max-width: 90%;
+  margin: 0 auto;
+}
+
+/* Single-station: side-by-side layout with capped camera size */
+#single-station-view {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+@media (max-width: 700px) {
+  #single-station-view {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── Toggle Switch ── */
 .toggle-switch {
   position: relative;
@@ -435,7 +454,7 @@ body {
 
 #camera-preview {
   width: 100%;
-  max-height: 540px;
+  max-height: 360px;
   border-radius: 12px;
   background: #0f172a;
   display: block;
@@ -1294,6 +1313,467 @@ body {
 }
 .license-btn-activate:hover { background: #334155; }
 .license-btn-activate:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Station Grid ─────────────────────────────────────────────────────────── */
+.stations-grid {
+  display: grid;
+  gap: 18px;
+  padding: 4px 0;
+}
+.stations-grid.grid-cols-1 { grid-template-columns: repeat(1, 1fr); }
+.stations-grid.grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+.stations-grid.grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+
+.station-card {
+  background: #fff;
+  border: 2px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 2px 10px rgba(59, 91, 219, 0.06);
+  transition: border-color 0.25s, box-shadow 0.25s;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.station-card.station-armed {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18), 0 4px 18px rgba(245, 158, 11, 0.12);
+  animation: station-armed-pulse 1.4s infinite;
+}
+
+.station-card.station-recording {
+  border-color: #e11d48;
+  box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.15), 0 4px 18px rgba(225, 29, 72, 0.1);
+}
+
+@keyframes station-armed-pulse {
+  0%, 100% { border-color: #f59e0b; }
+  50% { border-color: #fcd34d; }
+}
+
+.station-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.station-label-text {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.station-state-badge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.badge-idle {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.badge-armed {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+  animation: badge-armed-flash 1.2s infinite;
+}
+
+.badge-recording {
+  background: #fff1f2;
+  color: #e11d48;
+  border: 1px solid #fecdd3;
+  animation: pulse 1s infinite;
+}
+
+@keyframes badge-armed-flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.station-video-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.station-preview {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 10px;
+  background: #0f172a;
+  display: block;
+}
+
+.station-rec-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(225, 29, 72, 0.9);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.72rem;
+  padding: 3px 9px;
+  border-radius: 14px;
+  animation: pulse 1s infinite;
+  backdrop-filter: blur(4px);
+}
+
+.station-code-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #3b5bdb;
+  min-height: 18px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.station-timer {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #ea580c;
+}
+
+/* ── Dashboard ─────────────────────────────────────────────────────────────── */
+.dashboard-hint {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  background: #f0f4ff;
+  border-radius: 8px;
+  border: 1px solid #c7d2fe;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.dashboard-card {
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.2s;
+}
+
+.dashboard-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+
+.dashboard-station-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.dashboard-state-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  padding: 2px 8px;
+  border-radius: 14px;
+  text-transform: uppercase;
+}
+
+.dashboard-code {
+  font-size: 0.8rem;
+  color: #3b5bdb;
+  font-weight: 600;
+  min-height: 16px;
+}
+
+.dashboard-open-btn {
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1.5px solid #c7d2fe;
+  background: #f0f4ff;
+  color: #3b5bdb;
+  font-weight: 600;
+  font-size: 0.82rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.dashboard-open-btn:hover {
+  background: #e0e7ff;
+  border-color: #818cf8;
+}
+
+.dashboard-open-btn.btn-open {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #16a34a;
+}
+
+/* ── Station config (settings) ─────────────────────────────────────────────── */
+.setting-sub-block {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.setting-row-sub {
+  margin: 0;
+}
+
+.station-config-area {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.station-config-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: #3b5bdb;
+  margin-bottom: 4px;
+}
+
+.station-config-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.station-config-num {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #3b5bdb;
+  width: 22px;
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.station-config-fields {
+  display: flex;
+  gap: 10px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.station-label-input {
+  flex: 1;
+  min-width: 120px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  color: #1e293b;
+  font-size: 0.88rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.station-label-input:focus {
+  border-color: #3b5bdb;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.1);
+}
+
+.station-camera-select {
+  flex: 1;
+  min-width: 140px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  color: #1e293b;
+  font-size: 0.85rem;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.station-camera-select:focus {
+  border-color: #3b5bdb;
+  box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.1);
+}
+
+.setting-warning {
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+/* ── Station tag in recordings list ──────────────────────────────────────── */
+.rec-station-tag {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 800;
+  background: #f0f4ff;
+  color: #3b5bdb;
+  border: 1px solid #c7d2fe;
+  border-radius: 5px;
+  padding: 1px 5px;
+  margin-right: 5px;
+  letter-spacing: 0.3px;
+  vertical-align: middle;
+}
+
+/* ── Station filter select ───────────────────────────────────────────────── */
+.rec-station-select {
+  padding: 7px 12px;
+  border-radius: 10px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  color: #1e293b;
+  font-size: 0.85rem;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.rec-station-select:focus {
+  border-color: #3b5bdb;
+  box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.1);
+}
+
+.voice-speed-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.voice-speed-wrap input[type="range"] {
+  width: 140px;
+  accent-color: #3b5bdb;
+  cursor: pointer;
+}
+
+#voice-speed-label {
+  min-width: 36px;
+  font-size: 0.85rem;
+  color: #475569;
+  font-weight: 600;
+  text-align: right;
+}
+
+.station-card.station-cancelled {
+  border-color: #f97316;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2), 0 4px 18px rgba(249, 115, 22, 0.1);
+}
+
+.badge-cancelled {
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+}
+
+/* ── Test station row (inside test-mode panel) ──────────────────────────── */
+.test-station-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 6px;
+  border-top: 1px dashed #fcd34d;
+}
+
+.test-station-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #92400e;
+  white-space: nowrap;
+}
+
+.test-station-hint {
+  font-size: 0.75rem;
+  color: #b45309;
+  opacity: 0.8;
+  white-space: nowrap;
+}
+
+.test-station-btns {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.test-station-btn {
+  padding: 5px 12px;
+  border: 1.5px solid #f59e0b;
+  border-radius: 8px;
+  background: #fff;
+  color: #92400e;
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.test-station-btn:hover {
+  background: #fef3c7;
+  border-color: #d97706;
+}
+
+.test-station-btn:active {
+  background: #fde68a;
+}
+
+.btn-outline {
+  padding: 9px 20px;
+  border-radius: 10px;
+  border: 1.5px solid #c7d2fe;
+  background: #f0f4ff;
+  color: #3b5bdb;
+  font-weight: 600;
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.btn-outline:hover {
+  background: #e0e7ff;
+  border-color: #818cf8;
+}
 
 .license-feedback {
   font-size: 0.82rem;

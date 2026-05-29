@@ -1,288 +1,454 @@
 // ─── i18n helper ─────────────────────────────────────────────────────────────
 const t = (...args) => window._i18n.t(...args);
 
-// ─── State ───────────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 const MANUAL_SCAN_CODE = 'MANUALSCAN';
-let currentShippingCode = null;
+const STATION_QR_PREFIX = 'STATION:';
+const DEFAULT_ARMED_TIMEOUT_MS = 15000;
+const MAX_STATIONS = 6;
+
+// ─── Global state ─────────────────────────────────────────────────────────────
 let trialDaysLeft = null;
-let mediaRecorder = null;
-let stream = null;
-let writeQueue = Promise.resolve(); // serialises async chunk writes
-let timerInterval = null;
-let timerSeconds = 0;
 let barcodeBuffer = '';
 let barcodeTimeout = null;
 let currentPlayingPath = null;
+let allRecordings = [];
+
+// Multi-station state: Map of stationId -> station object
+// Single-station mode uses one station with id 'station1'
+const stations = new Map();
+
+// Settings cache
+let appSettings = {};
+
+// Whether this window is a station window (loaded with ?station=X)
+const urlParams = new URLSearchParams(window.location.search);
+const stationWindowId = urlParams.get('station'); // e.g. 'station1' or null
 
 // ─── DOM References ──────────────────────────────────────────────────────────
-const statusMessage = document.getElementById('status-message');
-const currentCodeEl = document.getElementById('current-code');
-const timerDisplay = document.getElementById('timer-display');
-const timerEl = document.getElementById('timer');
-const savedInfo = document.getElementById('saved-info');
-const cameraPreview = document.getElementById('camera-preview');
-const recordingBadge = document.getElementById('recording-badge');
-const cameraError = document.getElementById('camera-error');
+const statusMessage        = document.getElementById('status-message');
+const savedInfo            = document.getElementById('saved-info');
+const searchInput          = document.getElementById('search-input');
+const searchBtn            = document.getElementById('search-btn');
+const searchResults        = document.getElementById('search-results');
+const resultsList          = document.getElementById('results-list');
+const playbackSection      = document.getElementById('playback-section');
+const playingFilename      = document.getElementById('playing-filename');
+const playbackVideo        = document.getElementById('playback-video');
+const searchError          = document.getElementById('search-error');
+const saveAsBtn            = document.getElementById('save-as-btn');
+const saveAsStatus         = document.getElementById('save-as-status');
+const searchClearBtn       = document.getElementById('search-clear-btn');
+const recordingsListEl     = document.getElementById('recordings-list');
+const noRecordingsEl       = document.getElementById('no-recordings');
+const recDateFilter        = document.getElementById('rec-date-filter');
+const recStationFilter     = document.getElementById('rec-station-filter');
+const recResetFilterBtn    = document.getElementById('rec-reset-filter-btn');
+const recFilterCount       = document.getElementById('rec-filter-count');
+const manualRecordingsListEl  = document.getElementById('manual-recordings-list');
+const noManualRecordingsEl    = document.getElementById('no-manual-recordings');
+const manualDateFilter        = document.getElementById('manual-date-filter');
+const manualStationFilter     = document.getElementById('manual-station-filter');
+const manualResetFilterBtn    = document.getElementById('manual-reset-filter-btn');
+const manualFilterCount       = document.getElementById('manual-filter-count');
+const printQrBtn           = document.getElementById('print-qr-btn');
+const qrCodeSection        = document.getElementById('qr-code-section');
+const qrCodeImg            = document.getElementById('qr-code-img');
+const videosDirDisplay     = document.getElementById('videos-dir-display');
+const pickDirBtn           = document.getElementById('pick-dir-btn');
+const autoDeleteInput      = document.getElementById('auto-delete-days');
+const saveAutoDeleteBtn    = document.getElementById('save-auto-delete-btn');
+const autoDeleteStatus     = document.getElementById('auto-delete-status');
+const testModePanelEl      = document.getElementById('test-mode-panel');
+const testScanInput        = document.getElementById('test-scan-input');
+const testScanBtn          = document.getElementById('test-scan-btn');
+const testManualBtn        = document.getElementById('test-manual-btn');
+const testModeToggle       = document.getElementById('test-mode-toggle');
+const testStationRow       = document.getElementById('test-station-row');
+const testStationBtns      = document.getElementById('test-station-btns');
+const voiceEnabledToggle   = document.getElementById('voice-enabled-toggle');
+const voiceLocaleSelect    = document.getElementById('voice-locale-select');
+const voiceOptions         = document.getElementById('voice-options');
+const voiceSpeedRange      = document.getElementById('voice-speed-range');
+const voiceSpeedLabel      = document.getElementById('voice-speed-label');
+const localeSelect         = document.getElementById('locale-select');
 
-const searchInput = document.getElementById('search-input');
-const searchBtn = document.getElementById('search-btn');
-const searchResults = document.getElementById('search-results');
-const resultsList = document.getElementById('results-list');
-const playbackSection = document.getElementById('playback-section');
-const playingFilename = document.getElementById('playing-filename');
-const playbackVideo = document.getElementById('playback-video');
-const searchError = document.getElementById('search-error');
-const saveAsBtn = document.getElementById('save-as-btn');
-const saveAsStatus = document.getElementById('save-as-status');
-const searchClearBtn = document.getElementById('search-clear-btn');
-const stopRecordingBtn = document.getElementById('stop-recording-btn');
-const recordingsListEl = document.getElementById('recordings-list');
-const noRecordingsEl = document.getElementById('no-recordings');
-const recDateFilter = document.getElementById('rec-date-filter');
-const recResetFilterBtn = document.getElementById('rec-reset-filter-btn');
-const recFilterCount = document.getElementById('rec-filter-count');
-const manualRecordingsListEl = document.getElementById('manual-recordings-list');
-const noManualRecordingsEl = document.getElementById('no-manual-recordings');
-const manualDateFilter = document.getElementById('manual-date-filter');
-const manualResetFilterBtn = document.getElementById('manual-reset-filter-btn');
-const manualFilterCount = document.getElementById('manual-filter-count');
-const printQrBtn = document.getElementById('print-qr-btn');
-const qrCodeSection = document.getElementById('qr-code-section');
-const qrCodeImg = document.getElementById('qr-code-img');
-const videosDirDisplay = document.getElementById('videos-dir-display');
-const pickDirBtn = document.getElementById('pick-dir-btn');
-const autoDeleteInput = document.getElementById('auto-delete-days');
-const saveAutoDeleteBtn = document.getElementById('save-auto-delete-btn');
-const autoDeleteStatus = document.getElementById('auto-delete-status');
-const testModePanelEl = document.getElementById('test-mode-panel');
-const testScanInput = document.getElementById('test-scan-input');
-const testScanBtn = document.getElementById('test-scan-btn');
-const testManualBtn = document.getElementById('test-manual-btn');
-const testModeToggle = document.getElementById('test-mode-toggle');
-const localeSelect = document.getElementById('locale-select');
+// Multi-station DOM
+const stationsGrid         = document.getElementById('stations-grid');
+const singleStationView    = document.getElementById('single-station-view');
+const dashboardView        = document.getElementById('dashboard-view');
+const multiStationToggle   = document.getElementById('multi-station-toggle');
+const stationCountInput    = document.getElementById('station-count-input');
+const multiWindowToggle    = document.getElementById('multi-window-toggle');
+const armedTimeoutInput    = document.getElementById('armed-timeout-input');
+const stationConfigArea    = document.getElementById('station-config-area');
+const saveStationsBtn      = document.getElementById('save-stations-btn');
+const saveStationsStatus   = document.getElementById('save-stations-status');
+const printStationQrBtn    = document.getElementById('print-station-qr-btn');
+const cameraWarningEl      = document.getElementById('camera-warning');
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 (async () => {
   await window.electronAPI.ensureVideosDir();
-  await initCamera();
-  await loadRecordingsList();
-  await loadSavedDir();
-  initTabs();
+  appSettings = await window.electronAPI.getSettings();
+
+  // Restore locale first so UI is translated on load
+  if (appSettings.locale) {
+    window._i18n.setLocale(appSettings.locale);
+  }
+
+  if (stationWindowId) {
+    // This is a station-specific window — render only that station
+    await initAsStationWindow(stationWindowId);
+  } else {
+    // Main window
+    await initMainWindow();
+  }
+
+  applyTranslations();
   await initLicense();
 })();
 
-// ─── Locale ───────────────────────────────────────────────────────────────────
-localeSelect.addEventListener('change', async () => {
-  const locale = localeSelect.value;
-  window._i18n.setLocale(locale);
-  await window.electronAPI.saveSettings({ locale });
-  applyTranslations();
-});
-
-function applyTranslations() {
-  // Update all static elements tagged with data-i18n
-  document.querySelectorAll('[data-i18n]').forEach(el => {
-    el.textContent = t(el.dataset.i18n);
-  });
-  // Update placeholder attributes
-  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-    el.placeholder = t(el.dataset.i18nPlaceholder);
-  });
-  // Sync locale selector
-  localeSelect.value = window._i18n.getLocale();
-  // Re-apply dynamic status if no recording is active
-  if (!currentShippingCode) {
-    setStatus('waiting', t('scan.waiting'));
-  }
-  // Re-apply trial badge text if visible
-  if (trialDaysLeft !== null && !trialBadge.classList.contains('hidden')) {
-    trialBadgeText.textContent = t('trial.badge', trialDaysLeft);
-  }
-  // Re-render recordings list so play/delete buttons and empty-state text update
-  renderRecordingsList();
-}
-
-// ─── License / Trial ──────────────────────────────────────────────────────────
-const licenseOverlay   = document.getElementById('license-overlay');
-const trialBadge       = document.getElementById('trial-badge');
-const trialBadgeText   = document.getElementById('trial-badge-text');
-const trialBuyBtn      = document.getElementById('trial-buy-btn');
-const overlayBuyBtn    = document.getElementById('overlay-buy-btn');
-const licenseKeyInput  = document.getElementById('license-key-input');
-const activateBtn      = document.getElementById('activate-btn');
-const licenseFeedback  = document.getElementById('license-feedback');
-
-async function initLicense() {
-  const status = await window.electronAPI.getLicenseStatus();
-
-  if (status.licensed) {
-    // Fully licensed — nothing to show
-    return;
-  }
-
-  if (status.trialExpired) {
-    // Block the app with overlay
-    licenseOverlay.classList.remove('hidden');
-  } else {
-    // Trial active — show badge
-    const days = status.trialDaysLeft;
-    trialDaysLeft = days;
-    trialBadgeText.textContent = t('trial.badge', days);
-    if (days <= 2) trialBadge.classList.add('trial-badge-urgent');
-    trialBadge.classList.remove('hidden');
-  }
-}
-
-// Auto-format license key input as user types (XXXX-XXXX-XXXX-XXXX)
-licenseKeyInput.addEventListener('input', () => {
-  let raw = licenseKeyInput.value.replace(/[^A-Z0-9]/gi, '').toUpperCase().slice(0, 16);
-  const parts = raw.match(/.{1,4}/g) || [];
-  licenseKeyInput.value = parts.join('-');
-});
-
-// Buy buttons open the purchase page in browser
-[trialBuyBtn, overlayBuyBtn].forEach(btn => {
-  btn.addEventListener('click', () => window.electronAPI.openPurchasePage());
-});
-
-// Activate button
-activateBtn.addEventListener('click', async () => {
-  const key = licenseKeyInput.value.trim();
-  if (!key) return;
-
-  setLicenseFeedback('', '');
-  activateBtn.disabled = true;
-  activateBtn.textContent = t('activate.checking');
-
-  const result = await window.electronAPI.activateLicense(key);
-
-  activateBtn.disabled = false;
-  activateBtn.textContent = t('activate.btn');
-
-  if (result.valid) {
-    setLicenseFeedback('success', t('activate.success', result.message));
-    setTimeout(() => { licenseOverlay.classList.add('hidden'); }, 1800);
-  } else {
-    setLicenseFeedback('error', result.message || t('activate.failed'));
-  }
-});
-
-function setLicenseFeedback(type, msg) {
-  licenseFeedback.textContent = msg;
-  licenseFeedback.className = 'license-feedback';
-  if (type) licenseFeedback.classList.add(type);
-  if (msg) licenseFeedback.classList.remove('hidden');
-  else licenseFeedback.classList.add('hidden');
-}
-
-// ─── Tab Navigation ────────────────────────────────────────────────────────────────────────────
-function initTabs() {
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-  });
-}
-
-function switchTab(tabId) {
-  document.querySelectorAll('.tab-btn').forEach(b =>
-    b.classList.toggle('active', b.dataset.tab === tabId)
-  );
-  document.querySelectorAll('.tab-panel').forEach(p =>
-    p.classList.toggle('active', p.id === `tab-${tabId}`)
-  );
-}
-
-async function loadSavedDir() {
-  // ensureVideosDir resolves the real active dir (with fallback if saved path is gone)
-  const activeDir = await window.electronAPI.ensureVideosDir();
-  videosDirDisplay.textContent = activeDir;
-  // Load settings
-  const settings = await window.electronAPI.getSettings();
-  autoDeleteInput.value = settings.autoDeleteDays || 0;
-  updateAutoDeleteStatus(settings.autoDeleteDays || 0, null);
-  // Restore test mode toggle state
-  if (settings.testMode) {
-    testModeToggle.checked = true;
-    await applyTestMode(true);
-  }
-  // Restore locale
-  if (settings.locale) {
-    window._i18n.setLocale(settings.locale);
-    applyTranslations();
-  }
-}
-
-testModeToggle.addEventListener('change', async () => {
-  await window.electronAPI.saveSettings({ testMode: testModeToggle.checked });
-  await applyTestMode(testModeToggle.checked);
-});
-
-async function applyTestMode(enabled) {
-  if (enabled) {
-    // Stop real camera if running
-    if (stream) {
-      stream.getTracks().forEach(t => t.stop());
-      stream = null;
-    }
-    stream = createFakeStream();
-    cameraPreview.srcObject = stream;
-    testModePanelEl.classList.remove('hidden');
-  } else {
-    // Stop fake stream
-    if (stream) {
-      stream.getTracks().forEach(t => t.stop());
-      stream = null;
-    }
-    testModePanelEl.classList.add('hidden');
-    await initCamera();
-  }
-}
-
-saveAutoDeleteBtn.addEventListener('click', async () => {
-  const days = parseInt(autoDeleteInput.value, 10);
-  if (isNaN(days) || days < 0) {
-    autoDeleteInput.value = 0;
-    return;
-  }
-  await window.electronAPI.saveSettings({ autoDeleteDays: days });
-  const result = await window.electronAPI.deleteOldRecordings();
-  updateAutoDeleteStatus(days, result);
+// ─── Main window init ─────────────────────────────────────────────────────────
+async function initMainWindow() {
+  initTabs();
+  await loadSavedDir();
+  await initStations();
   await loadRecordingsList();
-});
 
-function updateAutoDeleteStatus(days, result) {
-  autoDeleteStatus.classList.remove('hidden', 'success', 'info');
-  if (!days || days <= 0) {
-    autoDeleteStatus.textContent = t('settings.autoDeleteDisabled');
-    autoDeleteStatus.classList.add('info');
-  } else if (result === null) {
-    autoDeleteStatus.textContent = t('settings.autoDeleteEnabled', days);
-    autoDeleteStatus.classList.add('info');
-  } else {
-    autoDeleteStatus.textContent = t('settings.autoDeleteSaved', result.deleted, days);
-    autoDeleteStatus.classList.add('success');
+  // Listen for station window closures (notified by main process)
+  window.electronAPI.onStationWindowClosed((sid) => {
+    updateDashboardWindowButton(sid, false);
+  });
+}
+
+// ─── Station window init ──────────────────────────────────────────────────────
+async function initAsStationWindow(sid) {
+  // Hide everything except the station view
+  document.querySelector('.tab-nav').classList.add('hidden');
+  document.querySelector('.tab-content').style.paddingTop = '0';
+
+  // Only show the station panel
+  if (stationsGrid) stationsGrid.classList.add('hidden');
+  if (dashboardView) dashboardView.classList.add('hidden');
+
+  // Show the single-station-view panel
+  const panel = document.getElementById('tab-scan');
+  if (panel) panel.classList.add('active');
+
+  // Build this one station
+  const settings = appSettings;
+  const stationsCfg = settings.stations || [];
+  const cfg = stationsCfg.find(s => s.id === sid) || { id: sid, label: labelFromId(sid) };
+
+  await buildStation(cfg, true /* fullSize */);
+  const st = stations.get(sid);
+  if (st) {
+    // Restore test mode if enabled
+    if (settings.testMode) {
+      st.stream = createFakeStream();
+      st.elements.video.srcObject = st.stream;
+      if (testModePanelEl) testModePanelEl.classList.remove('hidden');
+    } else {
+      await initStationCamera(sid);
+    }
   }
 }
 
-pickDirBtn.addEventListener('click', async () => {
-  const chosen = await window.electronAPI.pickVideosDir();
-  if (chosen) {
-    videosDirDisplay.textContent = chosen;
-    await loadRecordingsList();
-  }
-});
+// ─── Station initialization ───────────────────────────────────────────────────
+async function initStations() {
+  const settings = appSettings;
+  const multiStation = settings.multiStation || false;
+  const multiWindow = settings.multiWindow || false;
+  const stationsCfg = settings.stations || [];
+  const stationCount = multiStation ? Math.min(parseInt(settings.stationCount, 10) || 1, MAX_STATIONS) : 1;
 
-async function initCamera() {
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: false
+  // Build station config array
+  const configs = [];
+  for (let i = 1; i <= stationCount; i++) {
+    const id = `station${i}`;
+    const saved = stationsCfg.find(s => s.id === id) || {};
+    configs.push({
+      id,
+      label: saved.label || `Station ${i}`,
+      cameraDeviceId: saved.cameraDeviceId || null,
     });
-    cameraPreview.srcObject = stream;
-    cameraError.classList.add('hidden');
-  } catch (err) {
-    cameraError.textContent = t('status.cameraError', err.message);
-    cameraError.classList.remove('hidden');
   }
+
+  // Decide render mode
+  if (!multiStation) {
+    // Single-station mode: show the classic single view
+    if (singleStationView) singleStationView.classList.remove('hidden');
+    if (stationsGrid) stationsGrid.classList.add('hidden');
+    if (dashboardView) dashboardView.classList.add('hidden');
+
+    await buildStation(configs[0], true);
+    const settings2 = appSettings;
+    if (settings2.testMode) {
+      const st = stations.get('station1');
+      if (st) {
+        st.stream = createFakeStream();
+        st.elements.video.srcObject = st.stream;
+        if (testModePanelEl) testModePanelEl.classList.remove('hidden');
+      }
+    } else {
+      await initStationCamera('station1');
+    }
+  } else if (multiStation && multiWindow) {
+    // Dashboard mode
+    if (singleStationView) singleStationView.classList.add('hidden');
+    if (stationsGrid) stationsGrid.classList.add('hidden');
+    if (dashboardView) dashboardView.classList.remove('hidden');
+
+    renderDashboard(configs);
+  } else {
+    // Multi-station single-window grid
+    if (singleStationView) singleStationView.classList.add('hidden');
+    if (dashboardView) dashboardView.classList.add('hidden');
+    if (stationsGrid) {
+      stationsGrid.classList.remove('hidden');
+      stationsGrid.innerHTML = '';
+      // Set dynamic column class based on station count
+      stationsGrid.classList.remove('grid-cols-1', 'grid-cols-2', 'grid-cols-3');
+      const colClass = stationCount <= 1 ? 'grid-cols-1'
+                     : stationCount <= 4 ? 'grid-cols-2'
+                     : 'grid-cols-3';
+      stationsGrid.classList.add(colClass);
+    }
+
+    for (const cfg of configs) {
+      await buildStation(cfg, false);
+    }
+
+    // Init cameras (may be test mode)
+    const settings2 = appSettings;
+    for (const cfg of configs) {
+      if (settings2.testMode) {
+        const st = stations.get(cfg.id);
+        if (st) {
+          st.stream = createFakeStream();
+          st.elements.video.srcObject = st.stream;
+        }
+      } else {
+        await initStationCamera(cfg.id);
+      }
+    }
+    if (settings2.testMode && testModePanelEl) {
+      testModePanelEl.classList.remove('hidden');
+    }
+  }
+
+  // Enumerate cameras and warn if not enough
+  await enumerateCamerasAndWarn(stationCount, multiStation);
+
+  // Render station test buttons (only visible in multi-station + test mode)
+  renderTestStationButtons(stationCount, multiStation);
+
+  // Wire test scan controls once (works regardless of single/multi-station mode)
+  initTestControls();
+}
+
+function initTestControls() {
+  if (testScanBtn) {
+    testScanBtn.onclick = () => {
+      const code = testScanInput ? testScanInput.value.trim() : '';
+      if (code) { routeBarcode(code); testScanInput.value = ''; }
+    };
+  }
+  if (testManualBtn) {
+    testManualBtn.onclick = () => routeBarcode(MANUAL_SCAN_CODE);
+  }
+  if (testScanInput) {
+    testScanInput.onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        const code = testScanInput.value.trim();
+        if (code) { routeBarcode(code); testScanInput.value = ''; }
+      }
+    };
+  }
+}
+
+// ─── Build a station card ──────────────────────────────────────────────────────
+async function buildStation(cfg, fullSize) {
+  const sid = cfg.id;
+  const num = parseInt(sid.replace('station', ''), 10);
+
+  // Create state object
+  const stateObj = {
+    id: sid,
+    label: cfg.label || `Station ${num}`,
+    cameraDeviceId: cfg.cameraDeviceId || null,
+    stream: null,
+    mediaRecorder: null,
+    writeQueue: Promise.resolve(),
+    state: 'idle', // 'idle' | 'armed' | 'recording'
+    armedTimer: null,
+    currentShippingCode: null,
+    timerInterval: null,
+    timerSeconds: 0,
+    elements: {}
+  };
+  stations.set(sid, stateObj);
+
+  if (fullSize) {
+    // Use the existing single-station DOM elements
+    stateObj.elements = {
+      card: singleStationView,
+      video: document.getElementById('camera-preview'),
+      badge: document.getElementById('recording-badge'),
+      statusText: document.getElementById('status-message'),
+      codeLabel: document.getElementById('current-code'),
+      timerDisplay: document.getElementById('timer-display'),
+      timerEl: document.getElementById('timer'),
+      savedInfo: document.getElementById('saved-info'),
+      stopBtn: document.getElementById('stop-recording-btn'),
+      cameraError: document.getElementById('camera-error'),
+      stateLabel: null, // no state badge in single view
+    };
+
+    // Wire stop button
+    const stopBtn = stateObj.elements.stopBtn;
+    if (stopBtn) {
+      stopBtn.addEventListener('click', () => {
+        if (stateObj.currentShippingCode) stopRecording(sid);
+      });
+    }
+
+  } else {
+    // Build a card element and append to grid
+    const card = document.createElement('div');
+    card.className = 'station-card station-idle';
+    card.id = `station-card-${sid}`;
+    card.innerHTML = `
+      <div class="station-header">
+        <span class="station-label-text">${cfg.label || `Station ${num}`}</span>
+        <span class="station-state-badge badge-idle" id="badge-${sid}">${t('station.idle')}</span>
+      </div>
+      <div class="station-video-wrap">
+        <video class="station-preview" id="video-${sid}" autoplay muted playsinline></video>
+        <div class="station-rec-badge hidden" id="rec-badge-${sid}">\u25CF REC</div>
+      </div>
+      <div class="station-code-label" id="code-${sid}"></div>
+      <div class="station-timer hidden" id="timer-display-${sid}">
+        <span>${t('scan.timerLabel')}</span> <span id="timer-${sid}">00:00</span>
+      </div>
+    `;
+    if (stationsGrid) stationsGrid.appendChild(card);
+
+    stateObj.elements = {
+      card,
+      video: document.getElementById(`video-${sid}`),
+      badge: document.getElementById(`rec-badge-${sid}`),
+      stateLabel: document.getElementById(`badge-${sid}`),
+      codeLabel: document.getElementById(`code-${sid}`),
+      timerDisplay: document.getElementById(`timer-display-${sid}`),
+      timerEl: document.getElementById(`timer-${sid}`),
+      statusText: null,
+      savedInfo: null,
+      stopBtn: null,
+      cameraError: null,
+    };
+  }
+
+  return stateObj;
+}
+
+// ─── Camera init per station ──────────────────────────────────────────────────
+async function initStationCamera(sid) {
+  const st = stations.get(sid);
+  if (!st) return;
+
+  const videoEl = st.elements.video;
+  const cameraError = st.elements.cameraError;
+
+  try {
+    const constraints = {
+      video: st.cameraDeviceId
+        ? { deviceId: { exact: st.cameraDeviceId } }
+        : true,
+      audio: false
+    };
+    st.stream = await navigator.mediaDevices.getUserMedia(constraints);
+    if (videoEl) videoEl.srcObject = st.stream;
+    if (cameraError) cameraError.classList.add('hidden');
+  } catch (err) {
+    // Fallback: try without exact deviceId
+    try {
+      st.stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      if (videoEl) videoEl.srcObject = st.stream;
+      if (cameraError) cameraError.classList.add('hidden');
+    } catch (err2) {
+      if (cameraError) {
+        cameraError.textContent = t('status.cameraError', err2.message);
+        cameraError.classList.remove('hidden');
+      }
+      setStationStatus(sid, 'idle');
+    }
+  }
+}
+
+// ─── Test station buttons ─────────────────────────────────────────────────────
+function renderTestStationButtons(stationCount, multiStation) {
+  if (!testStationRow || !testStationBtns) return;
+
+  // Only show in multi-station mode with more than 1 station
+  const show = multiStation && stationCount > 1;
+  testStationRow.classList.toggle('hidden', !show);
+
+  if (!show) return;
+
+  testStationBtns.innerHTML = '';
+  for (let i = 1; i <= stationCount; i++) {
+    const sid = `station${i}`;
+    const st = stations.get(sid);
+    const label = st ? st.label : `Station ${i}`;
+    const btn = document.createElement('button');
+    btn.className = 'test-station-btn';
+    btn.dataset.stationNum = i;
+    btn.textContent = `${t('test.stationBtn', i)} [${i}]`;
+    btn.title = label;
+    btn.addEventListener('click', () => {
+      if (appSettings.testMode) routeBarcode(`${STATION_QR_PREFIX}${i}`);
+    });
+    testStationBtns.appendChild(btn);
+  }
+}
+
+// ─── Camera enumeration ───────────────────────────────────────────────────────
+async function enumerateCamerasAndWarn(stationCount, multiStation) {
+  if (!multiStation || stationCount <= 1) {
+    if (cameraWarningEl) cameraWarningEl.classList.add('hidden');
+    return;
+  }
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoDevices = devices.filter(d => d.kind === 'videoinput');
+    populateCameraDropdowns(videoDevices);
+    if (videoDevices.length < stationCount) {
+      if (cameraWarningEl) {
+        cameraWarningEl.textContent = t('settings.cameraWarning', videoDevices.length, stationCount);
+        cameraWarningEl.classList.remove('hidden');
+      }
+    } else {
+      if (cameraWarningEl) cameraWarningEl.classList.add('hidden');
+    }
+  } catch (_) {}
+}
+
+function populateCameraDropdowns(videoDevices) {
+  const selects = document.querySelectorAll('.station-camera-select');
+  selects.forEach(sel => {
+    const currentVal = sel.value;
+    // Keep first "not assigned" option
+    while (sel.options.length > 1) sel.remove(1);
+    videoDevices.forEach((d, i) => {
+      const opt = document.createElement('option');
+      opt.value = d.deviceId;
+      opt.textContent = d.label || `Camera ${i + 1}`;
+      sel.appendChild(opt);
+    });
+    if (currentVal) sel.value = currentVal;
+  });
 }
 
 function createFakeStream() {
@@ -293,12 +459,10 @@ function createFakeStream() {
   function draw() {
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, 640, 480);
-    // Animated grid lines
     ctx.strokeStyle = '#1e3a5f';
     ctx.lineWidth = 1;
     for (let x = 0; x < 640; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 480); ctx.stroke(); }
     for (let y = 0; y < 480; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(640, y); ctx.stroke(); }
-    // Label
     ctx.fillStyle = '#f59e0b';
     ctx.font = 'bold 38px monospace';
     ctx.textAlign = 'center';
@@ -315,177 +479,539 @@ function createFakeStream() {
   return canvas.captureStream(15);
 }
 
-// ─── Test Mode Controls ────────────────────────────────────────────────────────
-testScanBtn.addEventListener('click', () => {
-  const code = testScanInput.value.trim();
-  if (code) { handleBarcodeScan(code); testScanInput.value = ''; }
-});
+// ─── Voice announcements ──────────────────────────────────────────────────────
 
-testManualBtn.addEventListener('click', () => {
-  handleBarcodeScan(MANUAL_SCAN_CODE);
-});
+/** Returns the spoken label for a station in the voice locale, e.g. "Station Two" / "Stasiun Dua". */
+function voiceLabelFor(sid) {
+  const num = parseInt(sid.replace('station', ''), 10);
+  const voiceLocale = appSettings.voiceLocale || 'id';
+  const dict = window._i18n.getTranslations(voiceLocale);
+  const numWord = typeof dict['voice.stationNum'] === 'function'
+    ? dict['voice.stationNum'](num)
+    : String(num);
+  // const prefix = voiceLocale === 'id' ? 'Stasiun' : 'Station';
+  return `${numWord}`;
+}
 
-testScanInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    const code = testScanInput.value.trim();
-    if (code) { handleBarcodeScan(code); testScanInput.value = ''; }
-  }
-});
+/** Speak a voice announcement phrase, using the voice locale independently of the UI locale. */
+function speak(voiceKey, label) {
+  if (!appSettings.voiceEnabled) return;
+  const voiceLocale = appSettings.voiceLocale || 'id';
+  const voiceSpeed  = parseFloat(appSettings.voiceSpeed) || 1.0;
+  const dict = window._i18n.getTranslations(voiceLocale);
+  const val = dict[voiceKey];
+  const phrase = typeof val === 'function' ? val(label) : (val ?? '');
+  if (!phrase) return;
+  const utter = new SpeechSynthesisUtterance(phrase);
+  utter.lang = voiceLocale === 'id' ? 'id-ID' : 'en-US';
+  utter.rate = voiceSpeed;
+  window.speechSynthesis.cancel(); // cancel any in-progress speech first
+  window.speechSynthesis.speak(utter);
+}
 
-// ─── Barcode Input Capture ────────────────────────────────────────────────────
+/**
+ * Speak multiple phrases in sequence, one after another.
+ * @param {Array<{key: string, label: string}>} items
+ */
+function speakSequence(items) {
+  if (!appSettings.voiceEnabled || !items.length) return;
+  const voiceLocale = appSettings.voiceLocale || 'id';
+  const voiceSpeed  = parseFloat(appSettings.voiceSpeed) || 1.0;
+  const lang = voiceLocale === 'id' ? 'id-ID' : 'en-US';
+  const dict = window._i18n.getTranslations(voiceLocale);
+  window.speechSynthesis.cancel();
+  items.forEach(({ key, label }) => {
+    const val = dict[key];
+    const phrase = typeof val === 'function' ? val(label) : (val ?? '');
+    if (!phrase) return;
+    const utter = new SpeechSynthesisUtterance(phrase);
+    utter.lang = lang;
+    utter.rate = voiceSpeed;
+    window.speechSynthesis.speak(utter); // queued, not cancelled
+  });
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+async function renderDashboard(configs) {
+  if (!dashboardView) return;
+  dashboardView.innerHTML = `
+    <div class="dashboard-hint">${t('dashboard.hint')}</div>
+    <div class="dashboard-grid" id="dashboard-grid"></div>
+  `;
+  const grid = document.getElementById('dashboard-grid');
+  const openWindows = await window.electronAPI.getOpenStationWindows();
+
+  configs.forEach(cfg => {
+    const sid = cfg.id;
+    const num = parseInt(sid.replace('station', ''), 10);
+    const isOpen = openWindows.includes(sid);
+    const card = document.createElement('div');
+    card.className = 'dashboard-card';
+    card.id = `dash-card-${sid}`;
+    card.innerHTML = `
+      <div class="dashboard-card-header">
+        <span class="dashboard-station-name">${cfg.label || `Station ${num}`}</span>
+        <span class="dashboard-state-badge badge-idle" id="dash-badge-${sid}">${t('station.idle')}</span>
+      </div>
+      <div class="dashboard-code" id="dash-code-${sid}"></div>
+      <button class="dashboard-open-btn ${isOpen ? 'btn-open' : ''}" id="dash-btn-${sid}">
+        ${isOpen ? t('dashboard.windowOpen') : t('dashboard.openWindow')}
+      </button>
+    `;
+    grid.appendChild(card);
+
+    document.getElementById(`dash-btn-${sid}`).addEventListener('click', async () => {
+      await window.electronAPI.openStationWindow(sid);
+      updateDashboardWindowButton(sid, true);
+    });
+  });
+}
+
+function updateDashboardWindowButton(sid, isOpen) {
+  const btn = document.getElementById(`dash-btn-${sid}`);
+  if (!btn) return;
+  btn.textContent = isOpen ? t('dashboard.windowOpen') : t('dashboard.openWindow');
+  btn.classList.toggle('btn-open', isOpen);
+}
+
+// ─── Scanner routing ──────────────────────────────────────────────────────────
+// Global keydown listener — routes to the right station
 document.addEventListener('keydown', (e) => {
-  // Ignore keystrokes when any input or textarea is focused
   const tag = document.activeElement.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement.isContentEditable) return;
+
+  // ── Test mode: digit keys 1–5 simulate STATION:X QR scans ──────────────────
+  if (appSettings.testMode && appSettings.multiStation && /^[1-5]$/.test(e.key)) {
+    const num = parseInt(e.key, 10);
+    if (num <= (parseInt(appSettings.stationCount, 10) || 1)) {
+      routeBarcode(`${STATION_QR_PREFIX}${num}`);
+      return;
+    }
+  }
 
   if (e.key === 'Enter') {
     const code = barcodeBuffer.trim();
     barcodeBuffer = '';
     clearTimeout(barcodeTimeout);
-    if (code.length > 0) {
-      handleBarcodeScan(code);
-    }
+    if (code.length > 0) routeBarcode(code);
     return;
   }
 
-  // Accept printable characters only
   if (e.key.length === 1) {
     barcodeBuffer += e.key;
-    // Auto-reset buffer after 500ms of inactivity (safety net)
     clearTimeout(barcodeTimeout);
-    barcodeTimeout = setTimeout(() => {
-      barcodeBuffer = '';
-    }, 500);
+    barcodeTimeout = setTimeout(() => { barcodeBuffer = ''; }, 500);
   }
 });
 
-// ─── Barcode Logic ────────────────────────────────────────────────────────────
-async function handleBarcodeScan(code) {
+function routeBarcode(code) {
+  // In station window mode, route only to this station
+  if (stationWindowId) {
+    handleCodeForStation(stationWindowId, code);
+    return;
+  }
+
+  // Station QR code
+  if (code.startsWith(STATION_QR_PREFIX)) {
+    const sid = 'station' + code.slice(STATION_QR_PREFIX.length);
+    handleStationQR(sid);
+    return;
+  }
+
+  // MANUALSCAN: deliver to any armed station
   if (code === MANUAL_SCAN_CODE) {
-    if (!currentShippingCode) {
-      // Start a new manual recording named by current date/time
-      const now = new Date();
-      const pad = n => String(n).padStart(2, '0');
-      const name = `MANUAL_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-      currentShippingCode = name;
-      startRecording(name);
-    } else if (currentShippingCode.startsWith('MANUAL_')) {
-      // Stop the in-progress manual recording
-      stopRecording();
+    const armed = getArmedStation();
+    if (armed) {
+      handleCodeForStation(armed.id, MANUAL_SCAN_CODE);
     } else {
-      // Regular recording in progress — notify user
-      setStatus('warning', t('status.regularInProgress'));
+      // Single-station mode: deliver to station1
+      const single = stations.get('station1');
+      if (single && stations.size === 1) {
+        handleCodeForStation('station1', MANUAL_SCAN_CODE);
+      } else {
+        showGlobalWarning(t('status.scanStationFirst'));
+      }
     }
     return;
   }
 
-  if (!currentShippingCode) {
-    // Check for existing recordings — block duplicates
+  // Regular barcode
+  const multiStation = appSettings.multiStation || false;
+  if (!multiStation || stations.size === 1) {
+    // Single station mode — deliver directly
+    handleCodeForStation('station1', code);
+  } else {
+    // Multi-station: route to armed station
+    const armed = getArmedStation();
+    if (armed) {
+      handleCodeForStation(armed.id, code);
+    } else {
+      showGlobalWarning(t('status.scanStationFirst'));
+    }
+  }
+}
+
+function getArmedStation() {
+  for (const [, st] of stations) {
+    if (st.state === 'armed') return st;
+  }
+  return null;
+}
+
+// ─── Station QR handler ────────────────────────────────────────────────────────
+function handleStationQR(sid) {
+  const st = stations.get(sid);
+  if (!st) return;
+
+  if (st.state === 'idle') {
+    // Find any currently armed station that will be displaced
+    let displacedId = null;
+    for (const [otherId, other] of stations) {
+      if (otherId !== sid && other.state === 'armed') {
+        displacedId = otherId;
+        break;
+      }
+    }
+
+    if (displacedId) {
+      // Cancel the displaced station (visual flash only — no voice yet)
+      cancelArm(displacedId, false, true /* skipVoice */);
+      // Arm new station (visual only — no voice yet)
+      armStation(sid, true /* skipVoice */);
+      // Speak combined phrase: "Station Two cancelled, Station Three waiting"
+      speakSequence([
+        { key: 'voice.cancelled', label: voiceLabelFor(displacedId) },
+        { key: 'voice.armed',     label: voiceLabelFor(sid) },
+      ]);
+    } else {
+      armStation(sid);
+    }
+  } else if (st.state === 'armed') {
+    // Operator scanned their own station QR while armed — cancel
+    cancelArm(sid, false);
+  } else if (st.state === 'recording') {
+    stopRecording(sid);
+  }
+}
+
+function armStation(sid, skipVoice = false) {
+  const st = stations.get(sid);
+  if (!st) return;
+  st.state = 'armed';
+  setStationStatus(sid, 'armed');
+  if (!skipVoice) speak('voice.armed', voiceLabelFor(sid));
+
+  const timeoutMs = (parseInt(appSettings.armedTimeoutSecs, 10) || 15) * 1000;
+  st.armedTimer = setTimeout(() => {
+    // Timeout-triggered cancel: silent (no flash, no voice — operator is gone)
+    if (st.state === 'armed') cancelArm(sid, true);
+  }, timeoutMs);
+}
+
+/**
+ * Cancel the armed state of a station.
+ * @param {string} sid
+ * @param {boolean} silent    - true = quiet return to idle (timeout); false = flash (displaced)
+ * @param {boolean} skipVoice - true = caller will handle voice themselves (combined phrase)
+ */
+function cancelArm(sid, silent = true, skipVoice = false) {
+  const st = stations.get(sid);
+  if (!st) return;
+  clearTimeout(st.armedTimer);
+  st.armedTimer = null;
+  st.state = 'idle';
+
+  if (silent) {
+    // Quiet return to idle — operator walked away, no need to alarm
+    setStationStatus(sid, 'idle');
+    if (statusMessage && stations.size === 1) {
+      setStatus('waiting', t('status.stationCancelled', st.label));
+    }
+  } else {
+    // Flash "CANCELLED" for 1500ms then fade to idle
+    setStationStatus(sid, 'cancelled');
+    if (!skipVoice) speak('voice.cancelled', voiceLabelFor(sid));
+    setTimeout(() => {
+      if (st.state === 'idle') setStationStatus(sid, 'idle');
+    }, 1500);
+    if (statusMessage && stations.size === 1) {
+      setStatus('waiting', t('status.stationCancelled', st.label));
+    }
+  }
+}
+
+// ─── Per-station barcode logic ─────────────────────────────────────────────────
+async function handleCodeForStation(sid, code) {
+  const st = stations.get(sid);
+  if (!st) return;
+
+  if (code === MANUAL_SCAN_CODE) {
+    if (!st.currentShippingCode) {
+      const name = generateManualName();
+      clearArmedTimer(sid);
+      st.state = 'recording';
+      st.currentShippingCode = name;
+      await startRecording(sid, name);
+    } else if (st.currentShippingCode.startsWith('MANUAL_')) {
+      stopRecording(sid);
+    } else {
+      // Regular recording in progress
+      if (stations.size === 1 && statusMessage) {
+        setStatus('warning', t('status.regularInProgress'));
+      }
+    }
+    return;
+  }
+
+  if (!st.currentShippingCode) {
+    // Check for duplicates
     const existing = await window.electronAPI.searchVideo(code);
     if (existing.length > 0) {
-      setStatus('warning', t('status.duplicate', code, existing.length));
-      currentCodeEl.textContent = t('status.switchToSearch', code);
-      searchInput.value = code;
+      if (stations.size === 1 && statusMessage) {
+        setStatus('warning', t('status.duplicate', code, existing.length));
+        document.getElementById('current-code').textContent = t('status.switchToSearch', code);
+        searchInput.value = code;
+      }
+      clearArmedTimer(sid);
+      st.state = 'idle';
+      setStationStatus(sid, 'idle');
       return;
     }
-    // No recording in progress — start one
-    currentShippingCode = code;
-    startRecording(code);
-  } else if (code === currentShippingCode) {
-    // Same code scanned — stop recording
-    stopRecording();
+    clearArmedTimer(sid);
+    st.state = 'recording';
+    st.currentShippingCode = code;
+    await startRecording(sid, code);
+  } else if (code === st.currentShippingCode) {
+    stopRecording(sid);
   } else {
-    // Different code — ignore
-    console.log(`Ignored mismatched code: ${code} (current: ${currentShippingCode})`);
+    console.log(`[${sid}] Ignored mismatched code: ${code} (current: ${st.currentShippingCode})`);
+  }
+}
+
+function clearArmedTimer(sid) {
+  const st = stations.get(sid);
+  if (!st) return;
+  if (st.armedTimer) {
+    clearTimeout(st.armedTimer);
+    st.armedTimer = null;
   }
 }
 
 // ─── Recording ────────────────────────────────────────────────────────────────
-async function startRecording(code) {
-  if (!stream) {
-    setStatus('recording', t('status.cameraUnavailable', code));
+async function startRecording(sid, code) {
+  const st = stations.get(sid);
+  if (!st) return;
+
+  if (!st.stream) {
+    if (stations.size === 1 && statusMessage) {
+      setStatus('recording', t('status.cameraUnavailable', code));
+    }
+    st.state = 'idle';
+    setStationStatus(sid, 'idle');
     return;
   }
 
   try {
-    await window.electronAPI.beginVideoWrite(code);
+    await window.electronAPI.beginVideoWrite(sid, code);
   } catch (err) {
-    setStatus('waiting', t('status.failedOpenFile', err.message));
+    if (stations.size === 1 && statusMessage) {
+      setStatus('waiting', t('status.failedOpenFile', err.message));
+    }
+    st.state = 'idle';
+    setStationStatus(sid, 'idle');
     return;
   }
 
-  writeQueue = Promise.resolve();
+  st.writeQueue = Promise.resolve();
 
   const mimeType = getSupportedMimeType();
-  const options = {
-    ...(mimeType ? { mimeType } : {})
-  };
+  const options = mimeType ? { mimeType } : {};
 
   try {
-    mediaRecorder = new MediaRecorder(stream, options);
+    st.mediaRecorder = new MediaRecorder(st.stream, options);
   } catch (err) {
-    await window.electronAPI.abortVideoWrite().catch(() => {});
-    setStatus('waiting', t('status.failedStartRecorder', err.message));
+    await window.electronAPI.abortVideoWrite(sid).catch(() => {});
+    if (stations.size === 1 && statusMessage) {
+      setStatus('waiting', t('status.failedStartRecorder', err.message));
+    }
+    st.state = 'idle';
+    setStationStatus(sid, 'idle');
     return;
   }
 
-  mediaRecorder.ondataavailable = (e) => {
+  st.mediaRecorder.ondataavailable = (e) => {
     if (e.data && e.data.size > 0) {
-      // Chain writes so they stay in order and don't overlap
-      writeQueue = writeQueue.then(async () => {
+      st.writeQueue = st.writeQueue.then(async () => {
         const arrayBuffer = await e.data.arrayBuffer();
-        await window.electronAPI.writeVideoChunk(new Uint8Array(arrayBuffer));
-      }).catch(err => console.error('Chunk write error:', err));
+        await window.electronAPI.writeVideoChunk(sid, new Uint8Array(arrayBuffer));
+      }).catch(err => console.error(`[${sid}] Chunk write error:`, err));
     }
   };
 
-  mediaRecorder.onstop = () => {
-    // Wait for all in-flight chunk writes before finalising
-    writeQueue.then(() => saveRecording()).catch(() => saveRecording());
+  st.mediaRecorder.onstop = () => {
+    st.writeQueue.then(() => saveStationRecording(sid)).catch(() => saveStationRecording(sid));
   };
 
-  mediaRecorder.start(100); // collect data every 100ms
+  st.mediaRecorder.start(100);
 
-  // UI
+  // Update UI
+  setStationStatus(sid, 'recording');
+  speak('voice.recording', voiceLabelFor(sid));
   const isManual = code.startsWith('MANUAL_');
   const displayLabel = isManual ? formatManualCode(code) : code;
-  setStatus('recording', isManual ? t('status.manualRecordingActive', displayLabel) : t('status.recordingFor', code));
-  currentCodeEl.textContent = isManual ? t('status.manualRecording') : t('status.shippingCode', code);
-  recordingBadge.classList.remove('hidden');
-  savedInfo.classList.add('hidden');
-  stopRecordingBtn.classList.remove('hidden');
-  startTimer();
+
+  if (stations.size === 1 && statusMessage) {
+    setStatus('recording', isManual
+      ? t('status.manualRecordingActive', displayLabel)
+      : t('status.recordingFor', code));
+    const currentCodeEl = document.getElementById('current-code');
+    if (currentCodeEl) {
+      currentCodeEl.textContent = isManual
+        ? t('status.manualRecording')
+        : t('status.shippingCode', code);
+    }
+    if (savedInfo) savedInfo.classList.add('hidden');
+    const stopBtn = st.elements.stopBtn;
+    if (stopBtn) stopBtn.classList.remove('hidden');
+  }
+
+  if (st.elements.codeLabel) {
+    st.elements.codeLabel.textContent = isManual ? formatManualCode(code) : code;
+  }
+
+  startStationTimer(sid);
 }
 
-function stopRecording() {
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-    mediaRecorder.stop();
+function stopRecording(sid) {
+  const st = stations.get(sid);
+  if (!st) return;
+  if (st.mediaRecorder && st.mediaRecorder.state !== 'inactive') {
+    st.mediaRecorder.stop();
   }
-  stopTimer();
-  recordingBadge.classList.add('hidden');
-  stopRecordingBtn.classList.add('hidden');
+  stopStationTimer(sid);
+  if (st.elements.badge) st.elements.badge.classList.add('hidden');
+  if (st.elements.stopBtn) st.elements.stopBtn.classList.add('hidden');
 }
 
-stopRecordingBtn.addEventListener('click', () => {
-  if (currentShippingCode) {
-    stopRecording();
-  }
-});
+async function saveStationRecording(sid) {
+  const st = stations.get(sid);
+  if (!st) return;
 
-async function saveRecording() {
   try {
-    const result = await window.electronAPI.endVideoWrite();
+    const result = await window.electronAPI.endVideoWrite(sid);
     const sizeKb = (result.size / 1024).toFixed(1);
-    setStatus('saved', t('status.saved', result.filename));
-    savedInfo.textContent = t('status.savedInfo', result.filename, sizeKb);
-    savedInfo.classList.remove('hidden');
+    speak('voice.saved', voiceLabelFor(sid));
+    if (stations.size === 1 && statusMessage) {
+      setStatus('saved', t('status.saved', result.filename));
+      if (savedInfo) {
+        savedInfo.textContent = t('status.savedInfo', result.filename, sizeKb);
+        savedInfo.classList.remove('hidden');
+      }
+    }
+    if (st.elements.codeLabel) st.elements.codeLabel.textContent = '';
     await loadRecordingsList();
   } catch (err) {
-    setStatus('waiting', t('status.errorSaving', err.message));
-    await window.electronAPI.abortVideoWrite().catch(() => {});
+    if (stations.size === 1 && statusMessage) {
+      setStatus('waiting', t('status.errorSaving', err.message));
+    }
+    await window.electronAPI.abortVideoWrite(sid).catch(() => {});
   }
 
-  currentShippingCode = null;
+  st.currentShippingCode = null;
+  st.state = 'idle';
+  setStationStatus(sid, 'idle');
+}
+
+// ─── Station UI state ──────────────────────────────────────────────────────────
+function setStationStatus(sid, state) {
+  const st = stations.get(sid);
+  if (!st) return;
+
+  const { card, badge, stateLabel } = st.elements;
+
+  if (card) {
+    card.classList.remove('station-idle', 'station-armed', 'station-recording', 'station-cancelled');
+    card.classList.add(`station-${state}`);
+  }
+
+  if (badge) {
+    badge.classList.toggle('hidden', state !== 'recording');
+  }
+
+  if (stateLabel) {
+    stateLabel.className = `station-state-badge badge-${state}`;
+    if (state === 'idle')      stateLabel.textContent = t('station.idle');
+    else if (state === 'armed')      stateLabel.textContent = t('station.armed');
+    else if (state === 'recording')  stateLabel.textContent = t('station.recording');
+    else if (state === 'cancelled')  stateLabel.textContent = t('station.cancelled');
+  }
+
+  // Single-station fallback status text for armed
+  if (state === 'armed' && stations.size === 1 && statusMessage) {
+    setStatus('waiting', t('status.stationArmed', st.label));
+  }
+
+  // Update dashboard badge if dashboard exists
+  const dashBadge = document.getElementById(`dash-badge-${sid}`);
+  if (dashBadge) {
+    dashBadge.className = `dashboard-state-badge badge-${state}`;
+    if (state === 'idle')      dashBadge.textContent = t('station.idle');
+    else if (state === 'armed')      dashBadge.textContent = t('station.armed');
+    else if (state === 'recording')  dashBadge.textContent = t('station.recording');
+    else if (state === 'cancelled')  dashBadge.textContent = t('station.cancelled');
+  }
+  const dashCode = document.getElementById(`dash-code-${sid}`);
+  if (dashCode) {
+    dashCode.textContent = st.currentShippingCode || '';
+  }
+}
+
+function showGlobalWarning(msg) {
+  if (statusMessage) {
+    statusMessage.textContent = msg;
+    statusMessage.className = 'status warning';
+  }
+}
+
+// ─── Per-station timer ────────────────────────────────────────────────────────
+function startStationTimer(sid) {
+  const st = stations.get(sid);
+  if (!st) return;
+  st.timerSeconds = 0;
+  if (st.elements.timerDisplay) st.elements.timerDisplay.classList.remove('hidden');
+  updateStationTimerDisplay(sid);
+  st.timerInterval = setInterval(() => {
+    st.timerSeconds++;
+    updateStationTimerDisplay(sid);
+  }, 1000);
+}
+
+function stopStationTimer(sid) {
+  const st = stations.get(sid);
+  if (!st) return;
+  clearInterval(st.timerInterval);
+  st.timerInterval = null;
+  if (st.elements.timerDisplay) st.elements.timerDisplay.classList.add('hidden');
+}
+
+function updateStationTimerDisplay(sid) {
+  const st = stations.get(sid);
+  if (!st || !st.elements.timerEl) return;
+  const m = String(Math.floor(st.timerSeconds / 60)).padStart(2, '0');
+  const s = String(st.timerSeconds % 60).padStart(2, '0');
+  st.elements.timerEl.textContent = `${m}:${s}`;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function labelFromId(sid) {
+  const num = parseInt(sid.replace('station', ''), 10);
+  return `Station ${num}`;
+}
+
+function generateManualName() {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return `MANUAL_${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
 }
 
 function getSupportedMimeType() {
@@ -501,98 +1027,459 @@ function getSupportedMimeType() {
   return '';
 }
 
-// ─── Timer ────────────────────────────────────────────────────────────────────
-function startTimer() {
-  timerSeconds = 0;
-  timerDisplay.classList.remove('hidden');
-  updateTimerDisplay();
-  timerInterval = setInterval(() => {
-    timerSeconds++;
-    updateTimerDisplay();
-  }, 1000);
+function formatManualCode(shippingCode) {
+  const m = shippingCode.match(/^MANUAL_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})$/);
+  if (m) return `${m[1]}/${m[2]}/${m[3]} ${m[4]}:${m[5]}:${m[6]}`;
+  return shippingCode;
 }
 
-function stopTimer() {
-  clearInterval(timerInterval);
-  timerInterval = null;
-  timerDisplay.classList.add('hidden');
-}
-
-function updateTimerDisplay() {
-  const m = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
-  const s = String(timerSeconds % 60).padStart(2, '0');
-  timerEl.textContent = `${m}:${s}`;
-}
-
-// ─── Status ───────────────────────────────────────────────────────────────────
+// ─── Status (single-station view helper) ─────────────────────────────────────
 function setStatus(type, message) {
+  if (!statusMessage) return;
   statusMessage.textContent = message;
   statusMessage.className = `status ${type}`;
   if (type === 'waiting') {
-    currentCodeEl.textContent = '';
+    const currentCodeEl = document.getElementById('current-code');
+    if (currentCodeEl) currentCodeEl.textContent = '';
   }
 }
 
-saveAsBtn.addEventListener('click', async () => {
-  if (!currentPlayingPath) return;
-  const defaultName = currentPlayingPath.split(/[\\/]/).pop();
-  saveAsStatus.classList.remove('hidden', 'success', 'error');
-  saveAsStatus.textContent = t('search.converting');
-  saveAsBtn.disabled = true;
-  const result = await window.electronAPI.saveVideoAs({ srcPath: currentPlayingPath, defaultName });
-  saveAsBtn.disabled = false;
-  if (result.canceled) {
-    saveAsStatus.classList.add('hidden');
-  } else if (result.error) {
-    saveAsStatus.textContent = t('search.saveError', result.error);
-    saveAsStatus.classList.add('error');
-  } else {
-    saveAsStatus.textContent = t('search.savedTo', result.filePath);
-    saveAsStatus.classList.add('success');
+// ─── Locale ───────────────────────────────────────────────────────────────────
+if (localeSelect) {
+  localeSelect.addEventListener('change', async () => {
+    const locale = localeSelect.value;
+    window._i18n.setLocale(locale);
+    await window.electronAPI.saveSettings({ locale });
+    applyTranslations();
+  });
+}
+
+function applyTranslations() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    el.placeholder = t(el.dataset.i18nPlaceholder);
+  });
+  if (localeSelect) localeSelect.value = window._i18n.getLocale();
+
+  // Update station state badges
+  stations.forEach((st, sid) => setStationStatus(sid, st.state));
+
+  if (trialDaysLeft !== null) {
+    const trialBadgeText = document.getElementById('trial-badge-text');
+    const trialBadge = document.getElementById('trial-badge');
+    if (trialBadgeText && trialBadge && !trialBadge.classList.contains('hidden')) {
+      trialBadgeText.textContent = t('trial.badge', trialDaysLeft);
+    }
   }
+
+  renderRecordingsList();
+}
+
+// ─── License / Trial ──────────────────────────────────────────────────────────
+const licenseOverlay  = document.getElementById('license-overlay');
+const trialBadge      = document.getElementById('trial-badge');
+const trialBadgeText  = document.getElementById('trial-badge-text');
+const trialBuyBtn     = document.getElementById('trial-buy-btn');
+const overlayBuyBtn   = document.getElementById('overlay-buy-btn');
+const licenseKeyInput = document.getElementById('license-key-input');
+const activateBtn     = document.getElementById('activate-btn');
+const licenseFeedback = document.getElementById('license-feedback');
+
+async function initLicense() {
+  if (!licenseOverlay) return; // station window has no overlay
+  const status = await window.electronAPI.getLicenseStatus();
+  if (status.licensed) return;
+
+  if (status.trialExpired) {
+    licenseOverlay.classList.remove('hidden');
+  } else {
+    const days = status.trialDaysLeft;
+    trialDaysLeft = days;
+    if (trialBadgeText) trialBadgeText.textContent = t('trial.badge', days);
+    if (days <= 2 && trialBadge) trialBadge.classList.add('trial-badge-urgent');
+    if (trialBadge) trialBadge.classList.remove('hidden');
+  }
+}
+
+if (licenseKeyInput) {
+  licenseKeyInput.addEventListener('input', () => {
+    let raw = licenseKeyInput.value.replace(/[^A-Z0-9]/gi, '').toUpperCase().slice(0, 16);
+    const parts = raw.match(/.{1,4}/g) || [];
+    licenseKeyInput.value = parts.join('-');
+  });
+}
+
+[trialBuyBtn, overlayBuyBtn].forEach(btn => {
+  if (btn) btn.addEventListener('click', () => window.electronAPI.openPurchasePage());
 });
+
+if (activateBtn) {
+  activateBtn.addEventListener('click', async () => {
+    const key = licenseKeyInput.value.trim();
+    if (!key) return;
+    setLicenseFeedback('', '');
+    activateBtn.disabled = true;
+    activateBtn.textContent = t('activate.checking');
+    const result = await window.electronAPI.activateLicense(key);
+    activateBtn.disabled = false;
+    activateBtn.textContent = t('activate.btn');
+    if (result.valid) {
+      setLicenseFeedback('success', t('activate.success', result.message));
+      setTimeout(() => { if (licenseOverlay) licenseOverlay.classList.add('hidden'); }, 1800);
+    } else {
+      setLicenseFeedback('error', result.message || t('activate.failed'));
+    }
+  });
+}
+
+function setLicenseFeedback(type, msg) {
+  if (!licenseFeedback) return;
+  licenseFeedback.textContent = msg;
+  licenseFeedback.className = 'license-feedback';
+  if (type) licenseFeedback.classList.add(type);
+  if (msg) licenseFeedback.classList.remove('hidden');
+  else licenseFeedback.classList.add('hidden');
+}
+
+// ─── Tab Navigation ───────────────────────────────────────────────────────────
+function initTabs() {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+}
+
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === tabId)
+  );
+  document.querySelectorAll('.tab-panel').forEach(p =>
+    p.classList.toggle('active', p.id === `tab-${tabId}`)
+  );
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+async function loadSavedDir() {
+  const activeDir = await window.electronAPI.ensureVideosDir();
+  if (videosDirDisplay) videosDirDisplay.textContent = activeDir;
+  const settings = appSettings;
+  if (autoDeleteInput) autoDeleteInput.value = settings.autoDeleteDays || 0;
+  updateAutoDeleteStatus(settings.autoDeleteDays || 0, null);
+  if (testModeToggle) testModeToggle.checked = !!settings.testMode;
+
+  // Voice settings
+  const voiceEnabled = !!settings.voiceEnabled;
+  const voiceLocale  = settings.voiceLocale || 'id';
+  const voiceSpeed   = parseFloat(settings.voiceSpeed) || 1.0;
+  if (voiceEnabledToggle) voiceEnabledToggle.checked = voiceEnabled;
+  if (voiceLocaleSelect)  voiceLocaleSelect.value    = voiceLocale;
+  if (voiceSpeedRange)  { voiceSpeedRange.value      = voiceSpeed; }
+  if (voiceSpeedLabel)    voiceSpeedLabel.textContent = voiceSpeed.toFixed(1) + '×';
+  if (voiceOptions)       voiceOptions.classList.toggle('hidden', !voiceEnabled);
+
+  // Multi-station settings
+  const multiStation = settings.multiStation || false;
+  const stationCount = parseInt(settings.stationCount, 10) || 1;
+  const multiWindow = settings.multiWindow || false;
+  const armedTimeout = parseInt(settings.armedTimeoutSecs, 10) || 15;
+
+  if (multiStationToggle) multiStationToggle.checked = multiStation;
+  if (stationCountInput) stationCountInput.value = stationCount;
+  if (multiWindowToggle) multiWindowToggle.checked = multiWindow;
+  if (armedTimeoutInput) armedTimeoutInput.value = armedTimeout;
+
+  toggleMultiStationUI(multiStation);
+  renderStationConfigArea(stationCount, settings);
+  if (localeSelect && settings.locale) localeSelect.value = settings.locale;
+}
+
+function toggleMultiStationUI(enabled) {
+  const multiStationOptions = document.getElementById('multi-station-options');
+  if (multiStationOptions) {
+    multiStationOptions.classList.toggle('hidden', !enabled);
+  }
+}
+
+function renderStationConfigArea(count, settings) {
+  if (!stationConfigArea) return;
+  const stationsCfg = settings.stations || [];
+  stationConfigArea.innerHTML = `<h4 class="station-config-title" data-i18n="settings.stationConfigTitle">${t('settings.stationConfigTitle')}</h4>`;
+
+  for (let i = 1; i <= count; i++) {
+    const sid = `station${i}`;
+    const saved = stationsCfg.find(s => s.id === sid) || {};
+    const row = document.createElement('div');
+    row.className = 'station-config-row';
+    row.innerHTML = `
+      <div class="station-config-num">S${i}</div>
+      <div class="station-config-fields">
+        <input type="text" class="station-label-input" id="cfg-label-${sid}"
+          placeholder="${t('settings.stationLabel', i)}"
+          value="${saved.label || `Station ${i}`}" />
+        <select class="station-camera-select" id="cfg-cam-${sid}">
+          <option value="">${t('settings.cameraNotAssigned')}</option>
+        </select>
+      </div>
+    `;
+    stationConfigArea.appendChild(row);
+  }
+  // Trigger camera enum to populate dropdowns
+  navigator.mediaDevices.enumerateDevices().then(devices => {
+    populateCameraDropdowns(devices.filter(d => d.kind === 'videoinput'));
+    // Restore saved device selections
+    stationsCfg.forEach(sc => {
+      const sel = document.getElementById(`cfg-cam-${sc.id}`);
+      if (sel && sc.cameraDeviceId) sel.value = sc.cameraDeviceId;
+    });
+  }).catch(() => {});
+}
+
+if (multiStationToggle) {
+  multiStationToggle.addEventListener('change', async () => {
+    toggleMultiStationUI(multiStationToggle.checked);
+    await window.electronAPI.saveSettings({ multiStation: multiStationToggle.checked });
+    appSettings = await window.electronAPI.getSettings();
+
+    // Rebuild stations to match new mode
+    stations.forEach((st) => {
+      if (st.stream) st.stream.getTracks().forEach(tr => tr.stop());
+      stopStationTimer(st.id);
+    });
+    stations.clear();
+    if (stationsGrid) stationsGrid.innerHTML = '';
+    if (dashboardView) dashboardView.innerHTML = '';
+    await initStations();
+  });
+}
+
+if (stationCountInput) {
+  stationCountInput.addEventListener('change', () => {
+    let val = parseInt(stationCountInput.value, 10);
+    if (isNaN(val) || val < 1) val = 1;
+    if (val > MAX_STATIONS) val = MAX_STATIONS;
+    stationCountInput.value = val;
+    renderStationConfigArea(val, appSettings);
+  });
+}
+
+if (saveStationsBtn) {
+  saveStationsBtn.addEventListener('click', async () => {
+    const multiStation = multiStationToggle ? multiStationToggle.checked : false;
+    const stationCount = stationCountInput ? parseInt(stationCountInput.value, 10) || 1 : 1;
+    const multiWindow = multiWindowToggle ? multiWindowToggle.checked : false;
+    const armedTimeoutSecs = armedTimeoutInput ? parseInt(armedTimeoutInput.value, 10) || 15 : 15;
+
+    const stations_cfg = [];
+    for (let i = 1; i <= stationCount; i++) {
+      const sid = `station${i}`;
+      const labelEl = document.getElementById(`cfg-label-${sid}`);
+      const camEl = document.getElementById(`cfg-cam-${sid}`);
+      stations_cfg.push({
+        id: sid,
+        label: labelEl ? labelEl.value.trim() || `Station ${i}` : `Station ${i}`,
+        cameraDeviceId: camEl ? camEl.value || null : null,
+      });
+    }
+
+    await window.electronAPI.saveSettings({
+      multiStation, stationCount, multiWindow, armedTimeoutSecs, stations: stations_cfg
+    });
+    appSettings = await window.electronAPI.getSettings();
+
+    if (saveStationsStatus) {
+      saveStationsStatus.textContent = t('settings.stationsSaved');
+      saveStationsStatus.classList.remove('hidden');
+      setTimeout(() => saveStationsStatus.classList.add('hidden'), 2500);
+    }
+
+    // Re-init stations to apply new config
+    stations.forEach((st) => {
+      if (st.stream) st.stream.getTracks().forEach(tr => tr.stop());
+      stopStationTimer(st.id);
+    });
+    stations.clear();
+    if (stationsGrid) stationsGrid.innerHTML = '';
+    if (dashboardView) dashboardView.innerHTML = '';
+    await initStations();
+  });
+}
+
+if (printStationQrBtn) {
+  printStationQrBtn.addEventListener('click', async () => {
+    const settings = await window.electronAPI.getSettings();
+    const stationCount = parseInt(settings.stationCount, 10) || 1;
+    const stationsCfg = settings.stations || [];
+    const stationsData = [];
+    for (let i = 1; i <= stationCount; i++) {
+      const sid = `station${i}`;
+      const cfg = stationsCfg.find(s => s.id === sid) || {};
+      stationsData.push({ id: sid, label: cfg.label || `Station ${i}`, num: i });
+    }
+    await window.electronAPI.openPrintStations(stationsData);
+  });
+}
+
+if (testModeToggle) {
+  testModeToggle.addEventListener('change', async () => {
+    await window.electronAPI.saveSettings({ testMode: testModeToggle.checked });
+    await applyTestMode(testModeToggle.checked);
+  });
+}
+
+if (voiceEnabledToggle) {
+  voiceEnabledToggle.addEventListener('change', async () => {
+    const enabled = voiceEnabledToggle.checked;
+    await window.electronAPI.saveSettings({ voiceEnabled: enabled });
+    appSettings.voiceEnabled = enabled;
+    if (voiceOptions) voiceOptions.classList.toggle('hidden', !enabled);
+  });
+}
+
+if (voiceLocaleSelect) {
+  voiceLocaleSelect.addEventListener('change', async () => {
+    const locale = voiceLocaleSelect.value;
+    await window.electronAPI.saveSettings({ voiceLocale: locale });
+    appSettings.voiceLocale = locale;
+  });
+}
+
+if (voiceSpeedRange) {
+  voiceSpeedRange.addEventListener('input', () => {
+    const speed = parseFloat(voiceSpeedRange.value);
+    if (voiceSpeedLabel) voiceSpeedLabel.textContent = speed.toFixed(1) + '×';
+  });
+  voiceSpeedRange.addEventListener('change', async () => {
+    const speed = parseFloat(voiceSpeedRange.value);
+    await window.electronAPI.saveSettings({ voiceSpeed: speed });
+    appSettings.voiceSpeed = speed;
+  });
+}
+
+async function applyTestMode(enabled) {
+  stations.forEach((st, sid) => {
+    if (st.stream) {
+      st.stream.getTracks().forEach(tr => tr.stop());
+      st.stream = null;
+    }
+  });
+
+  if (enabled) {
+    stations.forEach((st) => {
+      st.stream = createFakeStream();
+      if (st.elements.video) st.elements.video.srcObject = st.stream;
+    });
+    if (testModePanelEl) testModePanelEl.classList.remove('hidden');
+  } else {
+    if (testModePanelEl) testModePanelEl.classList.add('hidden');
+    // Hide station test row when test mode is off
+    if (testStationRow) testStationRow.classList.add('hidden');
+    for (const [sid] of stations) {
+      await initStationCamera(sid);
+    }
+    return;
+  }
+
+  // Re-render station buttons to reflect current station count
+  const multiStation = appSettings.multiStation || false;
+  const stationCount = parseInt(appSettings.stationCount, 10) || 1;
+  renderTestStationButtons(stationCount, multiStation);
+}
+
+if (saveAutoDeleteBtn) {
+  saveAutoDeleteBtn.addEventListener('click', async () => {
+    const days = parseInt(autoDeleteInput.value, 10);
+    if (isNaN(days) || days < 0) { autoDeleteInput.value = 0; return; }
+    await window.electronAPI.saveSettings({ autoDeleteDays: days });
+    const result = await window.electronAPI.deleteOldRecordings();
+    updateAutoDeleteStatus(days, result);
+    await loadRecordingsList();
+  });
+}
+
+function updateAutoDeleteStatus(days, result) {
+  if (!autoDeleteStatus) return;
+  autoDeleteStatus.classList.remove('hidden', 'success', 'info');
+  if (!days || days <= 0) {
+    autoDeleteStatus.textContent = t('settings.autoDeleteDisabled');
+    autoDeleteStatus.classList.add('info');
+  } else if (result === null) {
+    autoDeleteStatus.textContent = t('settings.autoDeleteEnabled', days);
+    autoDeleteStatus.classList.add('info');
+  } else {
+    autoDeleteStatus.textContent = t('settings.autoDeleteSaved', result.deleted, days);
+    autoDeleteStatus.classList.add('success');
+  }
+}
+
+if (pickDirBtn) {
+  pickDirBtn.addEventListener('click', async () => {
+    const chosen = await window.electronAPI.pickVideosDir();
+    if (chosen) {
+      if (videosDirDisplay) videosDirDisplay.textContent = chosen;
+      await loadRecordingsList();
+    }
+  });
+}
+
+// ─── QR Code (manual) ─────────────────────────────────────────────────────────
+if (printQrBtn) {
+  printQrBtn.addEventListener('click', async () => {
+    if (!qrCodeImg.getAttribute('src')) {
+      const dataUrl = await window.electronAPI.generateManualQR();
+      await new Promise(resolve => {
+        qrCodeImg.onload = resolve;
+        qrCodeImg.src = dataUrl;
+        if (qrCodeImg.complete) resolve();
+      });
+    }
+    qrCodeSection.classList.remove('hidden');
+    const originalParent = qrCodeSection.parentNode;
+    const originalNextSibling = qrCodeSection.nextSibling;
+    document.body.appendChild(qrCodeSection);
+    window.print();
+    originalParent.insertBefore(qrCodeSection, originalNextSibling);
+  });
+}
 
 // ─── Search & Playback ────────────────────────────────────────────────────────
-searchBtn.addEventListener('click', doSearch);
-searchInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') doSearch();
-});
-
-searchInput.addEventListener('input', () => {
-  searchClearBtn.classList.toggle('hidden', searchInput.value === '');
-});
-
-searchClearBtn.addEventListener('click', () => {
-  searchInput.value = '';
-  searchClearBtn.classList.add('hidden');
-  searchResults.classList.add('hidden');
-  playbackSection.classList.add('hidden');
-  searchError.classList.add('hidden');
-  resultsList.innerHTML = '';
-  searchInput.focus();
-});
+if (searchBtn) searchBtn.addEventListener('click', doSearch);
+if (searchInput) {
+  searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch(); });
+  searchInput.addEventListener('input', () => {
+    if (searchClearBtn) searchClearBtn.classList.toggle('hidden', searchInput.value === '');
+  });
+}
+if (searchClearBtn) {
+  searchClearBtn.addEventListener('click', () => {
+    searchInput.value = '';
+    searchClearBtn.classList.add('hidden');
+    if (searchResults) searchResults.classList.add('hidden');
+    if (playbackSection) playbackSection.classList.add('hidden');
+    if (searchError) searchError.classList.add('hidden');
+    if (resultsList) resultsList.innerHTML = '';
+    searchInput.focus();
+  });
+}
 
 async function doSearch() {
   const code = searchInput.value.trim();
-  searchError.classList.add('hidden');
-  searchResults.classList.add('hidden');
-  playbackSection.classList.add('hidden');
-  resultsList.innerHTML = '';
+  if (searchError) searchError.classList.add('hidden');
+  if (searchResults) searchResults.classList.add('hidden');
+  if (playbackSection) playbackSection.classList.add('hidden');
+  if (resultsList) resultsList.innerHTML = '';
 
   if (!code) {
-    searchError.textContent = t('search.enterCode');
-    searchError.classList.remove('hidden');
+    if (searchError) { searchError.textContent = t('search.enterCode'); searchError.classList.remove('hidden'); }
     return;
   }
 
   try {
     const results = await window.electronAPI.searchVideo(code);
     if (results.length === 0) {
-      searchError.textContent = t('search.noResults', code);
-      searchError.classList.remove('hidden');
+      if (searchError) { searchError.textContent = t('search.noResults', code); searchError.classList.remove('hidden'); }
       return;
     }
-
     results.forEach((item) => {
       const li = document.createElement('li');
       const sizeKb = (item.size / 1024).toFixed(1);
@@ -609,35 +1496,28 @@ async function doSearch() {
       `;
       resultsList.appendChild(li);
     });
-
-    resultsList.querySelectorAll('.play-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        playVideo(btn.dataset.path, btn.dataset.name);
-      });
+    resultsList.querySelectorAll('.play-btn').forEach(btn => {
+      btn.addEventListener('click', () => playVideo(btn.dataset.path, btn.dataset.name));
     });
-
-    resultsList.querySelectorAll('.delete-btn').forEach((btn) => {
+    resultsList.querySelectorAll('.delete-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         if (!confirm(t('rec.confirmDelete', btn.dataset.name))) return;
         const result = await window.electronAPI.deleteVideo(btn.dataset.path);
         if (result.success) {
           if (currentPlayingPath === btn.dataset.path) {
-            playbackSection.classList.add('hidden');
+            if (playbackSection) playbackSection.classList.add('hidden');
             currentPlayingPath = null;
           }
           await loadRecordingsList();
           doSearch();
         } else {
-          searchError.textContent = t('rec.deleteFailed', result.error);
-          searchError.classList.remove('hidden');
+          if (searchError) { searchError.textContent = t('rec.deleteFailed', result.error); searchError.classList.remove('hidden'); }
         }
       });
     });
-
-    searchResults.classList.remove('hidden');
+    if (searchResults) searchResults.classList.remove('hidden');
   } catch (err) {
-    searchError.textContent = t('search.searchError', err.message);
-    searchError.classList.remove('hidden');
+    if (searchError) { searchError.textContent = t('search.searchError', err.message); searchError.classList.remove('hidden'); }
   }
 }
 
@@ -645,80 +1525,45 @@ async function playVideo(filePath, filename) {
   try {
     const base64 = await window.electronAPI.readVideo(filePath);
     if (!base64) {
-      searchError.textContent = t('search.cantReadVideo');
-      searchError.classList.remove('hidden');
+      if (searchError) { searchError.textContent = t('search.cantReadVideo'); searchError.classList.remove('hidden'); }
       return;
     }
-
     const binaryStr = atob(base64);
     const bytes = new Uint8Array(binaryStr.length);
-    for (let i = 0; i < binaryStr.length; i++) {
-      bytes[i] = binaryStr.charCodeAt(i);
-    }
+    for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
     const blob = new Blob([bytes], { type: 'video/webm' });
     const url = URL.createObjectURL(blob);
-
-    // Revoke previous object URL if any
-    if (playbackVideo.src && playbackVideo.src.startsWith('blob:')) {
-      URL.revokeObjectURL(playbackVideo.src);
-    }
-
+    if (playbackVideo.src && playbackVideo.src.startsWith('blob:')) URL.revokeObjectURL(playbackVideo.src);
     playbackVideo.src = url;
-    playingFilename.textContent = filename;
+    if (playingFilename) playingFilename.textContent = filename;
     currentPlayingPath = filePath;
-    saveAsStatus.classList.add('hidden');
-    playbackSection.classList.remove('hidden');
+    if (saveAsStatus) saveAsStatus.classList.add('hidden');
+    if (playbackSection) playbackSection.classList.remove('hidden');
     playbackVideo.play();
   } catch (err) {
-    searchError.textContent = t('search.playbackError', err.message);
-    searchError.classList.remove('hidden');
+    if (searchError) { searchError.textContent = t('search.playbackError', err.message); searchError.classList.remove('hidden'); }
   }
 }
 
-// ─── Recordings List ────────────────────────────────────────────────────────────────────────────
-let allRecordings = [];
-
-recDateFilter.addEventListener('change', () => {
-  recResetFilterBtn.classList.remove('hidden');
-  renderStandardRecordingsList();
-});
-
-recResetFilterBtn.addEventListener('click', () => {
-  recDateFilter.value = '';
-  recResetFilterBtn.classList.add('hidden');
-  recFilterCount.classList.add('hidden');
-  renderStandardRecordingsList();
-});
-
-manualDateFilter.addEventListener('change', () => {
-  manualResetFilterBtn.classList.remove('hidden');
-  renderManualRecordingsList();
-});
-
-manualResetFilterBtn.addEventListener('click', () => {
-  manualDateFilter.value = '';
-  manualResetFilterBtn.classList.add('hidden');
-  manualFilterCount.classList.add('hidden');
-  renderManualRecordingsList();
-});
-
-async function loadRecordingsList() {
-  try {
-    allRecordings = await window.electronAPI.listAllVideos();
-    renderRecordingsList();
-  } catch (err) {
-    console.error('Failed to load recordings list:', err);
-  }
+if (saveAsBtn) {
+  saveAsBtn.addEventListener('click', async () => {
+    if (!currentPlayingPath) return;
+    const defaultName = currentPlayingPath.split(/[\\/]/).pop();
+    if (saveAsStatus) { saveAsStatus.classList.remove('hidden', 'success', 'error'); saveAsStatus.textContent = t('search.converting'); }
+    saveAsBtn.disabled = true;
+    const result = await window.electronAPI.saveVideoAs({ srcPath: currentPlayingPath, defaultName });
+    saveAsBtn.disabled = false;
+    if (result.canceled) {
+      if (saveAsStatus) saveAsStatus.classList.add('hidden');
+    } else if (result.error) {
+      if (saveAsStatus) { saveAsStatus.textContent = t('search.saveError', result.error); saveAsStatus.classList.add('error'); }
+    } else {
+      if (saveAsStatus) { saveAsStatus.textContent = t('search.savedTo', result.filePath); saveAsStatus.classList.add('success'); }
+    }
+  });
 }
 
-// ─── Shared helpers ───────────────────────────────────────────────────────────
-
-function formatManualCode(shippingCode) {
-  const m = shippingCode.match(/^MANUAL_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})$/);
-  if (m) return `${m[1]}/${m[2]}/${m[3]} ${m[4]}:${m[5]}:${m[6]}`;
-  return shippingCode;
-}
-
+// ─── Recordings List ──────────────────────────────────────────────────────────
 function matchesDateFilter(item, dateStr) {
   const d = new Date(item.modified);
   const y = d.getFullYear();
@@ -740,7 +1585,7 @@ function attachRecListEvents(listEl) {
       const result = await window.electronAPI.deleteVideo(btn.dataset.path);
       if (result.success) {
         if (currentPlayingPath === btn.dataset.path) {
-          playbackSection.classList.add('hidden');
+          if (playbackSection) playbackSection.classList.add('hidden');
           currentPlayingPath = null;
         }
         await loadRecordingsList();
@@ -751,38 +1596,105 @@ function attachRecListEvents(listEl) {
   });
 }
 
+if (recDateFilter) {
+  recDateFilter.addEventListener('change', () => {
+    if (recResetFilterBtn) recResetFilterBtn.classList.remove('hidden');
+    renderStandardRecordingsList();
+  });
+}
+if (recResetFilterBtn) {
+  recResetFilterBtn.addEventListener('click', () => {
+    if (recDateFilter) recDateFilter.value = '';
+    recResetFilterBtn.classList.add('hidden');
+    if (recFilterCount) recFilterCount.classList.add('hidden');
+    renderStandardRecordingsList();
+  });
+}
+if (recStationFilter) {
+  recStationFilter.addEventListener('change', () => renderStandardRecordingsList());
+}
+
+if (manualDateFilter) {
+  manualDateFilter.addEventListener('change', () => {
+    if (manualResetFilterBtn) manualResetFilterBtn.classList.remove('hidden');
+    renderManualRecordingsList();
+  });
+}
+if (manualResetFilterBtn) {
+  manualResetFilterBtn.addEventListener('click', () => {
+    if (manualDateFilter) manualDateFilter.value = '';
+    manualResetFilterBtn.classList.add('hidden');
+    if (manualFilterCount) manualFilterCount.classList.add('hidden');
+    renderManualRecordingsList();
+  });
+}
+if (manualStationFilter) {
+  manualStationFilter.addEventListener('change', () => renderManualRecordingsList());
+}
+
+async function loadRecordingsList() {
+  try {
+    allRecordings = await window.electronAPI.listAllVideos();
+    updateStationFilterOptions();
+    renderRecordingsList();
+  } catch (err) {
+    console.error('Failed to load recordings list:', err);
+  }
+}
+
+function updateStationFilterOptions() {
+  const stationIds = [...new Set(allRecordings.map(r => r.stationId).filter(Boolean))].sort();
+  [recStationFilter, manualStationFilter].forEach(sel => {
+    if (!sel) return;
+    const current = sel.value;
+    while (sel.options.length > 1) sel.remove(1);
+    stationIds.forEach(sid => {
+      const opt = document.createElement('option');
+      opt.value = sid;
+      const num = parseInt(sid.replace('station', ''), 10);
+      const settings = appSettings;
+      const cfg = (settings.stations || []).find(s => s.id === sid);
+      opt.textContent = cfg ? cfg.label : `Station ${num}`;
+      sel.appendChild(opt);
+    });
+    if (current) sel.value = current;
+  });
+}
+
 function renderRecordingsList() {
   renderStandardRecordingsList();
   renderManualRecordingsList();
 }
 
 function renderStandardRecordingsList() {
+  if (!recordingsListEl) return;
   const source = allRecordings.filter(r => !r.isManual);
-  const selectedDate = recDateFilter.value;
-  const filtered = selectedDate ? source.filter(item => matchesDateFilter(item, selectedDate)) : source;
+  const selectedDate = recDateFilter ? recDateFilter.value : '';
+  const selectedStation = recStationFilter ? recStationFilter.value : '';
+  let filtered = selectedDate ? source.filter(item => matchesDateFilter(item, selectedDate)) : source;
+  if (selectedStation) filtered = filtered.filter(item => item.stationId === selectedStation);
 
-  if (selectedDate) {
-    recFilterCount.textContent = t('rec.filterCount', filtered.length);
-    recFilterCount.classList.remove('hidden');
+  if (selectedDate || selectedStation) {
+    if (recFilterCount) { recFilterCount.textContent = t('rec.filterCount', filtered.length); recFilterCount.classList.remove('hidden'); }
   } else {
-    recFilterCount.classList.add('hidden');
+    if (recFilterCount) recFilterCount.classList.add('hidden');
   }
 
   recordingsListEl.innerHTML = '';
   if (filtered.length === 0) {
-    noRecordingsEl.textContent = selectedDate ? t('rec.noRecordingsOnDate') : t('rec.noRecordings');
-    noRecordingsEl.classList.remove('hidden');
+    if (noRecordingsEl) { noRecordingsEl.textContent = selectedDate ? t('rec.noRecordingsOnDate') : t('rec.noRecordings'); noRecordingsEl.classList.remove('hidden'); }
     return;
   }
-  noRecordingsEl.classList.add('hidden');
+  if (noRecordingsEl) noRecordingsEl.classList.add('hidden');
 
   filtered.forEach(item => {
     const li = document.createElement('li');
     const sizeKb = (item.size / 1024).toFixed(1);
     const date = new Date(item.modified).toLocaleString();
+    const stationLabel = item.stationId ? `<span class="rec-station-tag">${item.stationId.replace('station', 'S')}</span>` : '';
     li.innerHTML = `
       <div class="rec-info">
-        <span class="rec-code">${item.shippingCode}</span>
+        <span class="rec-code">${stationLabel}${item.shippingCode}</span>
         <span class="rec-filename">${item.filename}</span>
         <span class="rec-meta">${sizeKb} KB &nbsp;·&nbsp; ${date}</span>
       </div>
@@ -797,33 +1709,35 @@ function renderStandardRecordingsList() {
 }
 
 function renderManualRecordingsList() {
+  if (!manualRecordingsListEl) return;
   const source = allRecordings.filter(r => r.isManual);
-  const selectedDate = manualDateFilter.value;
-  const filtered = selectedDate ? source.filter(item => matchesDateFilter(item, selectedDate)) : source;
+  const selectedDate = manualDateFilter ? manualDateFilter.value : '';
+  const selectedStation = manualStationFilter ? manualStationFilter.value : '';
+  let filtered = selectedDate ? source.filter(item => matchesDateFilter(item, selectedDate)) : source;
+  if (selectedStation) filtered = filtered.filter(item => item.stationId === selectedStation);
 
-  if (selectedDate) {
-    manualFilterCount.textContent = t('rec.filterCount', filtered.length);
-    manualFilterCount.classList.remove('hidden');
+  if (selectedDate || selectedStation) {
+    if (manualFilterCount) { manualFilterCount.textContent = t('rec.filterCount', filtered.length); manualFilterCount.classList.remove('hidden'); }
   } else {
-    manualFilterCount.classList.add('hidden');
+    if (manualFilterCount) manualFilterCount.classList.add('hidden');
   }
 
   manualRecordingsListEl.innerHTML = '';
   if (filtered.length === 0) {
-    noManualRecordingsEl.textContent = selectedDate ? t('rec.noManualRecordingsOnDate') : t('rec.noManualRecordings');
-    noManualRecordingsEl.classList.remove('hidden');
+    if (noManualRecordingsEl) { noManualRecordingsEl.textContent = selectedDate ? t('rec.noManualRecordingsOnDate') : t('rec.noManualRecordings'); noManualRecordingsEl.classList.remove('hidden'); }
     return;
   }
-  noManualRecordingsEl.classList.add('hidden');
+  if (noManualRecordingsEl) noManualRecordingsEl.classList.add('hidden');
 
   filtered.forEach(item => {
     const li = document.createElement('li');
     const sizeKb = (item.size / 1024).toFixed(1);
     const date = new Date(item.modified).toLocaleString();
     const displayCode = formatManualCode(item.shippingCode);
+    const stationLabel = item.stationId ? `<span class="rec-station-tag">${item.stationId.replace('station', 'S')}</span>` : '';
     li.innerHTML = `
       <div class="rec-info">
-        <span class="rec-code manual-code">${displayCode}</span>
+        <span class="rec-code manual-code">${stationLabel}${displayCode}</span>
         <span class="rec-filename">${item.filename}</span>
         <span class="rec-meta">${sizeKb} KB &nbsp;·&nbsp; ${date}</span>
       </div>
@@ -836,27 +1750,3 @@ function renderManualRecordingsList() {
   });
   attachRecListEvents(manualRecordingsListEl);
 }
-
-// ─── QR Code ──────────────────────────────────────────────────────────────────
-printQrBtn.addEventListener('click', async () => {
-  if (!qrCodeImg.getAttribute('src')) {
-    const dataUrl = await window.electronAPI.generateManualQR();
-    await new Promise(resolve => {
-      qrCodeImg.onload = resolve;
-      qrCodeImg.src = dataUrl;
-      if (qrCodeImg.complete) resolve();
-    });
-  }
-  qrCodeSection.classList.remove('hidden');
-
-  // Move qrCodeSection to a direct child of <body> so the @media print rule
-  // (body > * { display:none }) doesn't hide it via an ancestor.
-  const originalParent = qrCodeSection.parentNode;
-  const originalNextSibling = qrCodeSection.nextSibling;
-  document.body.appendChild(qrCodeSection);
-
-  window.print();
-
-  // Restore to original position in the DOM after printing.
-  originalParent.insertBefore(qrCodeSection, originalNextSibling);
-});

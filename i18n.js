@@ -33,6 +33,9 @@
     'test.placeholder': 'Type a shipping code\u2026',
     'test.simulateScan': 'Simulate Scan',
     'test.simulateManual': 'Simulate Manual Scan',
+    'test.stationLabel': 'Simulate Station QR:',
+    'test.stationBtn': (n) => `Station ${n}`,
+    'test.stationHint': 'or press keys 1\u20135',
 
     // Scan tab – static labels
     'scan.statusTitle': 'Status',
@@ -56,11 +59,18 @@
     'status.savedInfo': (filename, size) => `File: ${filename} \u2014 Size: ${size} KB`,
     'status.errorSaving': (msg) => `Error saving video: ${msg}`,
     'status.regularInProgress': '\u26A0 Regular recording in progress. Finish it first.',
+    'status.scanStationFirst': '\u26A0 Scan a station QR code first to activate a station.',
+    'status.stationArmed': (label) => `\u23F3 ${label}: waiting for barcode or manual QR\u2026`,
+    'status.stationArmedCancel': 'Scan station QR again to cancel.',
+    'status.stationCancelled': (label) => `${label}: armed state cancelled.`,
+    'status.stationStopped': (label, code) => `${label}: stopped recording \u201C${code}\u201D.`,
 
     // Recordings tab
     'rec.title': 'Recordings',
     'rec.standardTitle': 'Standard Recordings',
     'rec.filterLabel': 'Filter by date:',
+    'rec.filterStation': 'Filter by station:',
+    'rec.allStations': 'All Stations',
     'rec.resetFilter': '\u2715 Reset',
     'rec.noRecordings': 'No recordings yet.',
     'rec.noRecordingsOnDate': 'No recordings on this date.',
@@ -108,6 +118,56 @@
     'settings.qrHint': 'Print and affix this QR code to your station. Scan it to start/stop a manual recording.',
     'settings.printQR': '\uD83D\uDDB6 Print QR\u2026',
     'settings.qrLabel': 'Scan to start & stop manual recording',
+
+    // Multi-station settings
+    'settings.stationsTitle': 'Multiple Stations',
+    'settings.stationsHint': 'Enable to use multiple scanning stations simultaneously, each with its own camera and recording session.',
+    'settings.allowMultiStation': 'Allow multiple stations',
+    'settings.stationCount': 'Number of stations',
+    'settings.stationCountHint': 'Maximum 6 stations.',
+    'settings.multiWindow': 'Multi-window mode (dashboard + separate station windows)',
+    'settings.multiWindowHint': 'When enabled, a dashboard shows all stations. The PIC can open each station in its own window (useful for multiple monitors).',
+    'settings.armedTimeout': 'Armed state timeout',
+    'settings.armedTimeoutHint': 'Seconds before an armed station automatically cancels if no barcode is scanned.',
+    'settings.secondsUnit': 'seconds',
+    'settings.stationLabel': (n) => `Station ${n} label`,
+    'settings.stationCamera': (n) => `Station ${n} camera`,
+    'settings.stationConfigTitle': 'Station Configuration',
+    'settings.cameraNotAssigned': 'Not assigned (use default)',
+    'settings.cameraWarning': (n, m) => `\u26A0 Warning: only ${n} camera${n !== 1 ? 's' : ''} detected for ${m} station${m !== 1 ? 's' : ''}. Some stations will share cameras.`,
+    'settings.printStationQR': '\uD83D\uDDB6 Print Station QR Codes\u2026',
+    'settings.printStationQRHint': 'Print QR codes for each station and the manual scan code. Operators scan these to activate stations.',
+    'settings.saveStations': 'Save Station Settings',
+    'settings.stationsSaved': '\u2713 Station settings saved.',
+
+    // Station states
+    'station.idle': 'IDLE',
+    'station.armed': 'ARMED',
+    'station.recording': 'REC',
+    'station.cancelled': 'CANCELLED',
+    'station.waitingBarcode': 'Waiting for barcode\u2026',
+    'station.noCamera': 'No camera',
+
+    // Dashboard
+    'dashboard.title': 'Station Dashboard',
+    'dashboard.openWindow': 'Open Window',
+    'dashboard.windowOpen': 'Window Open',
+    'dashboard.hint': 'Click \u201COpen Window\u201D to open a station in its own window. Each station records independently.',
+
+    // Voice announcements settings
+    'settings.voiceTitle': 'Voice Announcements',
+    'settings.voiceHint': 'Speaks station status aloud. Useful for operators away from the screen.',
+    'settings.voiceEnabled': 'Enable voice announcements',
+    'settings.voiceLocale': 'Voice language',
+    'settings.voiceSpeed': 'Voice speed',
+    'settings.voiceSpeedHint': '1.0 is normal speed.',
+
+    // Voice announcement phrases (used independently of UI locale)
+    'voice.stationNum': (n) => ['One','Two','Three','Four','Five'][n - 1] ?? String(n),
+    'voice.armed':      (label) => `${label}, waiting`,
+    'voice.recording':  (label) => `${label}, recording`,
+    'voice.saved':      (label) => `${label}, saved`,
+    'voice.cancelled':  (label) => `${label}, cancelled`,
   },
 
   id: {
@@ -141,6 +201,9 @@
     'test.placeholder': 'Ketik kode pengiriman\u2026',
     'test.simulateScan': 'Simulasi Pindai',
     'test.simulateManual': 'Simulasi Pindai Manual',
+    'test.stationLabel': 'Simulasi QR Stasiun:',
+    'test.stationBtn': (n) => `Stasiun ${n}`,
+    'test.stationHint': 'atau tekan tombol 1\u20135',
 
     // Scan tab – static labels
     'scan.statusTitle': 'Status',
@@ -164,11 +227,18 @@
     'status.savedInfo': (filename, size) => `File: ${filename} \u2014 Ukuran: ${size} KB`,
     'status.errorSaving': (msg) => `Kesalahan menyimpan video: ${msg}`,
     'status.regularInProgress': '\u26A0 Rekaman reguler sedang berjalan. Selesaikan terlebih dahulu.',
+    'status.scanStationFirst': '\u26A0 Scan kode QR stasiun terlebih dahulu untuk mengaktifkan stasiun.',
+    'status.stationArmed': (label) => `\u23F3 ${label}: menunggu barcode atau QR manual\u2026`,
+    'status.stationArmedCancel': 'Scan QR stasiun lagi untuk membatalkan.',
+    'status.stationCancelled': (label) => `${label}: status aktif dibatalkan.`,
+    'status.stationStopped': (label, code) => `${label}: rekaman \u201C${code}\u201D dihentikan.`,
 
     // Recordings tab
     'rec.title': 'Rekaman',
     'rec.standardTitle': 'Rekaman Standar',
     'rec.filterLabel': 'Filter berdasarkan tanggal:',
+    'rec.filterStation': 'Filter berdasarkan stasiun:',
+    'rec.allStations': 'Semua Stasiun',
     'rec.resetFilter': '\u2715 Reset',
     'rec.noRecordings': 'Belum ada rekaman.',
     'rec.noRecordingsOnDate': 'Tidak ada rekaman pada tanggal ini.',
@@ -216,6 +286,56 @@
     'settings.qrHint': 'Cetak dan tempelkan kode QR ini di stasiun Anda. Pindai untuk memulai/menghentikan rekaman manual.',
     'settings.printQR': '\uD83D\uDDB6 Cetak QR\u2026',
     'settings.qrLabel': 'Pindai untuk memulai & menghentikan rekaman manual',
+
+    // Multi-station settings
+    'settings.stationsTitle': 'Beberapa Stasiun',
+    'settings.stationsHint': 'Aktifkan untuk menggunakan beberapa stasiun pemindaian secara bersamaan, masing-masing dengan kamera dan sesi rekaman sendiri.',
+    'settings.allowMultiStation': 'Izinkan beberapa stasiun',
+    'settings.stationCount': 'Jumlah stasiun',
+    'settings.stationCountHint': 'Maksimal 6 stasiun.',
+    'settings.multiWindow': 'Mode multi-jendela (dasbor + jendela stasiun terpisah)',
+    'settings.multiWindowHint': 'Saat diaktifkan, dasbor menampilkan semua stasiun. PIC dapat membuka setiap stasiun di jendela tersendiri (berguna untuk beberapa monitor).',
+    'settings.armedTimeout': 'Waktu tunggu status aktif',
+    'settings.armedTimeoutHint': 'Detik sebelum stasiun yang aktif otomatis dibatalkan jika tidak ada barcode yang dipindai.',
+    'settings.secondsUnit': 'detik',
+    'settings.stationLabel': (n) => `Nama Stasiun ${n}`,
+    'settings.stationCamera': (n) => `Kamera Stasiun ${n}`,
+    'settings.stationConfigTitle': 'Konfigurasi Stasiun',
+    'settings.cameraNotAssigned': 'Tidak ditentukan (gunakan default)',
+    'settings.cameraWarning': (n, m) => `\u26A0 Peringatan: hanya ${n} kamera terdeteksi untuk ${m} stasiun. Beberapa stasiun akan berbagi kamera.`,
+    'settings.printStationQR': '\uD83D\uDDB6 Cetak QR Stasiun\u2026',
+    'settings.printStationQRHint': 'Cetak kode QR untuk setiap stasiun dan kode pindai manual. Operator memindai kode ini untuk mengaktifkan stasiun.',
+    'settings.saveStations': 'Simpan Pengaturan Stasiun',
+    'settings.stationsSaved': '\u2713 Pengaturan stasiun tersimpan.',
+
+    // Station states
+    'station.idle': 'IDLE',
+    'station.armed': 'AKTIF',
+    'station.recording': 'REC',
+    'station.cancelled': 'BATAL',
+    'station.waitingBarcode': 'Menunggu barcode\u2026',
+    'station.noCamera': 'Tidak ada kamera',
+
+    // Dashboard
+    'dashboard.title': 'Dasbor Stasiun',
+    'dashboard.openWindow': 'Buka Jendela',
+    'dashboard.windowOpen': 'Jendela Terbuka',
+    'dashboard.hint': 'Klik \u201CBuka Jendela\u201D untuk membuka stasiun di jendela tersendiri. Setiap stasiun merekam secara independen.',
+
+    // Voice announcements settings
+    'settings.voiceTitle': 'Pengumuman Suara',
+    'settings.voiceHint': 'Mengucapkan status stasiun dengan suara. Berguna untuk operator yang jauh dari layar.',
+    'settings.voiceEnabled': 'Aktifkan pengumuman suara',
+    'settings.voiceLocale': 'Bahasa suara',
+    'settings.voiceSpeed': 'Kecepatan suara',
+    'settings.voiceSpeedHint': '1.0 adalah kecepatan normal.',
+
+    // Voice announcement phrases (used independently of UI locale)
+    'voice.stationNum': (n) => ['Satu','Dua','Tiga','Empat','Lima'][n - 1] ?? String(n),
+    'voice.armed':      (label) => `${label}, menunggu`,
+    'voice.recording':  (label) => `${label}, merekam`,
+    'voice.saved':      (label) => `${label}, tersimpan`,
+    'voice.cancelled':  (label) => `${label}, dibatalkan`,
   }
 };
 
@@ -234,5 +354,10 @@
 
   function getLocale() { return _locale; }
 
-  window._i18n = { t, setLocale, getLocale };
+  /** Return the raw translation dict for a specific locale (for voice use). */
+  function getTranslations(locale) {
+    return TRANSLATIONS[locale] || TRANSLATIONS.en;
+  }
+
+  window._i18n = { t, setLocale, getLocale, getTranslations };
 }());

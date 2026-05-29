@@ -1,7 +1,7 @@
 {
   "name": "packing-recorder",
-  "version": "1.2.0",
-  "description": "Packing video recording system with barcode scanner support, update: fixing the error when the recording is too long",
+  "version": "2.0.0",
+  "description": "Packing video recording system with barcode scanner support, update: support multiple stations",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
