@@ -366,6 +366,30 @@ ipcMain.handle('close-station-window', (event, stationId) => {
   }
 });
 
+// ─── Multi-window scan relay ───────────────────────────────────────────────────
+// Station window → main → dashboard: relay a barcode scan for routing
+ipcMain.handle('relay-scan', (event, code) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('relayed-scan', code);
+  }
+});
+
+// Dashboard → main → station window: send a command (set-status, start-recording, stop-recording)
+ipcMain.handle('send-station-command', (event, stationId, command) => {
+  const sid = String(stationId);
+  const win = stationWindows.get(sid);
+  if (win && !win.isDestroyed()) {
+    win.webContents.send('station-command', command);
+  }
+});
+
+// Station window → main → dashboard: notify of a recording event (saved, aborted)
+ipcMain.handle('notify-station-event', (event, payload) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('station-event', payload);
+  }
+});
+
 // Search for video by shipping code
 ipcMain.handle('search-video', (event, shippingCode) => {
   const videosDir = getVideosDir();

@@ -34,6 +34,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ─── IPC events (main → renderer) ─────────────────────────────────────────
   onStationWindowClosed: (cb)                       => ipcRenderer.on('station-window-closed', (_, sid) => cb(sid)),
 
+  // ─── Multi-window relay ────────────────────────────────────────────────────
+  // Station window → dashboard: relay a scan for routing
+  relayScan:             (code)                     => ipcRenderer.invoke('relay-scan', code),
+  // Dashboard → station window: send a command
+  sendStationCommand:    (stationId, command)        => ipcRenderer.invoke('send-station-command', stationId, command),
+  // Dashboard listens for relayed scans from any station window
+  onRelayScan:           (cb)                       => ipcRenderer.on('relayed-scan', (_, code) => cb(code)),
+  // Station window listens for commands from dashboard
+  onStationCommand:      (cb)                       => ipcRenderer.on('station-command', (_, cmd) => cb(cmd)),
+  // Station window → dashboard: notify of recording events (saved, aborted, stopped)
+  notifyDashboard:       (payload)                  => ipcRenderer.invoke('notify-station-event', payload),
+  // Dashboard listens for station events from station windows
+  onStationEvent:        (cb)                       => ipcRenderer.on('station-event', (_, payload) => cb(payload)),
+
   // ─── License ───────────────────────────────────────────────────────────────
   getLicenseStatus:      ()                         => ipcRenderer.invoke('get-license-status'),
   activateLicense:       (key)                      => ipcRenderer.invoke('activate-license', key),

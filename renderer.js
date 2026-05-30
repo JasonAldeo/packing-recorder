@@ -120,6 +120,23 @@ async function initMainWindow() {
   window.electronAPI.onStationWindowClosed((sid) => {
     updateDashboardWindowButton(sid, false);
   });
+
+  // Listen for scans relayed from station windows — route through normal armed state machine
+  window.electronAPI.onRelayScan((code) => {
+    routeBarcode(code);
+  });
+
+  // Listen for recording events from station windows — keep dashboard state in sync
+  window.electronAPI.onStationEvent((payload) => {
+    const { type, stationId } = payload;
+    const st = stations.get(stationId);
+    if (!st) return;
+    if (type === 'recording-saved' || type === 'recording-aborted') {
+      st.currentShippingCode = null;
+      st.state = 'idle';
+      setStationStatus(stationId, 'idle');
+    }
+  });
 }
 
 // ─── Station window init ──────────────────────────────────────────────────────
@@ -153,6 +170,36 @@ async function initAsStationWindow(sid) {
       await initStationCamera(sid);
     }
   }
+
+  // Wire test scan controls for this station window
+  initTestControls();
+
+  // ── Listen for commands from the dashboard ──────────────────────────────────
+  window.electronAPI.onStationCommand(async (cmd) => {
+    switch (cmd.type) {
+      case 'set-status':
+        setStationStatus(sid, cmd.state);
+        // Mirror state on the local station object so recording guards work
+        if (st) st.state = cmd.state === 'cancelled' ? 'idle' : cmd.state;
+        // Armed timeout flash: cancelled → back to idle after 1500ms
+        if (cmd.state === 'cancelled') {
+          setTimeout(() => {
+            if (st && st.state === 'idle') setStationStatus(sid, 'idle');
+          }, 1500);
+        }
+        break;
+      case 'start-recording':
+        if (st) {
+          st.state = 'recording';
+          st.currentShippingCode = cmd.code;
+          await startRecording(sid, cmd.code);
+        }
+        break;
+      case 'stop-recording':
+        if (st) stopRecording(sid);
+        break;
+    }
+  });
 }
 
 // ─── Station initialization ───────────────────────────────────────────────────
@@ -200,7 +247,29 @@ async function initStations() {
     if (stationsGrid) stationsGrid.classList.add('hidden');
     if (dashboardView) dashboardView.classList.remove('hidden');
 
+    // Populate the stations Map with state objects (no UI elements / no camera)
+    // so the armed state machine and routeBarcode work correctly on the dashboard.
+    for (const cfg of configs) {
+      stations.set(cfg.id, {
+        id: cfg.id,
+        label: cfg.label,
+        state: 'idle',
+        stream: null,
+        mediaRecorder: null,
+        currentShippingCode: null,
+        armedTimer: null,
+        writeQueue: Promise.resolve(),
+        elements: {
+          card: null, video: null, badge: null, stateLabel: null,
+          codeLabel: null, timerDisplay: null, timerEl: null,
+          statusText: null, savedInfo: null, stopBtn: null, cameraError: null,
+        },
+      });
+    }
+
     renderDashboard(configs);
+    if (appSettings.testMode && testModePanelEl) testModePanelEl.classList.remove('hidden');
+    initTestControls();
   } else {
     // Multi-station single-window grid
     if (singleStationView) singleStationView.classList.add('hidden');
@@ -249,20 +318,27 @@ async function initStations() {
 }
 
 function initTestControls() {
+  const relay = (code) => {
+    if (stationWindowId) {
+      window.electronAPI.relayScan(code);
+    } else {
+      routeBarcode(code);
+    }
+  };
   if (testScanBtn) {
     testScanBtn.onclick = () => {
       const code = testScanInput ? testScanInput.value.trim() : '';
-      if (code) { routeBarcode(code); testScanInput.value = ''; }
+      if (code) { relay(code); testScanInput.value = ''; }
     };
   }
   if (testManualBtn) {
-    testManualBtn.onclick = () => routeBarcode(MANUAL_SCAN_CODE);
+    testManualBtn.onclick = () => relay(MANUAL_SCAN_CODE);
   }
   if (testScanInput) {
     testScanInput.onkeydown = (e) => {
       if (e.key === 'Enter') {
         const code = testScanInput.value.trim();
-        if (code) { routeBarcode(code); testScanInput.value = ''; }
+        if (code) { relay(code); testScanInput.value = ''; }
       }
     };
   }
@@ -408,7 +484,13 @@ function renderTestStationButtons(stationCount, multiStation) {
     btn.textContent = `${t('test.stationBtn', i)} [${i}]`;
     btn.title = label;
     btn.addEventListener('click', () => {
-      if (appSettings.testMode) routeBarcode(`${STATION_QR_PREFIX}${i}`);
+      if (!appSettings.testMode) return;
+      const qrCode = `${STATION_QR_PREFIX}${i}`;
+      if (stationWindowId) {
+        window.electronAPI.relayScan(qrCode);
+      } else {
+        routeBarcode(qrCode);
+      }
     });
     testStationBtns.appendChild(btn);
   }
@@ -584,7 +666,12 @@ document.addEventListener('keydown', (e) => {
   if (appSettings.testMode && appSettings.multiStation && /^[1-5]$/.test(e.key)) {
     const num = parseInt(e.key, 10);
     if (num <= (parseInt(appSettings.stationCount, 10) || 1)) {
-      routeBarcode(`${STATION_QR_PREFIX}${num}`);
+      const qrCode = `${STATION_QR_PREFIX}${num}`;
+      if (stationWindowId) {
+        window.electronAPI.relayScan(qrCode);
+      } else {
+        routeBarcode(qrCode);
+      }
       return;
     }
   }
@@ -593,7 +680,14 @@ document.addEventListener('keydown', (e) => {
     const code = barcodeBuffer.trim();
     barcodeBuffer = '';
     clearTimeout(barcodeTimeout);
-    if (code.length > 0) routeBarcode(code);
+    if (code.length > 0) {
+      // Station windows relay all scans to the dashboard for routing
+      if (stationWindowId) {
+        window.electronAPI.relayScan(code);
+      } else {
+        routeBarcode(code);
+      }
+    }
     return;
   }
 
@@ -605,12 +699,6 @@ document.addEventListener('keydown', (e) => {
 });
 
 function routeBarcode(code) {
-  // In station window mode, route only to this station
-  if (stationWindowId) {
-    handleCodeForStation(stationWindowId, code);
-    return;
-  }
-
   // Station QR code
   if (code.startsWith(STATION_QR_PREFIX)) {
     const sid = 'station' + code.slice(STATION_QR_PREFIX.length);
@@ -649,6 +737,15 @@ function routeBarcode(code) {
       showGlobalWarning(t('status.scanStationFirst'));
     }
   }
+}
+
+/**
+ * Send a command to an open station window (multi-window mode).
+ * No-op if the window isn't open or we're not in multi-window mode.
+ */
+function pushToStationWindow(sid, command) {
+  if (!appSettings.multiWindow) return;
+  window.electronAPI.sendStationCommand(sid, command).catch(() => {});
 }
 
 function getArmedStation() {
@@ -690,6 +787,7 @@ function handleStationQR(sid) {
     // Operator scanned their own station QR while armed — cancel
     cancelArm(sid, false);
   } else if (st.state === 'recording') {
+    pushToStationWindow(sid, { type: 'stop-recording' });
     stopRecording(sid);
   }
 }
@@ -700,6 +798,7 @@ function armStation(sid, skipVoice = false) {
   st.state = 'armed';
   setStationStatus(sid, 'armed');
   if (!skipVoice) speak('voice.armed', voiceLabelFor(sid));
+  pushToStationWindow(sid, { type: 'set-status', state: 'armed' });
 
   const timeoutMs = (parseInt(appSettings.armedTimeoutSecs, 10) || 15) * 1000;
   st.armedTimer = setTimeout(() => {
@@ -724,15 +823,20 @@ function cancelArm(sid, silent = true, skipVoice = false) {
   if (silent) {
     // Quiet return to idle — operator walked away, no need to alarm
     setStationStatus(sid, 'idle');
+    pushToStationWindow(sid, { type: 'set-status', state: 'idle' });
     if (statusMessage && stations.size === 1) {
       setStatus('waiting', t('status.stationCancelled', st.label));
     }
   } else {
     // Flash "CANCELLED" for 1500ms then fade to idle
     setStationStatus(sid, 'cancelled');
+    pushToStationWindow(sid, { type: 'set-status', state: 'cancelled' });
     if (!skipVoice) speak('voice.cancelled', voiceLabelFor(sid));
     setTimeout(() => {
-      if (st.state === 'idle') setStationStatus(sid, 'idle');
+      if (st.state === 'idle') {
+        setStationStatus(sid, 'idle');
+        pushToStationWindow(sid, { type: 'set-status', state: 'idle' });
+      }
     }, 1500);
     if (statusMessage && stations.size === 1) {
       setStatus('waiting', t('status.stationCancelled', st.label));
@@ -745,15 +849,23 @@ async function handleCodeForStation(sid, code) {
   const st = stations.get(sid);
   if (!st) return;
 
+  // In multi-window mode the dashboard has no camera stream for station windows.
+  // It manages state only and delegates actual recording to the station window via IPC.
+  const delegated = appSettings.multiWindow && !stationWindowId;
+
   if (code === MANUAL_SCAN_CODE) {
     if (!st.currentShippingCode) {
       const name = generateManualName();
       clearArmedTimer(sid);
       st.state = 'recording';
       st.currentShippingCode = name;
-      await startRecording(sid, name);
+      if (delegated) setStationStatus(sid, 'recording');
+      pushToStationWindow(sid, { type: 'start-recording', code: name });
+      if (!delegated) await startRecording(sid, name);
     } else if (st.currentShippingCode.startsWith('MANUAL_')) {
-      stopRecording(sid);
+      pushToStationWindow(sid, { type: 'stop-recording' });
+      if (!delegated) stopRecording(sid);
+      else { st.currentShippingCode = null; st.state = 'idle'; setStationStatus(sid, 'idle'); }
     } else {
       // Regular recording in progress
       if (stations.size === 1 && statusMessage) {
@@ -775,14 +887,19 @@ async function handleCodeForStation(sid, code) {
       clearArmedTimer(sid);
       st.state = 'idle';
       setStationStatus(sid, 'idle');
+      pushToStationWindow(sid, { type: 'set-status', state: 'idle' });
       return;
     }
     clearArmedTimer(sid);
     st.state = 'recording';
     st.currentShippingCode = code;
-    await startRecording(sid, code);
+    if (delegated) setStationStatus(sid, 'recording');
+    pushToStationWindow(sid, { type: 'start-recording', code });
+    if (!delegated) await startRecording(sid, code);
   } else if (code === st.currentShippingCode) {
-    stopRecording(sid);
+    pushToStationWindow(sid, { type: 'stop-recording' });
+    if (!delegated) stopRecording(sid);
+    else { st.currentShippingCode = null; st.state = 'idle'; setStationStatus(sid, 'idle'); }
   } else {
     console.log(`[${sid}] Ignored mismatched code: ${code} (current: ${st.currentShippingCode})`);
   }
@@ -887,6 +1004,11 @@ function stopRecording(sid) {
   if (!st) return;
   if (st.mediaRecorder && st.mediaRecorder.state !== 'inactive') {
     st.mediaRecorder.stop();
+  } else if (!st.mediaRecorder && appSettings.multiWindow && !stationWindowId) {
+    // Dashboard in multi-window mode: no local mediaRecorder, just clean up state
+    st.currentShippingCode = null;
+    st.state = 'idle';
+    setStationStatus(sid, 'idle');
   }
   stopStationTimer(sid);
   if (st.elements.badge) st.elements.badge.classList.add('hidden');
@@ -910,11 +1032,18 @@ async function saveStationRecording(sid) {
     }
     if (st.elements.codeLabel) st.elements.codeLabel.textContent = '';
     await loadRecordingsList();
+    // Notify dashboard that recording finished so it can update its state
+    if (stationWindowId) {
+      window.electronAPI.notifyDashboard({ type: 'recording-saved', stationId: sid }).catch(() => {});
+    }
   } catch (err) {
     if (stations.size === 1 && statusMessage) {
       setStatus('waiting', t('status.errorSaving', err.message));
     }
     await window.electronAPI.abortVideoWrite(sid).catch(() => {});
+    if (stationWindowId) {
+      window.electronAPI.notifyDashboard({ type: 'recording-aborted', stationId: sid }).catch(() => {});
+    }
   }
 
   st.currentShippingCode = null;
@@ -946,9 +1075,11 @@ function setStationStatus(sid, state) {
     else if (state === 'cancelled')  stateLabel.textContent = t('station.cancelled');
   }
 
-  // Single-station fallback status text for armed
-  if (state === 'armed' && stations.size === 1 && statusMessage) {
-    setStatus('waiting', t('status.stationArmed', st.label));
+  // Update status bar when in station window (single station in map)
+  if (stations.size === 1 && statusMessage) {
+    if (state === 'armed')     setStatus('waiting', t('status.stationArmed', st.label));
+    if (state === 'cancelled') setStatus('waiting', t('status.stationCancelled', st.label));
+    if (state === 'idle')      setStatus('waiting', t('scan.waiting'));
   }
 
   // Update dashboard badge if dashboard exists
