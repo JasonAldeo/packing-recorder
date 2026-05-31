@@ -462,6 +462,10 @@
 
       currentOrderId = data.orderId;
 
+      // Show the QR step first so the container is visible before rendering
+      hide(stepPurchase);
+      show(stepQR);
+
       // Render QR code from qr_string using qrcode.js
       qrCanvas.innerHTML = '';
       if (data.qrString) {
@@ -480,9 +484,6 @@
         img.alt = 'QRIS QR Code';
         qrCanvas.appendChild(img);
       }
-
-      hide(stepPurchase);
-      show(stepQR);
 
       startExpiryCountdown(data.expiryTime);
       startPolling();
