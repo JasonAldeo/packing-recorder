@@ -1320,9 +1320,13 @@ body {
   line-height: 1;
   transition: background 0.15s, color 0.15s;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .license-refresh-btn:hover { background: #bbf7d0; }
-.license-refresh-btn.spinning { animation: spin-btn 0.7s linear infinite; }
+.license-refresh-btn .refresh-icon { display: inline-block; }
+.license-refresh-btn.spinning .refresh-icon { animation: spin-btn 0.7s linear infinite; }
 @keyframes spin-btn { to { transform: rotate(360deg); } }
 
 /* ── Admin badge ─────────────────────────────────────────────────────────── */
