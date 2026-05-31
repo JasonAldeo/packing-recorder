@@ -67,6 +67,11 @@ async function initDB() {
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS recovered_at TIMESTAMPTZ
   `);
 
+  // Add user_id column to existing deployments that don't have it yet
+  await pool.query(`
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS user_id INT REFERENCES users(id) ON DELETE SET NULL
+  `);
+
   // Seed admin account
   await seedAdmin();
 }
@@ -342,14 +347,15 @@ app.post('/create-order', requireAuth, createOrderLimiter, async (req, res) => {
     );
 
     const charge = await createMidtransQRIS(orderId, email);
+    const qrAction = (charge.actions || []).find(a => a.name === 'generate-qr-code');
 
     res.json({
       orderId,
-      qrCodeUrl: charge.qr_code_url,
+      qrCodeUrl: qrAction ? qrAction.url : (charge.qr_code_url || null),
       expiryTime: charge.expiry_time,
     });
   } catch (err) {
-    console.error('[create-order]', err.message);
+    console.error('[create-order]', err.stack || err.message || err);
     res.status(500).json({ error: 'Failed to create payment. Please try again.' });
   }
 });
