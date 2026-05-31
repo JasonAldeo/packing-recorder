@@ -330,29 +330,49 @@
     }
 
     /* ── Screenshots ── */
-    .screenshots-placeholder {
-      margin-top: 52px;
-      border: 2.5px dashed #cbd5e1;
-      border-radius: 20px;
+    .screenshots-gallery {
+      margin-top: 48px;
+    }
+    .screenshots-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+      justify-content: center;
+    }
+    .ss-tab {
+      padding: 7px 16px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: inherit;
       background: var(--bg);
-      padding: 64px 32px;
-      text-align: center;
-      color: #94a3b8;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      color: var(--mid);
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
     }
-    .screenshots-placeholder-icon {
-      font-size: 2.5rem;
-      margin-bottom: 12px;
+    .ss-tab:hover { border-color: var(--blue); color: var(--blue); }
+    .ss-tab.active {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #fff;
     }
-    .screenshots-placeholder p {
-      font-size: 0.9rem;
-      font-weight: 500;
+    .screenshots-frame {
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 8px 40px rgba(30,41,59,0.13), 0 1.5px 0 rgba(30,41,59,0.07);
+      border: 1px solid var(--border);
+      background: #1e293b;
+      position: relative;
     }
-    .screenshots-placeholder small {
-      font-size: 0.78rem;
-      opacity: 0.7;
+    .screenshots-frame img {
       display: block;
-      margin-top: 4px;
+      width: 100%;
+      height: auto;
+      transition: opacity 0.2s;
     }
+    .screenshots-frame img.hidden { display: none; }
 
     /* ── Pricing ── */
     .pricing-grid {
@@ -668,10 +688,21 @@
     <div class="section-label" data-i18n="screenshots.label">Tampilan Aplikasi</div>
     <h2 class="section-title" data-i18n="screenshots.title">Lihat Aplikasinya</h2>
 
-    <div class="screenshots-placeholder">
-      <div class="screenshots-placeholder-icon">&#128444;</div>
-      <p data-i18n="screenshots.placeholder">Screenshots segera hadir</p>
-      <small data-i18n="screenshots.placeholderSub">Download sekarang untuk melihat langsung</small>
+    <div class="screenshots-gallery">
+      <div class="screenshots-tabs">
+        <button class="ss-tab active" onclick="showScreenshot('Scan_Page')"       data-i18n="ss.scan">Scan &amp; Rekam</button>
+        <button class="ss-tab"        onclick="showScreenshot('Recordings_Page')" data-i18n="ss.recordings">Daftar Rekaman</button>
+        <button class="ss-tab"        onclick="showScreenshot('Search_Page')"     data-i18n="ss.search">Cari Rekaman</button>
+        <button class="ss-tab"        onclick="showScreenshot('MediaPlay_Page')"  data-i18n="ss.play">Putar Video</button>
+        <button class="ss-tab"        onclick="showScreenshot('Settings_Page')"   data-i18n="ss.settings">Pengaturan</button>
+      </div>
+      <div class="screenshots-frame">
+        <img id="ss-Scan_Page"       src="/screenshots/Scan_Page.png"       alt="Scan Page" />
+        <img id="ss-Recordings_Page" src="/screenshots/Recordings_Page.png" alt="Recordings Page"  class="hidden" />
+        <img id="ss-Search_Page"     src="/screenshots/Search_Page.png"     alt="Search Page"      class="hidden" />
+        <img id="ss-MediaPlay_Page"  src="/screenshots/MediaPlay_Page.png"  alt="Media Play Page"  class="hidden" />
+        <img id="ss-Settings_Page"   src="/screenshots/Settings_Page.png"   alt="Settings Page"    class="hidden" />
+      </div>
     </div>
   </div>
 </section>
@@ -790,8 +821,11 @@
       'step3.desc':             'Ketik kode pengiriman di tab Cari untuk menemukan dan memutar ulang rekaman \u2014 butuh hitungan detik.',
       'screenshots.label':      'Tampilan Aplikasi',
       'screenshots.title':      'Lihat Aplikasinya',
-      'screenshots.placeholder':'Screenshots segera hadir',
-      'screenshots.placeholderSub': 'Download sekarang untuk melihat langsung',
+      'ss.scan':                'Scan &amp; Rekam',
+      'ss.recordings':          'Daftar Rekaman',
+      'ss.search':              'Cari Rekaman',
+      'ss.play':                'Putar Video',
+      'ss.settings':            'Pengaturan',
       'pricing.label':          'Harga',
       'pricing.title':          'Harga yang terjangkau',
       'pricing.sub':            'Mulai gratis, bayar hanya saat butuh. Tidak ada kontrak, tidak ada biaya tersembunyi.',
@@ -854,8 +888,11 @@
       'step3.desc':             'Type the shipping code in the Search tab to find and replay any recording in seconds.',
       'screenshots.label':      'App Preview',
       'screenshots.title':      'See It in Action',
-      'screenshots.placeholder':'Screenshots coming soon',
-      'screenshots.placeholderSub': 'Download now to see it for yourself',
+      'ss.scan':                'Scan &amp; Record',
+      'ss.recordings':          'Recordings List',
+      'ss.search':              'Search Footage',
+      'ss.play':                'Play Video',
+      'ss.settings':            'Settings',
       'pricing.label':          'Pricing',
       'pricing.title':          'Simple, affordable pricing',
       'pricing.sub':            'Start free, pay only when you need it. No contracts, no hidden fees.',
@@ -907,6 +944,18 @@
 
   // Apply on load
   setLang(currentLang);
+
+  // ── Screenshot tabs ─────────────────────────────────────────────────────────
+  function showScreenshot(name) {
+    // Hide all images
+    document.querySelectorAll('.screenshots-frame img').forEach(img => img.classList.add('hidden'));
+    // Show selected
+    document.getElementById('ss-' + name).classList.remove('hidden');
+    // Update tab active state
+    document.querySelectorAll('.ss-tab').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('onclick').includes(name));
+    });
+  }
 </script>
 </body>
 </html>
