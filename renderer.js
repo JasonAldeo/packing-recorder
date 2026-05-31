@@ -1464,6 +1464,7 @@ if (licenseRefreshBtn) {
 if (logoutBtn) {
   logoutBtn.addEventListener('click', async () => {
     await window.electronAPI.logout();
+    stopLicensePoller();
     // Reset UI state
     if (userInfo) userInfo.classList.add('hidden');
     if (trialBadge) trialBadge.classList.add('hidden');
@@ -1513,23 +1514,63 @@ async function initLicense() {
     if (licenseBadgeText) licenseBadgeText.textContent = t('license.badge', days);
     if (days <= 7 && licenseBadge) licenseBadge.classList.add('trial-badge-urgent');
     if (licenseBadge) licenseBadge.classList.remove('hidden');
+    stopLicensePoller(); // already licensed, no need to poll
     return;
   }
 
   if (!status.trialExpired) {
-    // Trial still active — show trial badge
+    // Trial still active — show trial badge, poll in background in case user purchases
     const days = status.trialDaysLeft;
     trialDaysLeft = days;
     if (trialBadgeText) trialBadgeText.textContent = t('trial.badge', days);
     if (days <= 2 && trialBadge) trialBadge.classList.add('trial-badge-urgent');
     if (trialBadge) trialBadge.classList.remove('hidden');
+    startLicensePoller();
     return;
   }
 
-  // Trial expired, no license, logged in — show buy overlay
+  // Trial expired, no license, logged in — show buy overlay and poll
   if (authSection) authSection.classList.add('hidden');
   if (buySection) buySection.classList.remove('hidden');
   licenseOverlay.classList.remove('hidden');
+  startLicensePoller();
+}
+
+// ─── Background license poller ────────────────────────────────────────────────
+// Polls every 30s while user is in trial or expired state.
+// When a license is detected, updates the UI without requiring a manual refresh.
+let _licensePollerTimer = null;
+
+function startLicensePoller() {
+  if (_licensePollerTimer) return; // already running
+  _licensePollerTimer = setInterval(async () => {
+    const status = await window.electronAPI.getLicenseStatus();
+    if (!status.loggedIn || !status.licensed) return; // not yet licensed, keep polling
+
+    // License activated — stop polling and update UI
+    stopLicensePoller();
+
+    const days = status.licenseDaysLeft;
+    licenseDaysLeft = days;
+
+    // Update badge
+    if (licenseBadgeText) licenseBadgeText.textContent = t('license.badge', days);
+    if (days <= 7 && licenseBadge) licenseBadge.classList.add('trial-badge-urgent');
+    if (licenseBadge) licenseBadge.classList.remove('hidden');
+
+    // Hide trial badge if it was showing
+    if (trialBadge) trialBadge.classList.add('hidden');
+
+    // Hide the overlay if it was showing
+    if (licenseOverlay) licenseOverlay.classList.add('hidden');
+  }, 30000); // every 30 seconds
+}
+
+function stopLicensePoller() {
+  if (_licensePollerTimer) {
+    clearInterval(_licensePollerTimer);
+    _licensePollerTimer = null;
+  }
 }
 
 function setAuthFeedback(type, msg) {
