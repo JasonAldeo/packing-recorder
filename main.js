@@ -126,6 +126,7 @@ ipcMain.handle('get-license-status', async () => {
     loggedIn: true,
     licensed,
     licenseDaysLeft,
+    licenseExpiresAt: expiresAt ? expiresAt.toISOString() : null,
     trialDaysLeft: trial.daysLeft,
     trialExpired: trial.expired,
     username: data.username || null,

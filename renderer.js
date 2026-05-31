@@ -1435,14 +1435,12 @@ if (licenseRefreshBtn) {
   licenseRefreshBtn.addEventListener('click', async () => {
     licenseRefreshBtn.disabled = true;
     licenseRefreshBtn.classList.add('spinning');
-    const result = await window.electronAPI.recoverLicense();
+    const status = await window.electronAPI.getLicenseStatus();
     licenseRefreshBtn.disabled = false;
     licenseRefreshBtn.classList.remove('spinning');
 
-    if (result.recovered && result.licenseExpiresAt) {
-      // New days were stacked — update the badge text
-      const expiresAt = new Date(result.licenseExpiresAt);
-      const days = Math.ceil((expiresAt - new Date()) / 86400000);
+    if (status.licensed) {
+      const days = status.licenseDaysLeft;
       licenseDaysLeft = days;
       if (licenseBadgeText) licenseBadgeText.textContent = t('license.badge', days);
       if (days <= 7) {
@@ -1455,7 +1453,6 @@ if (licenseRefreshBtn) {
       licenseBadge.style.opacity = '0.4';
       setTimeout(() => { licenseBadge.style.opacity = '1'; }, 200);
     }
-    // If recovered: false — silently do nothing (license is already up to date)
   });
 }
 
