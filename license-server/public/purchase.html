@@ -172,9 +172,9 @@
       padding: 16px;
       margin-bottom: 14px;
     }
-    .qr-frame img {
-      width: 220px;
-      height: 220px;
+    .qr-frame canvas, .qr-frame img {
+      width: 220px !important;
+      height: 220px !important;
       display: block;
       border-radius: 6px;
     }
@@ -285,6 +285,7 @@
     }
     .footer a { color: #3b5bdb; text-decoration: none; }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 <div class="page-wrap">
@@ -292,8 +293,7 @@
   <!-- Header -->
   <div class="header">
     <div class="logo-mark">
-      <svg viewBox="0 0 24 24"><path d="M17 8C8 10 5.9 16.17 3.82 19.83 2.45 19.11 1 17.76 1 16V8l8-5 8 5v.06zM11 13H9v2H7v2h2v2h2v-2h2v-2h-2v-2zm6-1.97V16c0 3.31-4 5-4 5s-4-1.69-4-5V11.03L17 8.1v2.93z"/></svg>
-    </div>
+      <img src="/icon.ico" alt="Packing Recorder" style="width:22px;height:22px;object-fit:contain;" />    </div>
     <h1>Packing Recorder</h1>
     <p>Aktifkan lisensi 30 hari — bayar sekarang, pakai langsung</p>
   </div>
@@ -339,7 +339,7 @@
       <p class="sub">Buka aplikasi dompet digital kamu (GoPay, OVO, DANA, dll.), lalu scan kode di bawah.</p>
 
       <div class="qr-frame">
-        <img id="qr-img" src="" alt="QRIS QR Code" />
+        <div id="qr-canvas"></div>
       </div>
 
       <div class="expiry-row">
@@ -393,10 +393,12 @@
   const stepSuccess      = document.getElementById('step-success');
   const payBtn           = document.getElementById('pay-btn');
   const formError        = document.getElementById('form-error');
-  const qrImg            = document.getElementById('qr-img');
+  const qrCanvas         = document.getElementById('qr-canvas');
   const expiryTimerEl    = document.getElementById('expiry-timer');
   const paymentStatus    = document.getElementById('payment-status');
   const qrError          = document.getElementById('qr-error');
+
+  let qrCodeInstance = null;
   const licenseExpiryDisplay = document.getElementById('license-expiry-display');
   const userPill         = document.getElementById('user-pill');
   const userPillName     = document.getElementById('user-pill-name');
@@ -459,7 +461,26 @@
       }
 
       currentOrderId = data.orderId;
-      qrImg.src = data.qrCodeUrl;
+
+      // Render QR code from qr_string using qrcode.js
+      qrCanvas.innerHTML = '';
+      if (data.qrString) {
+        qrCodeInstance = new QRCode(qrCanvas, {
+          text: data.qrString,
+          width: 220,
+          height: 220,
+          colorDark: '#1e293b',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.M,
+        });
+      } else {
+        // Fallback: show image from URL if qr_string unavailable
+        const img = document.createElement('img');
+        img.src = data.qrCodeUrl;
+        img.alt = 'QRIS QR Code';
+        qrCanvas.appendChild(img);
+      }
+
       hide(stepPurchase);
       show(stepQR);
 

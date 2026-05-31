@@ -352,6 +352,7 @@ app.post('/create-order', requireAuth, createOrderLimiter, async (req, res) => {
     res.json({
       orderId,
       qrCodeUrl: qrAction ? qrAction.url : (charge.qr_code_url || null),
+      qrString:  charge.qr_string || null,
       expiryTime: charge.expiry_time,
     });
   } catch (err) {
