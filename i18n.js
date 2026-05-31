@@ -13,20 +13,34 @@
     'trial.badge': (n) => `Trial: ${n} day${n === 1 ? '' : 's'} left`,
     'trial.buyBtn': 'Buy License',
 
-    // License overlay
+    // License badge (active paid license)
+    'license.badge': (n) => `License: ${n} day${n === 1 ? '' : 's'} left`,
+
+    // Nav
+    'nav.logout': 'Logout',
+    'nav.welcome': (name) => `Welcome, ${name}`,
+
+    // Auth overlay
+    'overlay.authSub': 'Sign in to your account to continue.',
+    'overlay.tabLogin': 'Login',
+    'overlay.tabRegister': 'Register',
+    'overlay.loginBtn': 'Login',
+    'overlay.registerBtn': 'Create Account',
+    'overlay.emailPlaceholder': 'Email',
+    'overlay.passwordPlaceholder': 'Password',
+    'overlay.usernamePlaceholder': 'Username',
+    'overlay.confirmPlaceholder': 'Confirm Password',
+
+    // License overlay (expired, no license)
     'overlay.title': 'Trial Period Ended',
     'overlay.sub': 'Your 7-day free trial has expired. Purchase a license to continue using Packing Recorder.',
-    'overlay.priceLabel': 'One-time license',
+    'overlay.priceLabel': '30-day license',
     'overlay.buyBtn': 'Buy License (QRIS)',
-    'overlay.divider': 'Already have a license?',
-    'overlay.activateBtn': 'Activate',
-
-    // Activation feedback
-    'activate.checking': 'Checking\u2026',
-    'activate.btn': 'Activate',
-    'activate.enterKey': 'Please enter a license key.',
-    'activate.success': (msg) => `\u2713 ${msg} The app is now unlocked.`,
-    'activate.failed': 'Activation failed. Please try again.',
+    'overlay.alreadyPaid': 'Already paid but license didn\'t appear?',
+    'overlay.checkPayment': 'Check My Payment',
+    'overlay.recovering': 'Checking…',
+    'overlay.recoveredOk': (n) => `License restored! ${n} payment${n === 1 ? '' : 's'} applied.`,
+    'overlay.recoveredNone': 'No pending payments found. Contact aldeojason@gmail.com if you believe this is an error.',
 
     // Test mode panel
     'test.warning': '\u26A0 TEST MODE \u2014 No camera detected. Using simulated stream.',
@@ -181,20 +195,34 @@
     'trial.badge': (n) => `Percobaan: sisa ${n} hari`,
     'trial.buyBtn': 'Beli Lisensi',
 
-    // License overlay
+    // License badge (active paid license)
+    'license.badge': (n) => `Lisensi: sisa ${n} hari`,
+
+    // Nav
+    'nav.logout': 'Keluar',
+    'nav.welcome': (name) => `Selamat datang, ${name}`,
+
+    // Auth overlay
+    'overlay.authSub': 'Masuk ke akun Anda untuk melanjutkan.',
+    'overlay.tabLogin': 'Masuk',
+    'overlay.tabRegister': 'Daftar',
+    'overlay.loginBtn': 'Masuk',
+    'overlay.registerBtn': 'Buat Akun',
+    'overlay.emailPlaceholder': 'Email',
+    'overlay.passwordPlaceholder': 'Kata Sandi',
+    'overlay.usernamePlaceholder': 'Nama Pengguna',
+    'overlay.confirmPlaceholder': 'Konfirmasi Kata Sandi',
+
+    // License overlay (expired, no license)
     'overlay.title': 'Masa Percobaan Berakhir',
     'overlay.sub': 'Masa percobaan 7 hari Anda telah berakhir. Beli lisensi untuk terus menggunakan Packing Recorder.',
-    'overlay.priceLabel': 'Lisensi sekali bayar',
+    'overlay.priceLabel': 'Lisensi 30 hari',
     'overlay.buyBtn': 'Beli Lisensi (QRIS)',
-    'overlay.divider': 'Sudah punya lisensi?',
-    'overlay.activateBtn': 'Aktifkan',
-
-    // Activation feedback
-    'activate.checking': 'Memeriksa\u2026',
-    'activate.btn': 'Aktifkan',
-    'activate.enterKey': 'Masukkan kunci lisensi terlebih dahulu.',
-    'activate.success': (msg) => `\u2713 ${msg} Aplikasi sekarang sudah aktif.`,
-    'activate.failed': 'Aktivasi gagal. Silakan coba lagi.',
+    'overlay.alreadyPaid': 'Sudah bayar tapi lisensi belum muncul?',
+    'overlay.checkPayment': 'Cek Pembayaran',
+    'overlay.recovering': 'Memeriksa…',
+    'overlay.recoveredOk': (n) => `Lisensi berhasil dipulihkan! ${n} pembayaran diterapkan.`,
+    'overlay.recoveredNone': 'Tidak ada pembayaran yang ditemukan. Hubungi aldeojason@gmail.com jika Anda merasa ini keliru.',
 
     // Test mode panel
     'test.warning': '\u26A0 MODE UJI \u2014 Kamera tidak terdeteksi. Menggunakan aliran simulasi.',

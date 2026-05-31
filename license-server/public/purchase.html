@@ -57,6 +57,20 @@
       margin-bottom: 20px;
     }
 
+    /* ── User pill ── */
+    .user-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #f0f4ff;
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 0.82rem;
+      color: #3b5bdb;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
     /* ── Features ── */
     .features { list-style: none; margin-bottom: 20px; }
     .features li {
@@ -102,33 +116,6 @@
       letter-spacing: -0.5px;
     }
     .price-note { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; }
-
-    /* ── Form ── */
-    .form-group { margin-bottom: 16px; }
-    .form-group label {
-      display: block;
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: #475569;
-      margin-bottom: 6px;
-    }
-    .form-group input {
-      width: 100%;
-      padding: 11px 14px;
-      border: 1.5px solid #e2e8f0;
-      border-radius: 10px;
-      font-size: 0.92rem;
-      font-family: inherit;
-      color: #1e293b;
-      background: #f8fafc;
-      transition: border-color 0.15s, box-shadow 0.15s;
-      outline: none;
-    }
-    .form-group input:focus {
-      border-color: #3b5bdb;
-      background: #fff;
-      box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.12);
-    }
 
     /* ── Buttons ── */
     .btn-primary {
@@ -215,10 +202,6 @@
       background: #fef9c3;
       color: #92400e;
     }
-    .status-badge.checking {
-      background: #eff6ff;
-      color: #1d4ed8;
-    }
 
     .spinner {
       width: 14px;
@@ -249,52 +232,46 @@
       margin-bottom: 20px;
     }
 
-    .license-key-box {
+    .license-info-box {
       background: #f0fdf4;
-      border: 2px dashed #86efac;
+      border: 2px solid #86efac;
       border-radius: 12px;
       padding: 18px;
       margin-bottom: 16px;
+      text-align: left;
     }
-    .license-key-label {
+    .license-info-label {
       font-size: 0.75rem;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 1px;
       color: #64748b;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
-    .license-key-value {
-      font-family: 'Consolas', 'Courier New', monospace;
-      font-size: 1.2rem;
+    .license-info-value {
+      font-size: 1rem;
       font-weight: 700;
-      color: #1e293b;
-      letter-spacing: 2px;
-      word-break: break-all;
-    }
-    .copy-btn {
-      margin-top: 10px;
-      padding: 7px 18px;
-      border: 1.5px solid #86efac;
-      background: #dcfce7;
       color: #16a34a;
-      border-radius: 8px;
-      font-size: 0.82rem;
-      font-weight: 600;
-      font-family: inherit;
-      cursor: pointer;
-      transition: background 0.15s;
     }
-    .copy-btn:hover { background: #bbf7d0; }
-
-    .save-warning {
-      font-size: 0.8rem;
-      color: #92400e;
-      background: #fef9c3;
+    .license-close-note {
+      font-size: 0.82rem;
+      color: #64748b;
+      background: #f8fafc;
       border-radius: 8px;
       padding: 10px 14px;
-      text-align: left;
       line-height: 1.5;
+    }
+
+    /* ── Auth error ── */
+    .auth-error-section { text-align: center; padding: 20px 0; }
+    .auth-error-section p {
+      font-size: 0.9rem;
+      color: #dc2626;
+      margin-bottom: 8px;
+    }
+    .auth-error-section small {
+      font-size: 0.8rem;
+      color: #94a3b8;
     }
 
     /* ── Footer ── */
@@ -316,35 +293,37 @@
       <svg viewBox="0 0 24 24"><path d="M17 8C8 10 5.9 16.17 3.82 19.83 2.45 19.11 1 17.76 1 16V8l8-5 8 5v.06zM11 13H9v2H7v2h2v2h2v-2h2v-2h-2v-2zm6-1.97V16c0 3.31-4 5-4 5s-4-1.69-4-5V11.03L17 8.1v2.93z"/></svg>
     </div>
     <h1>Packing Recorder</h1>
-    <p>Beli lisensi permanen — bayar sekali, pakai selamanya</p>
+    <p>Aktifkan lisensi 30 hari — bayar sekarang, pakai langsung</p>
   </div>
 
-  <!-- Step 1: Product + Email Form -->
-  <div id="step-purchase" class="card">
+  <!-- Auth error (shown if no valid token) -->
+  <div id="auth-error-section" class="card hidden">
+    <div class="auth-error-section">
+      <p>Sesi tidak valid atau sudah kadaluarsa.</p>
+      <small>Silakan buka halaman ini dari tombol "Beli Lisensi" di aplikasi Packing Recorder.</small>
+    </div>
+  </div>
+
+  <!-- Step 1: Product + Confirm -->
+  <div id="step-purchase" class="card hidden">
+    <div id="user-pill" class="user-pill hidden">
+      <span>👤</span>
+      <span id="user-pill-name">—</span>
+    </div>
+
     <ul class="features">
       <li>Rekam video packing otomatis via barcode</li>
-      <li>Cari & putar ulang rekaman kapan saja</li>
-      <li>Lisensi permanen untuk 1 komputer</li>
-      <li>Update gratis selamanya</li>
+      <li>Cari &amp; putar ulang rekaman kapan saja</li>
+      <li>Lisensi 30 hari, dapat diperpanjang kapan saja</li>
+      <li>Lisensi terhubung ke akun, bukan ke komputer</li>
     </ul>
 
     <div class="price-row">
       <div>
-        <div class="price-label">Harga Lisensi</div>
-        <div class="price-note">Pembayaran sekali, tidak berulang</div>
+        <div class="price-label">Harga Lisensi 30 Hari</div>
+        <div class="price-note">Dapat ditambah (stacking) saat masih aktif</div>
       </div>
-      <div class="price-amount">Rp 55.000</div>
-    </div>
-
-    <div class="form-group">
-      <label for="email-input">Email (untuk menerima konfirmasi)</label>
-      <input
-        type="email"
-        id="email-input"
-        placeholder="nama@email.com"
-        autocomplete="email"
-        required
-      />
+      <div class="price-amount">Rp 75.000</div>
     </div>
 
     <button class="btn-primary" id="pay-btn">Bayar dengan QRIS &rarr;</button>
@@ -380,23 +359,21 @@
     <div class="success-section">
       <div class="success-icon">🎉</div>
       <h3>Pembayaran Berhasil!</h3>
-      <p>Salin kunci lisensi di bawah dan masukkan ke dalam aplikasi Packing Recorder.</p>
+      <p>Lisensi telah ditambahkan ke akunmu. Kamu bisa menutup halaman ini dan kembali ke aplikasi.</p>
 
-      <div class="license-key-box">
-        <div class="license-key-label">Kunci Lisensi Kamu</div>
-        <div id="license-key-display" class="license-key-value">—</div>
-        <button class="copy-btn" id="copy-btn">Salin Kunci</button>
+      <div class="license-info-box">
+        <div class="license-info-label">Lisensi Aktif Hingga</div>
+        <div id="license-expiry-display" class="license-info-value">—</div>
       </div>
 
-      <div class="save-warning">
-        ⚠️ <strong>Simpan kunci ini!</strong> Screenshot atau catat kunci lisensi sekarang.
-        Kunci tidak dapat dikirim ulang secara otomatis.
+      <div class="license-close-note">
+        Lisensi terhubung ke akun kamu secara otomatis. Tidak perlu memasukkan kode apapun — cukup buka aplikasi dan lisensi akan terdeteksi.
       </div>
     </div>
   </div>
 
   <div class="footer">
-    Butuh bantuan? Hubungi <a href="mailto:support@example.com">support@example.com</a>
+    Butuh bantuan? Hubungi <a href="mailto:aldeojason@gmail.com">aldeojason@gmail.com</a>
   </div>
 
 </div>
@@ -404,48 +381,75 @@
 <script>
   const SERVER = ''; // same origin
 
-  const stepPurchase = document.getElementById('step-purchase');
-  const stepQR       = document.getElementById('step-qr');
-  const stepSuccess  = document.getElementById('step-success');
-  const payBtn       = document.getElementById('pay-btn');
-  const emailInput   = document.getElementById('email-input');
-  const formError    = document.getElementById('form-error');
-  const qrImg        = document.getElementById('qr-img');
-  const expiryTimer  = document.getElementById('expiry-timer');
-  const paymentStatus = document.getElementById('payment-status');
-  const qrError      = document.getElementById('qr-error');
-  const licenseKeyDisplay = document.getElementById('license-key-display');
-  const copyBtn      = document.getElementById('copy-btn');
+  // Read JWT from URL query param (?token=...)
+  const urlParams = new URLSearchParams(window.location.search);
+  const authToken = urlParams.get('token') || '';
 
-  let pollInterval = null;
+  const authErrorSection = document.getElementById('auth-error-section');
+  const stepPurchase     = document.getElementById('step-purchase');
+  const stepQR           = document.getElementById('step-qr');
+  const stepSuccess      = document.getElementById('step-success');
+  const payBtn           = document.getElementById('pay-btn');
+  const formError        = document.getElementById('form-error');
+  const qrImg            = document.getElementById('qr-img');
+  const expiryTimerEl    = document.getElementById('expiry-timer');
+  const paymentStatus    = document.getElementById('payment-status');
+  const qrError          = document.getElementById('qr-error');
+  const licenseExpiryDisplay = document.getElementById('license-expiry-display');
+  const userPill         = document.getElementById('user-pill');
+  const userPillName     = document.getElementById('user-pill-name');
+
+  let pollInterval  = null;
   let expiryInterval = null;
   let currentOrderId = null;
 
-  function showError(el, msg) {
-    el.textContent = msg;
-    el.classList.remove('hidden');
-  }
-
   function show(el) { el.classList.remove('hidden'); }
   function hide(el) { el.classList.add('hidden'); }
+  function showError(el, msg) { el.textContent = msg; show(el); }
+
+  function formatExpiry(isoString) {
+    const d = new Date(isoString);
+    return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  // ── On load: verify token ──────────────────────────────────────────────────
+  async function init() {
+    if (!authToken) {
+      show(authErrorSection);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${SERVER}/me`, {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+      if (!res.ok) throw new Error('Auth failed');
+      const data = await res.json();
+
+      userPillName.textContent = data.username;
+      show(userPill);
+      show(stepPurchase);
+    } catch (_) {
+      show(authErrorSection);
+    }
+  }
+
+  init();
 
   // ── Start payment ──────────────────────────────────────────────────────────
   payBtn.addEventListener('click', async () => {
     hide(formError);
-    const email = emailInput.value.trim();
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      showError(formError, 'Masukkan alamat email yang valid.');
-      return;
-    }
-
     payBtn.disabled = true;
     payBtn.textContent = 'Membuat pembayaran…';
 
     try {
       const res = await fetch(`${SERVER}/create-order`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({}),
       });
       const data = await res.json();
       if (!res.ok || data.error) {
@@ -468,18 +472,17 @@
 
   // ── Expiry countdown ───────────────────────────────────────────────────────
   function startExpiryCountdown(expiryTimeStr) {
-    // expiryTime format from Midtrans: "2024-01-01 12:00:00"
     const expiryMs = new Date(expiryTimeStr.replace(' ', 'T')).getTime();
 
     function tick() {
       const remaining = Math.max(0, expiryMs - Date.now());
       const mins = Math.floor(remaining / 60000);
       const secs = Math.floor((remaining % 60000) / 1000);
-      expiryTimer.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-      if (remaining < 120000) expiryTimer.classList.add('urgent');
+      expiryTimerEl.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      if (remaining < 120000) expiryTimerEl.classList.add('urgent');
       if (remaining === 0) {
         clearInterval(expiryInterval);
-        expiryTimer.textContent = 'Kadaluarsa';
+        expiryTimerEl.textContent = 'Kadaluarsa';
         stopPolling();
         paymentStatus.innerHTML = '❌ QR kode kadaluarsa. Muat ulang halaman untuk mencoba lagi.';
         paymentStatus.className = 'status-badge';
@@ -495,13 +498,15 @@
   function startPolling() {
     pollInterval = setInterval(async () => {
       try {
-        const res = await fetch(`${SERVER}/check-order/${currentOrderId}`);
+        const res = await fetch(`${SERVER}/check-order/${currentOrderId}`, {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        });
         const data = await res.json();
 
-        if (data.status === 'paid' && data.licenseKey) {
+        if (data.status === 'paid') {
           stopPolling();
-          showSuccess(data.licenseKey);
-        } else if (data.status === 'expire' || data.status === 'cancel' || data.status === 'deny') {
+          showSuccess(data.licenseExpiresAt);
+        } else if (['expire', 'cancel', 'deny'].includes(data.status)) {
           stopPolling();
           showError(qrError, 'Pembayaran dibatalkan atau kadaluarsa. Muat ulang halaman untuk mencoba lagi.');
         }
@@ -512,26 +517,18 @@
   }
 
   function stopPolling() {
-    if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
-    if (expiryInterval) { clearInterval(expiryInterval); expiryInterval = null; }
+    if (pollInterval)  { clearInterval(pollInterval);  pollInterval  = null; }
+    if (expiryInterval){ clearInterval(expiryInterval); expiryInterval = null; }
   }
 
   // ── Show success ───────────────────────────────────────────────────────────
-  function showSuccess(key) {
+  function showSuccess(licenseExpiresAt) {
     hide(stepQR);
-    licenseKeyDisplay.textContent = key;
+    licenseExpiryDisplay.textContent = licenseExpiresAt
+      ? formatExpiry(licenseExpiresAt)
+      : '—';
     show(stepSuccess);
   }
-
-  // ── Copy to clipboard ──────────────────────────────────────────────────────
-  copyBtn.addEventListener('click', () => {
-    const key = licenseKeyDisplay.textContent;
-    if (!key || key === '—') return;
-    navigator.clipboard.writeText(key).then(() => {
-      copyBtn.textContent = '✓ Tersalin!';
-      setTimeout(() => { copyBtn.textContent = 'Salin Kunci'; }, 2000);
-    });
-  });
 </script>
 </body>
 </html>

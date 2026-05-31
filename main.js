@@ -3,42 +3,15 @@ const path = require('path');
 const fs = require('fs');
 const https = require('https');
 const http = require('http');
-const crypto = require('crypto');
-const os = require('os');
-const { execFile, execSync } = require('child_process');
+const { execFile } = require('child_process');
 const QRCode = require('qrcode');
 const ffmpegPath = require('ffmpeg-static');
 
 // ─── License / Trial ──────────────────────────────────────────────────────────
 // ⚠️  Replace this URL with your Railway app URL after deployment.
-const LICENSE_SERVER_URL = 'https://your-app.up.railway.app';
+const LICENSE_SERVER_URL = 'https://packing-recorder-production.up.railway.app';
 const TRIAL_DAYS = 7;
 const LICENSE_PATH = path.join(app.getPath('userData'), 'license.json');
-
-/** Returns a stable machine ID derived from the Windows MachineGuid (with MAC-based fallback). */
-function getMachineId() {
-  if (process.platform === 'win32') {
-    try {
-      const out = execSync(
-        'reg query "HKLM\\SOFTWARE\\Microsoft\\Cryptography" /v MachineGuid',
-        { encoding: 'utf8', timeout: 3000 }
-      );
-      const m = out.match(/MachineGuid\s+REG_SZ\s+([^\r\n]+)/);
-      if (m) return crypto.createHash('sha256').update(m[1].trim()).digest('hex').slice(0, 40);
-    } catch (_) {}
-  }
-  // Fallback: hash hostname + sorted non-loopback MAC addresses
-  const macs = Object.values(os.networkInterfaces())
-    .flat()
-    .filter(i => i && !i.internal && i.mac && i.mac !== '00:00:00:00:00:00')
-    .map(i => i.mac)
-    .sort();
-  return crypto
-    .createHash('sha256')
-    .update(`${process.platform}-${os.hostname()}-${macs.join(',')}`)
-    .digest('hex')
-    .slice(0, 40);
-}
 
 function getLicenseData() {
   try {
@@ -63,91 +36,176 @@ function getTrialInfo() {
   return { daysLeft, expired: daysLeft === 0 };
 }
 
-/** Calls the license server to validate key + machineId. Returns { valid, message }. */
-function validateWithServer(key, machineId) {
+/** Makes an authenticated request to the license server. Returns parsed JSON. */
+function serverRequest(method, urlPath, body, token) {
   return new Promise((resolve, reject) => {
-    const body = JSON.stringify({ key, machineId });
-    const url = new URL('/validate-license', LICENSE_SERVER_URL);
+    const payload = body ? JSON.stringify(body) : null;
+    const url = new URL(urlPath, LICENSE_SERVER_URL);
     const isHttps = url.protocol === 'https:';
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (payload) headers['Content-Length'] = Buffer.byteLength(payload);
     const options = {
       hostname: url.hostname,
       port: url.port || (isHttps ? 443 : 80),
       path: url.pathname,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body),
-      },
+      method,
+      headers,
     };
     const transport = isHttps ? https : http;
     const req = transport.request(options, (res) => {
       let raw = '';
       res.on('data', chunk => { raw += chunk; });
       res.on('end', () => {
-        try { resolve(JSON.parse(raw)); }
+        try { resolve({ status: res.statusCode, body: JSON.parse(raw) }); }
         catch (_) { reject(new Error('Invalid server response')); }
       });
     });
     req.setTimeout(12000, () => { req.destroy(); reject(new Error('Request timeout')); });
     req.on('error', reject);
-    req.write(body);
+    if (payload) req.write(payload);
     req.end();
   });
 }
 
-// IPC: get trial + license status
+// IPC: get trial + account/license status
 ipcMain.handle('get-license-status', async () => {
-  const data = getLicenseData();
   const trial = getTrialInfo();
+  const data = getLicenseData();
 
-  if (data.licensed && data.licenseKey) {
-    // Re-validate once per day (allows offline use with grace period)
-    const oneDayMs = 86400000;
-    const lastValidated = data.lastValidated || 0;
-    if (Date.now() - lastValidated > oneDayMs) {
-      try {
-        const machineId = getMachineId();
-        const result = await validateWithServer(data.licenseKey, machineId);
-        if (!result.valid) {
-          data.licensed = false;
-          saveLicenseData(data);
-          return { licensed: false, trialDaysLeft: trial.daysLeft, trialExpired: trial.expired };
-        }
-        data.lastValidated = Date.now();
-        saveLicenseData(data);
-      } catch (_) {
-        // Network error — honour cached license (grace period)
-      }
-    }
-    return { licensed: true, trialDaysLeft: trial.daysLeft, trialExpired: trial.expired };
+  // Not logged in
+  if (!data.token) {
+    return {
+      loggedIn: false,
+      licensed: false,
+      trialDaysLeft: trial.daysLeft,
+      trialExpired: trial.expired,
+      username: null,
+      role: null,
+    };
   }
 
-  return { licensed: false, trialDaysLeft: trial.daysLeft, trialExpired: trial.expired };
+  // Logged in — call /me to refresh token (sliding window) and get license status
+  // Honour cached data on network failure (offline grace)
+  try {
+    const resp = await serverRequest('GET', '/me', null, data.token);
+    if (resp.status === 401) {
+      // Token expired — clear it
+      delete data.token;
+      delete data.username;
+      delete data.role;
+      delete data.licenseExpiresAt;
+      saveLicenseData(data);
+      return {
+        loggedIn: false,
+        licensed: false,
+        trialDaysLeft: trial.daysLeft,
+        trialExpired: trial.expired,
+        username: null,
+        role: null,
+      };
+    }
+    const me = resp.body;
+    // Save refreshed token + latest user info
+    data.token = me.token;
+    data.username = me.username;
+    data.role = me.role;
+    data.licenseExpiresAt = me.licenseExpiresAt || null;
+    saveLicenseData(data);
+  } catch (_) {
+    // Network error — use cached values
+  }
+
+  const expiresAt = data.licenseExpiresAt ? new Date(data.licenseExpiresAt) : null;
+  const licensed = expiresAt && expiresAt > new Date();
+  const licenseDaysLeft = licensed
+    ? Math.ceil((expiresAt - new Date()) / 86400000)
+    : 0;
+
+  return {
+    loggedIn: true,
+    licensed,
+    licenseDaysLeft,
+    trialDaysLeft: trial.daysLeft,
+    trialExpired: trial.expired,
+    username: data.username || null,
+    role: data.role || 'user',
+  };
 });
 
-// IPC: activate a license key entered by the user
-ipcMain.handle('activate-license', async (_, rawKey) => {
+// IPC: register a new account
+ipcMain.handle('register', async (_, { username, email, password }) => {
   try {
-    const key = String(rawKey).trim().toUpperCase();
-    if (!key) return { valid: false, message: 'Please enter a license key.' };
-    const machineId = getMachineId();
-    const result = await validateWithServer(key, machineId);
-    if (result.valid) {
-      const data = getLicenseData();
-      data.licenseKey = key;
-      data.licensed = true;
-      data.lastValidated = Date.now();
+    const resp = await serverRequest('POST', '/register', { username, email, password });
+    if (resp.status !== 200 && resp.status !== 201) {
+      return { success: false, error: resp.body.error || 'Registration failed.' };
+    }
+    const me = resp.body;
+    const data = getLicenseData();
+    data.token = me.token;
+    data.username = me.username;
+    data.role = me.role;
+    data.licenseExpiresAt = me.licenseExpiresAt || null;
+    saveLicenseData(data);
+    return { success: true, username: me.username, role: me.role, licenseExpiresAt: me.licenseExpiresAt };
+  } catch (err) {
+    return { success: false, error: 'Could not connect to server. Check your internet connection.' };
+  }
+});
+
+// IPC: log in to an existing account
+ipcMain.handle('login', async (_, { email, password }) => {
+  try {
+    const resp = await serverRequest('POST', '/login', { email, password });
+    if (resp.status !== 200) {
+      return { success: false, error: resp.body.error || 'Login failed.' };
+    }
+    const me = resp.body;
+    const data = getLicenseData();
+    data.token = me.token;
+    data.username = me.username;
+    data.role = me.role;
+    data.licenseExpiresAt = me.licenseExpiresAt || null;
+    saveLicenseData(data);
+    return { success: true, username: me.username, role: me.role, licenseExpiresAt: me.licenseExpiresAt };
+  } catch (err) {
+    return { success: false, error: 'Could not connect to server. Check your internet connection.' };
+  }
+});
+
+// IPC: log out (clears stored token)
+ipcMain.handle('logout', () => {
+  const data = getLicenseData();
+  delete data.token;
+  delete data.username;
+  delete data.role;
+  delete data.licenseExpiresAt;
+  saveLicenseData(data);
+});
+
+// IPC: open the purchase page in the user's default browser (passes token as query param)
+ipcMain.handle('open-purchase-page', () => {
+  const data = getLicenseData();
+  const token = data.token || '';
+  shell.openExternal(`${LICENSE_SERVER_URL}/purchase.html?token=${encodeURIComponent(token)}`);
+});
+
+// IPC: recover license — finds paid orders not yet applied and stacks them
+ipcMain.handle('recover-license', async () => {
+  const data = getLicenseData();
+  if (!data.token) return { recovered: false, error: 'Not logged in.' };
+  try {
+    const resp = await serverRequest('POST', '/recover-license', {}, data.token);
+    if (resp.status === 401) return { recovered: false, error: 'Session expired. Please log in again.' };
+    const result = resp.body;
+    if (result.recovered && result.licenseExpiresAt) {
+      data.licenseExpiresAt = result.licenseExpiresAt;
       saveLicenseData(data);
     }
     return result;
-  } catch (err) {
-    return { valid: false, message: 'Could not connect to license server. Check your internet connection and try again.' };
+  } catch (_) {
+    return { recovered: false, error: 'Could not connect to server. Check your internet connection.' };
   }
-});
-
-// IPC: open the purchase page in the user's default browser
-ipcMain.handle('open-purchase-page', () => {
-  shell.openExternal(`${LICENSE_SERVER_URL}/purchase.html`);
 });
 
 // ─── Settings ─────────────────────────────────────────────────────────────────

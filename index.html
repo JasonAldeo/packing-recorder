@@ -22,30 +22,89 @@
         <option value="en">EN</option>
         <option value="id">ID</option>
       </select>
+      <!-- Shown when logged in and trial is still active (no license yet) -->
       <div id="trial-badge" class="trial-badge hidden">
         <span id="trial-badge-text">Trial: 7 days left</span>
         <button id="trial-buy-btn" class="trial-buy-btn" data-i18n="trial.buyBtn">Buy License</button>
       </div>
+      <!-- Shown when a paid license is active -->
+      <div id="license-badge" class="trial-badge hidden">
+        <span id="license-badge-text">License: 30 days left</span>
+        <button id="license-buy-btn" class="trial-buy-btn" data-i18n="trial.buyBtn">Renew</button>
+        <button id="license-refresh-btn" class="license-refresh-btn" title="Refresh license status">&#8635;</button>
+      </div>
+      <!-- Shown when logged in -->
+      <div id="user-info" class="user-info hidden">
+        <span id="welcome-text">Welcome, User</span>
+        <button id="logout-btn" class="logout-btn" data-i18n="nav.logout">Logout</button>
+      </div>
     </div>
   </nav>
 
-  <!-- ── License Overlay ── -->
+  <!-- ── Auth / License Overlay ── -->
   <div id="license-overlay" class="license-overlay hidden">
     <div class="license-overlay-card">
-      <div class="license-overlay-icon">🔒</div>
-      <h2 class="license-overlay-title" data-i18n="overlay.title">Trial Period Ended</h2>
-      <p class="license-overlay-sub" data-i18n="overlay.sub">Your 7-day free trial has expired.</p>
-      <div class="license-price-tag">
-        <span class="license-price-label" data-i18n="overlay.priceLabel">One-time license</span>
-        <span class="license-price-amount">Rp 55.000</span>
+
+      <!-- ── Not logged in: Login / Register forms ── -->
+      <div id="auth-section">
+        <div class="license-overlay-icon">📦</div>
+        <h2 class="license-overlay-title">Packing Recorder</h2>
+        <p class="license-overlay-sub" data-i18n="overlay.authSub">Sign in to your account to continue.</p>
+
+        <!-- Tab toggle -->
+        <div class="auth-tab-row">
+          <button id="tab-login-btn" class="auth-tab-btn active" data-i18n="overlay.tabLogin">Login</button>
+          <button id="tab-register-btn" class="auth-tab-btn" data-i18n="overlay.tabRegister">Register</button>
+        </div>
+
+        <!-- Login form -->
+        <div id="login-form">
+          <div class="auth-field">
+            <input type="email" id="login-email" class="auth-input" data-i18n-placeholder="overlay.emailPlaceholder" placeholder="Email" autocomplete="email" />
+          </div>
+          <div class="auth-field">
+            <input type="password" id="login-password" class="auth-input" data-i18n-placeholder="overlay.passwordPlaceholder" placeholder="Password" autocomplete="current-password" />
+          </div>
+          <button id="login-btn" class="license-btn-primary" data-i18n="overlay.loginBtn">Login</button>
+        </div>
+
+        <!-- Register form -->
+        <div id="register-form" class="hidden">
+          <div class="auth-field">
+            <input type="text" id="register-username" class="auth-input" data-i18n-placeholder="overlay.usernamePlaceholder" placeholder="Username" autocomplete="username" />
+          </div>
+          <div class="auth-field">
+            <input type="email" id="register-email" class="auth-input" data-i18n-placeholder="overlay.emailPlaceholder" placeholder="Email" autocomplete="email" />
+          </div>
+          <div class="auth-field">
+            <input type="password" id="register-password" class="auth-input" data-i18n-placeholder="overlay.passwordPlaceholder" placeholder="Password" autocomplete="new-password" />
+          </div>
+          <div class="auth-field">
+            <input type="password" id="register-confirm" class="auth-input" data-i18n-placeholder="overlay.confirmPlaceholder" placeholder="Confirm Password" autocomplete="new-password" />
+          </div>
+          <button id="register-btn" class="license-btn-primary" data-i18n="overlay.registerBtn">Create Account</button>
+        </div>
+
+        <div id="auth-feedback" class="license-feedback hidden"></div>
       </div>
-      <button id="overlay-buy-btn" class="license-btn-primary" data-i18n="overlay.buyBtn">Buy License (QRIS)</button>
-      <div class="license-divider"><span data-i18n="overlay.divider">Already have a license?</span></div>
-      <div class="license-input-row">
-        <input type="text" id="license-key-input" class="license-key-input" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" spellcheck="false" autocomplete="off" />
-        <button id="activate-btn" class="license-btn-activate" data-i18n="overlay.activateBtn">Activate</button>
+
+      <!-- ── Logged in but trial expired + no license: buy prompt ── -->
+      <div id="buy-section" class="hidden">
+        <div class="license-overlay-icon">🔒</div>
+        <h2 class="license-overlay-title" data-i18n="overlay.title">Trial Period Ended</h2>
+        <p class="license-overlay-sub" data-i18n="overlay.sub">Your 7-day free trial has expired.</p>
+        <div class="license-price-tag">
+          <span class="license-price-label" data-i18n="overlay.priceLabel">30-day license</span>
+          <span class="license-price-amount">Rp 75.000</span>
+        </div>
+        <button id="overlay-buy-btn" class="license-btn-primary" data-i18n="overlay.buyBtn">Buy License (QRIS)</button>
+        <div class="license-recover-row">
+          <span class="license-recover-label" data-i18n="overlay.alreadyPaid">Already paid but license didn't appear?</span>
+          <button id="overlay-recover-btn" class="license-btn-recover" data-i18n="overlay.checkPayment">Check My Payment</button>
+        </div>
+        <div id="buy-feedback" class="license-feedback hidden"></div>
       </div>
-      <div id="license-feedback" class="license-feedback hidden"></div>
+
     </div>
   </div>
 
@@ -329,10 +388,8 @@
             </div>
           </div>
 
-          <div class="setting-divider"></div>
-
-          <!-- Test Mode -->
-          <div class="setting-row">
+          <!-- Test Mode (admin only — shown by renderer.js) -->
+          <div id="test-mode-setting-row" class="setting-row hidden">
             <div class="setting-label">
               <span class="setting-title" data-i18n="settings.testModeTitle">Test Mode</span>
               <span class="setting-hint" data-i18n="settings.testModeHint">Replaces camera with a simulated stream.</span>

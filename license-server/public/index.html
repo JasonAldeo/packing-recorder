@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Packing Recorder — Rekam setiap packing, lega dari segala masalah</title>
+  <meta name="description" content="Rekam otomatis setiap proses packing via barcode. Cari dan putar ulang rekaman kapan saja. Tersedia untuk Windows." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:   #3b5bdb;
+      --purple: #7c3aed;
+      --dark:   #1e293b;
+      --mid:    #475569;
+      --light:  #64748b;
+      --border: #e2e8f0;
+      --bg:     #f8fafc;
+      --white:  #ffffff;
+      --radius: 16px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', 'Segoe UI', Tahoma, sans-serif;
+      color: var(--dark);
+      background: var(--white);
+      line-height: 1.6;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    img { display: block; max-width: 100%; }
+
+    /* ── Utilities ── */
+    .hidden { display: none !important; }
+    .container {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+    .section { padding: 80px 0; }
+    .section-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--blue);
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: clamp(1.6rem, 3vw, 2.2rem);
+      font-weight: 800;
+      color: var(--dark);
+      letter-spacing: -0.4px;
+      margin-bottom: 14px;
+    }
+    .section-sub {
+      font-size: 1rem;
+      color: var(--light);
+      max-width: 560px;
+    }
+
+    /* ── Nav ── */
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .nav-logo {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .nav-logo svg { width: 18px; height: 18px; fill: #fff; }
+    .nav-name {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--dark);
+      letter-spacing: -0.2px;
+    }
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .lang-toggle {
+      display: flex;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .lang-btn {
+      padding: 5px 11px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      font-family: inherit;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: var(--light);
+      transition: background 0.15s, color 0.15s;
+    }
+    .lang-btn.active {
+      background: var(--blue);
+      color: #fff;
+    }
+    .btn-nav-download {
+      padding: 8px 18px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      white-space: nowrap;
+    }
+    .btn-nav-download:hover { opacity: 0.88; }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(160deg, #f0f4ff 0%, #f5f0ff 50%, #e8f0fe 100%);
+      padding: 100px 0 90px;
+      text-align: center;
+    }
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #fff;
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--mid);
+      margin-bottom: 24px;
+    }
+    .hero-eyebrow-dot {
+      width: 7px;
+      height: 7px;
+      background: #22c55e;
+      border-radius: 50%;
+    }
+    .hero-title {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 900;
+      color: var(--dark);
+      letter-spacing: -0.8px;
+      line-height: 1.15;
+      margin-bottom: 20px;
+      max-width: 780px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .hero-title span {
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-sub {
+      font-size: 1.08rem;
+      color: var(--light);
+      max-width: 520px;
+      margin: 0 auto 36px;
+      line-height: 1.65;
+    }
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 0.98rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      letter-spacing: 0.2px;
+      text-decoration: none;
+    }
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-primary:active { transform: scale(0.99); }
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      background: #fff;
+      color: var(--dark);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      font-size: 0.98rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      text-decoration: none;
+    }
+    .btn-secondary:hover { border-color: var(--blue); background: #f0f4ff; }
+    .hero-note {
+      margin-top: 16px;
+      font-size: 0.8rem;
+      color: var(--light);
+    }
+
+    /* ── Features ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-top: 52px;
+    }
+    .feature-card {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .feature-card:hover {
+      border-color: #a5b4fc;
+      box-shadow: 0 4px 20px rgba(59,91,219,0.08);
+    }
+    .feature-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #ede9fe, #dbeafe);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      margin-bottom: 16px;
+    }
+    .feature-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--dark);
+      margin-bottom: 6px;
+    }
+    .feature-desc {
+      font-size: 0.85rem;
+      color: var(--light);
+      line-height: 1.55;
+    }
+
+    /* ── How it works ── */
+    .how-section { background: var(--bg); }
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+      margin-top: 52px;
+      position: relative;
+    }
+    .steps::before {
+      content: '';
+      position: absolute;
+      top: 28px;
+      left: calc(16.66% + 20px);
+      right: calc(16.66% + 20px);
+      height: 2px;
+      background: linear-gradient(90deg, var(--blue), var(--purple));
+      opacity: 0.25;
+    }
+    .step {
+      text-align: center;
+      position: relative;
+    }
+    .step-number {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      color: #fff;
+      font-size: 1.2rem;
+      font-weight: 800;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      position: relative;
+      z-index: 1;
+      box-shadow: 0 4px 16px rgba(59,91,219,0.25);
+    }
+    .step-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--dark);
+      margin-bottom: 8px;
+    }
+    .step-desc {
+      font-size: 0.85rem;
+      color: var(--light);
+      line-height: 1.55;
+    }
+
+    /* ── Screenshots ── */
+    .screenshots-placeholder {
+      margin-top: 52px;
+      border: 2.5px dashed #cbd5e1;
+      border-radius: 20px;
+      background: var(--bg);
+      padding: 64px 32px;
+      text-align: center;
+      color: #94a3b8;
+    }
+    .screenshots-placeholder-icon {
+      font-size: 2.5rem;
+      margin-bottom: 12px;
+    }
+    .screenshots-placeholder p {
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    .screenshots-placeholder small {
+      font-size: 0.78rem;
+      opacity: 0.7;
+      display: block;
+      margin-top: 4px;
+    }
+
+    /* ── Pricing ── */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+      margin-top: 52px;
+      max-width: 680px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .pricing-card {
+      border: 2px solid var(--border);
+      border-radius: 20px;
+      padding: 32px 28px;
+      background: var(--white);
+      position: relative;
+    }
+    .pricing-card.featured {
+      border-color: var(--blue);
+      box-shadow: 0 8px 32px rgba(59,91,219,0.12);
+    }
+    .pricing-badge {
+      position: absolute;
+      top: -13px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      padding: 4px 14px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .pricing-name {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--dark);
+      margin-bottom: 6px;
+    }
+    .pricing-price {
+      font-size: 2rem;
+      font-weight: 900;
+      color: var(--blue);
+      letter-spacing: -0.8px;
+      margin-bottom: 4px;
+    }
+    .pricing-price span {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--light);
+    }
+    .pricing-period {
+      font-size: 0.8rem;
+      color: var(--light);
+      margin-bottom: 20px;
+    }
+    .pricing-features {
+      list-style: none;
+      margin-bottom: 24px;
+    }
+    .pricing-features li {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: var(--mid);
+      padding: 5px 0;
+      border-bottom: 1px solid var(--bg);
+    }
+    .pricing-features li:last-child { border-bottom: none; }
+    .pricing-features li::before {
+      content: '✓';
+      width: 18px;
+      height: 18px;
+      background: #dcfce7;
+      color: #16a34a;
+      border-radius: 50%;
+      font-size: 0.7rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .pricing-note {
+      font-size: 0.78rem;
+      color: var(--light);
+      background: var(--bg);
+      border-radius: 10px;
+      padding: 10px 14px;
+      line-height: 1.5;
+      text-align: center;
+    }
+    .pricing-cta-note {
+      text-align: center;
+      margin-top: 28px;
+      font-size: 0.85rem;
+      color: var(--light);
+    }
+    .pricing-cta-note strong {
+      color: var(--mid);
+    }
+
+    /* ── Download CTA ── */
+    .download-section {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      text-align: center;
+      padding: 80px 0;
+    }
+    .download-section .section-label { color: #818cf8; }
+    .download-section .section-title { color: #fff; }
+    .download-section .section-sub { color: #94a3b8; margin: 0 auto 36px; }
+    .download-os-note {
+      margin-top: 16px;
+      font-size: 0.8rem;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .windows-icon {
+      width: 14px;
+      height: 14px;
+      fill: #94a3b8;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      background: #0f172a;
+      border-top: 1px solid #1e293b;
+      padding: 32px 0;
+    }
+    .footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .footer-logo {
+      width: 26px;
+      height: 26px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .footer-logo svg { width: 14px; height: 14px; fill: #fff; }
+    .footer-name {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #e2e8f0;
+    }
+    .footer-copy {
+      font-size: 0.78rem;
+      color: #475569;
+    }
+    .footer-email a {
+      font-size: 0.78rem;
+      color: #475569;
+      transition: color 0.15s;
+    }
+    .footer-email a:hover { color: #818cf8; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .features-grid { grid-template-columns: 1fr 1fr; }
+      .steps { grid-template-columns: 1fr; }
+      .steps::before { display: none; }
+      .pricing-grid { grid-template-columns: 1fr; max-width: 400px; }
+      .footer-inner { justify-content: center; text-align: center; }
+      .btn-nav-download span { display: none; }
+    }
+    @media (max-width: 500px) {
+      .features-grid { grid-template-columns: 1fr; }
+      .hero { padding: 64px 0 56px; }
+      .section { padding: 60px 0; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Nav ── -->
+<nav class="nav">
+  <div class="container nav-inner">
+    <div class="nav-brand">
+      <div class="nav-logo">
+        <svg viewBox="0 0 24 24"><path d="M17 8C8 10 5.9 16.17 3.82 19.83 2.45 19.11 1 17.76 1 16V8l8-5 8 5v.06zM11 13H9v2H7v2h2v2h2v-2h2v-2h-2v-2zm6-1.97V16c0 3.31-4 5-4 5s-4-1.69-4-5V11.03L17 8.1v2.93z"/></svg>
+      </div>
+      <span class="nav-name">Packing Recorder</span>
+    </div>
+    <div class="nav-right">
+      <div class="lang-toggle">
+        <button class="lang-btn" id="lang-id" onclick="setLang('id')">ID</button>
+        <button class="lang-btn" id="lang-en" onclick="setLang('en')">EN</button>
+      </div>
+      <a class="btn-nav-download" href="https://github.com/JasonAldeo/packing-recorder/releases/latest/download/PackingRecorder-Setup.exe">
+        <span data-i18n="nav.download">Download</span> &darr;
+      </a>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Hero ── -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-eyebrow">
+      <div class="hero-eyebrow-dot"></div>
+      <span data-i18n="hero.eyebrow">Windows 64-bit &middot; Free 7-day trial</span>
+    </div>
+    <h1 class="hero-title" data-i18n="hero.title">
+      Rekam setiap packing,<br /><span>lega dari segala masalah</span>
+    </h1>
+    <p class="hero-sub" data-i18n="hero.sub">
+      Rekam otomatis setiap proses packing lewat scan barcode. Cari dan putar ulang rekaman kapan saja untuk membuktikan packing yang sudah selesai.
+    </p>
+    <div class="hero-actions">
+      <a class="btn-primary" href="https://github.com/JasonAldeo/packing-recorder/releases/latest/download/PackingRecorder-Setup.exe">
+        &#8681; <span data-i18n="hero.downloadBtn">Download Gratis</span>
+      </a>
+      <a class="btn-secondary" href="#pricing">
+        <span data-i18n="hero.pricingBtn">Lihat Harga</span> &darr;
+      </a>
+    </div>
+    <p class="hero-note" data-i18n="hero.note">Gratis 7 hari &middot; Tidak perlu kartu kredit</p>
+  </div>
+</section>
+
+<!-- ── Features ── -->
+<section class="section">
+  <div class="container">
+    <div class="section-label" data-i18n="features.label">Fitur</div>
+    <h2 class="section-title" data-i18n="features.title">Semua yang kamu butuhkan</h2>
+    <p class="section-sub" data-i18n="features.sub">Dirancang untuk gudang yang sibuk — cepat, andal, dan mudah digunakan oleh siapa saja.</p>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">&#128247;</div>
+        <div class="feature-title" data-i18n="feat1.title">Rekam Otomatis via Barcode</div>
+        <div class="feature-desc" data-i18n="feat1.desc">Scan barcode resi pengiriman — rekaman langsung dimulai. Tidak perlu pencet tombol apapun.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128269;</div>
+        <div class="feature-title" data-i18n="feat2.title">Cari &amp; Putar Ulang</div>
+        <div class="feature-desc" data-i18n="feat2.desc">Cari rekaman berdasarkan kode pengiriman dan putar ulang langsung di dalam aplikasi kapan saja.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128197;</div>
+        <div class="feature-title" data-i18n="feat3.title">Ekspor ke MP4</div>
+        <div class="feature-desc" data-i18n="feat3.desc">Simpan rekaman sebagai file MP4 untuk dikirim ke marketplace atau pihak ekspedisi sebagai bukti.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128421;</div>
+        <div class="feature-title" data-i18n="feat4.title">Multi-Stasiun</div>
+        <div class="feature-desc" data-i18n="feat4.desc">Rekam di hingga 6 stasiun packing sekaligus dalam satu aplikasi. Setiap stasiun berjalan independen.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#127760;</div>
+        <div class="feature-title" data-i18n="feat5.title">Bekerja Offline</div>
+        <div class="feature-desc" data-i18n="feat5.desc">Rekaman tersimpan langsung di komputer kamu. Tidak butuh internet untuk merekam atau mencari rekaman.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#128274;</div>
+        <div class="feature-title" data-i18n="feat6.title">Lisensi Berbasis Akun</div>
+        <div class="feature-desc" data-i18n="feat6.desc">Lisensi terhubung ke akunmu, bukan ke komputer. Ganti komputer kapan saja tanpa kehilangan lisensi.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── How it works ── -->
+<section class="section how-section">
+  <div class="container">
+    <div class="section-label" data-i18n="how.label">Cara Kerja</div>
+    <h2 class="section-title" data-i18n="how.title">Semudah tiga langkah</h2>
+    <p class="section-sub" data-i18n="how.sub">Tidak ada pengaturan rumit. Pasang, scan, dan rekaman berjalan sendiri.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-title" data-i18n="step1.title">Scan Barcode</div>
+        <div class="step-desc" data-i18n="step1.desc">Scan barcode resi pengiriman menggunakan barcode scanner USB. Aplikasi langsung mendeteksinya.</div>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-title" data-i18n="step2.title">Rekaman Berjalan Otomatis</div>
+        <div class="step-desc" data-i18n="step2.desc">Kamera mulai merekam secara otomatis. Scan barcode yang sama lagi untuk menghentikan rekaman.</div>
+      </div>
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-title" data-i18n="step3.title">Cari &amp; Putar Kapan Saja</div>
+        <div class="step-desc" data-i18n="step3.desc">Ketik kode pengiriman di tab Cari untuk menemukan dan memutar ulang rekaman — butuh hitungan detik.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Screenshots ── -->
+<section class="section">
+  <div class="container">
+    <div class="section-label" data-i18n="screenshots.label">Tampilan Aplikasi</div>
+    <h2 class="section-title" data-i18n="screenshots.title">Lihat Aplikasinya</h2>
+
+    <div class="screenshots-placeholder">
+      <div class="screenshots-placeholder-icon">&#128444;</div>
+      <p data-i18n="screenshots.placeholder">Screenshots segera hadir</p>
+      <small data-i18n="screenshots.placeholderSub">Download sekarang untuk melihat langsung</small>
+    </div>
+  </div>
+</section>
+
+<!-- ── Pricing ── -->
+<section class="section" id="pricing" style="background: var(--bg);">
+  <div class="container">
+    <div class="section-label" data-i18n="pricing.label">Harga</div>
+    <h2 class="section-title" data-i18n="pricing.title">Harga yang terjangkau</h2>
+    <p class="section-sub" data-i18n="pricing.sub">Mulai gratis, bayar hanya saat butuh. Tidak ada kontrak, tidak ada biaya tersembunyi.</p>
+
+    <div class="pricing-grid">
+      <!-- Free Trial -->
+      <div class="pricing-card">
+        <div class="pricing-name" data-i18n="plan1.name">Percobaan Gratis</div>
+        <div class="pricing-price">Rp 0</div>
+        <div class="pricing-period" data-i18n="plan1.period">7 hari pertama</div>
+        <ul class="pricing-features">
+          <li data-i18n="plan1.f1">Semua fitur tersedia</li>
+          <li data-i18n="plan1.f2">Tidak perlu kartu kredit</li>
+          <li data-i18n="plan1.f3">Tidak perlu daftar akun dulu</li>
+          <li data-i18n="plan1.f4">Langsung bisa dipakai</li>
+        </ul>
+        <div class="pricing-note" data-i18n="plan1.note">Download dan mulai pakai sekarang.</div>
+      </div>
+
+      <!-- License -->
+      <div class="pricing-card featured">
+        <div class="pricing-badge" data-i18n="plan2.badge">Paling Populer</div>
+        <div class="pricing-name" data-i18n="plan2.name">Lisensi Aktif</div>
+        <div class="pricing-price">Rp 75.000 <span data-i18n="plan2.per">/ 30 hari</span></div>
+        <div class="pricing-period" data-i18n="plan2.period">Dapat diperpanjang kapan saja</div>
+        <ul class="pricing-features">
+          <li data-i18n="plan2.f1">Semua fitur tanpa batas</li>
+          <li data-i18n="plan2.f2">Lisensi terhubung ke akun</li>
+          <li data-i18n="plan2.f3">Bisa dipakai di komputer berbeda</li>
+          <li data-i18n="plan2.f4">Bisa ditambah (stacking) saat masih aktif</li>
+        </ul>
+        <div class="pricing-note" data-i18n="plan2.note">Bayar via QRIS di dalam aplikasi.</div>
+      </div>
+    </div>
+
+    <p class="pricing-cta-note">
+      <strong data-i18n="pricing.ctaNote">Pembelian dilakukan di dalam aplikasi</strong>
+      &nbsp;&mdash;&nbsp;
+      <span data-i18n="pricing.ctaSub">Download dulu, daftar akun, lalu beli lisensi dari tombol di aplikasi.</span>
+    </p>
+  </div>
+</section>
+
+<!-- ── Download CTA ── -->
+<section class="download-section">
+  <div class="container">
+    <div class="section-label" data-i18n="dl.label">Download</div>
+    <h2 class="section-title" data-i18n="dl.title">Siap mencoba?</h2>
+    <p class="section-sub" data-i18n="dl.sub">Download gratis sekarang. Tidak perlu kartu kredit — langsung coba 7 hari penuh.</p>
+    <a class="btn-primary" href="https://github.com/JasonAldeo/packing-recorder/releases/latest/download/PackingRecorder-Setup.exe">
+      &#8681; <span data-i18n="dl.btn">Download Packing Recorder</span>
+    </a>
+    <div class="download-os-note">
+      <svg class="windows-icon" viewBox="0 0 24 24"><path d="M3 12V6.75l6-1.32v6.57H3zm17 0V4.5l-8 1.41V12h8zm-17 1h6v6.43L3 18V13zm17 0h-8v6.1l8 1.4V13z"/></svg>
+      <span data-i18n="dl.note">Windows 64-bit &middot; Installer (.exe)</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ── -->
+<footer class="footer">
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <div class="footer-logo">
+        <svg viewBox="0 0 24 24"><path d="M17 8C8 10 5.9 16.17 3.82 19.83 2.45 19.11 1 17.76 1 16V8l8-5 8 5v.06zM11 13H9v2H7v2h2v2h2v-2h2v-2h-2v-2zm6-1.97V16c0 3.31-4 5-4 5s-4-1.69-4-5V11.03L17 8.1v2.93z"/></svg>
+      </div>
+      <span class="footer-name">Packing Recorder &mdash; Aldeo Studio</span>
+    </div>
+    <div class="footer-copy">&copy; 2025 Aldeo Studio</div>
+    <div class="footer-email"><a href="mailto:aldeojason@gmail.com">aldeojason@gmail.com</a></div>
+    <div class="footer-email"><a href="/terms.html" data-i18n="footer.terms">Syarat &amp; Ketentuan</a></div>
+  </div>
+</footer>
+
+<script>
+  // ── Translations ────────────────────────────────────────────────────────────
+  const TEXTS = {
+    id: {
+      'nav.download':           'Download',
+      'hero.eyebrow':           'Windows 64-bit \u00b7 Coba gratis 7 hari',
+      'hero.title':             'Rekam setiap packing,\u003Cbr/\u003E\u003Cspan\u003Elega dari segala masalah\u003C/span\u003E',
+      'hero.sub':               'Rekam otomatis setiap proses packing lewat scan barcode. Cari dan putar ulang rekaman kapan saja untuk membuktikan packing yang sudah selesai.',
+      'hero.downloadBtn':       'Download Gratis',
+      'hero.pricingBtn':        'Lihat Harga',
+      'hero.note':              'Gratis 7 hari \u00b7 Tidak perlu kartu kredit',
+      'features.label':         'Fitur',
+      'features.title':         'Semua yang kamu butuhkan',
+      'features.sub':           'Dirancang untuk gudang yang sibuk \u2014 cepat, andal, dan mudah digunakan oleh siapa saja.',
+      'feat1.title':            'Rekam Otomatis via Barcode',
+      'feat1.desc':             'Scan barcode resi pengiriman \u2014 rekaman langsung dimulai. Tidak perlu pencet tombol apapun.',
+      'feat2.title':            'Cari & Putar Ulang',
+      'feat2.desc':             'Cari rekaman berdasarkan kode pengiriman dan putar ulang langsung di dalam aplikasi kapan saja.',
+      'feat3.title':            'Ekspor ke MP4',
+      'feat3.desc':             'Simpan rekaman sebagai file MP4 untuk dikirim ke marketplace atau pihak ekspedisi sebagai bukti.',
+      'feat4.title':            'Multi-Stasiun',
+      'feat4.desc':             'Rekam di hingga 6 stasiun packing sekaligus dalam satu aplikasi. Setiap stasiun berjalan independen.',
+      'feat5.title':            'Bekerja Offline',
+      'feat5.desc':             'Rekaman tersimpan langsung di komputer kamu. Tidak butuh internet untuk merekam atau mencari rekaman.',
+      'feat6.title':            'Lisensi Berbasis Akun',
+      'feat6.desc':             'Lisensi terhubung ke akunmu, bukan ke komputer. Ganti komputer kapan saja tanpa kehilangan lisensi.',
+      'how.label':              'Cara Kerja',
+      'how.title':              'Semudah tiga langkah',
+      'how.sub':                'Tidak ada pengaturan rumit. Pasang, scan, dan rekaman berjalan sendiri.',
+      'step1.title':            'Scan Barcode',
+      'step1.desc':             'Scan barcode resi pengiriman menggunakan barcode scanner USB. Aplikasi langsung mendeteksinya.',
+      'step2.title':            'Rekaman Berjalan Otomatis',
+      'step2.desc':             'Kamera mulai merekam secara otomatis. Scan barcode yang sama lagi untuk menghentikan rekaman.',
+      'step3.title':            'Cari & Putar Kapan Saja',
+      'step3.desc':             'Ketik kode pengiriman di tab Cari untuk menemukan dan memutar ulang rekaman \u2014 butuh hitungan detik.',
+      'screenshots.label':      'Tampilan Aplikasi',
+      'screenshots.title':      'Lihat Aplikasinya',
+      'screenshots.placeholder':'Screenshots segera hadir',
+      'screenshots.placeholderSub': 'Download sekarang untuk melihat langsung',
+      'pricing.label':          'Harga',
+      'pricing.title':          'Harga yang terjangkau',
+      'pricing.sub':            'Mulai gratis, bayar hanya saat butuh. Tidak ada kontrak, tidak ada biaya tersembunyi.',
+      'plan1.name':             'Percobaan Gratis',
+      'plan1.period':           '7 hari pertama',
+      'plan1.f1':               'Semua fitur tersedia',
+      'plan1.f2':               'Tidak perlu kartu kredit',
+      'plan1.f3':               'Tidak perlu daftar akun dulu',
+      'plan1.f4':               'Langsung bisa dipakai',
+      'plan1.note':             'Download dan mulai pakai sekarang.',
+      'plan2.badge':            'Paling Populer',
+      'plan2.name':             'Lisensi Aktif',
+      'plan2.per':              '/ 30 hari',
+      'plan2.period':           'Dapat diperpanjang kapan saja',
+      'plan2.f1':               'Semua fitur tanpa batas',
+      'plan2.f2':               'Lisensi terhubung ke akun',
+      'plan2.f3':               'Bisa dipakai di komputer berbeda',
+      'plan2.f4':               'Bisa ditambah (stacking) saat masih aktif',
+      'plan2.note':             'Bayar via QRIS di dalam aplikasi.',
+      'pricing.ctaNote':        'Pembelian dilakukan di dalam aplikasi',
+      'pricing.ctaSub':         'Download dulu, daftar akun, lalu beli lisensi dari tombol di aplikasi.',
+      'dl.label':               'Download',
+      'dl.title':               'Siap mencoba?',
+      'dl.sub':                 'Download gratis sekarang. Tidak perlu kartu kredit \u2014 langsung coba 7 hari penuh.',
+      'dl.btn':                 'Download Packing Recorder',
+      'dl.note':                'Windows 64-bit \u00b7 Installer (.exe)',
+      'footer.terms':           'Syarat &amp; Ketentuan',
+    },
+    en: {
+      'nav.download':           'Download',
+      'hero.eyebrow':           'Windows 64-bit \u00b7 Free 7-day trial',
+      'hero.title':             'Record every pack,\u003Cbr/\u003E\u003Cspan\u003Enever lose a dispute again\u003C/span\u003E',
+      'hero.sub':               'Automatically record every packing session with a barcode scan. Search and replay footage anytime to prove any order was packed correctly.',
+      'hero.downloadBtn':       'Download Free',
+      'hero.pricingBtn':        'See Pricing',
+      'hero.note':              'Free for 7 days \u00b7 No credit card required',
+      'features.label':         'Features',
+      'features.title':         'Everything you need',
+      'features.sub':           'Built for busy warehouses \u2014 fast, reliable, and easy for anyone to use.',
+      'feat1.title':            'Auto-record via Barcode',
+      'feat1.desc':             'Scan a shipping barcode and recording starts instantly. No buttons to press.',
+      'feat2.title':            'Search & Replay',
+      'feat2.desc':             'Find recordings by shipping code and play them back directly inside the app, anytime.',
+      'feat3.title':            'Export to MP4',
+      'feat3.desc':             'Save recordings as MP4 files to send to marketplaces or couriers as proof of packing.',
+      'feat4.title':            'Multi-station Support',
+      'feat4.desc':             'Record at up to 6 packing stations simultaneously in a single app. Each station runs independently.',
+      'feat5.title':            'Works Offline',
+      'feat5.desc':             'All recordings are saved directly to your computer. No internet needed to record or search.',
+      'feat6.title':            'Account-based License',
+      'feat6.desc':             'Your license is tied to your account, not your machine. Switch computers anytime without losing your license.',
+      'how.label':              'How It Works',
+      'how.title':              'Three simple steps',
+      'how.sub':                'No complicated setup. Install, scan, and recordings happen automatically.',
+      'step1.title':            'Scan the Barcode',
+      'step1.desc':             'Scan the shipping barcode with a USB barcode scanner. The app detects it instantly.',
+      'step2.title':            'Recording Starts Automatically',
+      'step2.desc':             'The camera starts recording right away. Scan the same barcode again to stop.',
+      'step3.title':            'Search & Replay Anytime',
+      'step3.desc':             'Type the shipping code in the Search tab to find and replay any recording in seconds.',
+      'screenshots.label':      'App Preview',
+      'screenshots.title':      'See It in Action',
+      'screenshots.placeholder':'Screenshots coming soon',
+      'screenshots.placeholderSub': 'Download now to see it for yourself',
+      'pricing.label':          'Pricing',
+      'pricing.title':          'Simple, affordable pricing',
+      'pricing.sub':            'Start free, pay only when you need it. No contracts, no hidden fees.',
+      'plan1.name':             'Free Trial',
+      'plan1.period':           'First 7 days',
+      'plan1.f1':               'All features included',
+      'plan1.f2':               'No credit card required',
+      'plan1.f3':               'No account needed to start',
+      'plan1.f4':               'Ready to use immediately',
+      'plan1.note':             'Download and start using right now.',
+      'plan2.badge':            'Most Popular',
+      'plan2.name':             'Active License',
+      'plan2.per':              '/ 30 days',
+      'plan2.period':           'Renewable anytime',
+      'plan2.f1':               'All features, no limits',
+      'plan2.f2':               'License tied to your account',
+      'plan2.f3':               'Use on any computer',
+      'plan2.f4':               'Stack licenses while still active',
+      'plan2.note':             'Pay via QRIS inside the app.',
+      'pricing.ctaNote':        'Purchase is done inside the app',
+      'pricing.ctaSub':         'Download first, create an account, then buy a license from the button in the app.',
+      'dl.label':               'Download',
+      'dl.title':               'Ready to try it?',
+      'dl.sub':                 'Download free now. No credit card required \u2014 full 7-day trial included.',
+      'dl.btn':                 'Download Packing Recorder',
+      'dl.note':                'Windows 64-bit \u00b7 Installer (.exe)',
+      'footer.terms':           'Terms &amp; Conditions',
+    }
+  };
+
+  // ── Language switcher ───────────────────────────────────────────────────────
+  let currentLang = localStorage.getItem('pr_site_lang') || 'id';
+
+  function setLang(lang) {
+    currentLang = lang;
+    localStorage.setItem('pr_site_lang', lang);
+    document.getElementById('lang-id').classList.toggle('active', lang === 'id');
+    document.getElementById('lang-en').classList.toggle('active', lang === 'en');
+    document.documentElement.lang = lang;
+
+    const texts = TEXTS[lang];
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n;
+      if (texts[key] !== undefined) {
+        el.innerHTML = texts[key];
+      }
+    });
+  }
+
+  // Apply on load
+  setLang(currentLang);
+</script>
+</body>
+</html>

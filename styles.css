@@ -1255,64 +1255,162 @@ body {
 }
 .license-btn-primary:hover { opacity: 0.9; }
 
-.license-divider {
+/* ── User info in nav ────────────────────────────────────────────────────── */
+.user-info {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
-  color: #94a3b8;
-  font-size: 0.8rem;
-}
-.license-divider::before,
-.license-divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: #e2e8f0;
-}
-
-.license-input-row {
-  display: flex;
   gap: 8px;
-  margin-bottom: 10px;
+  flex-shrink: 0;
 }
 
-.license-key-input {
+#welcome-text {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.logout-btn {
+  padding: 5px 12px;
+  background: transparent;
+  color: #64748b;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 14px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.logout-btn:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+/* ── License badge (active license) ─────────────────────────────────────── */
+#license-badge-text {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #166534;
+  white-space: nowrap;
+}
+#license-badge {
+  background: #dcfce7;
+  border-color: #86efac;
+}
+#license-badge.trial-badge-urgent {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+#license-badge.trial-badge-urgent #license-badge-text {
+  color: #dc2626;
+}
+
+/* ── License refresh button (in nav badge) ───────────────────────────────── */
+.license-refresh-btn {
+  padding: 3px 7px;
+  background: transparent;
+  color: #166534;
+  border: 1.5px solid #86efac;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  cursor: pointer;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.license-refresh-btn:hover { background: #bbf7d0; }
+.license-refresh-btn.spinning { animation: spin-btn 0.7s linear infinite; }
+@keyframes spin-btn { to { transform: rotate(360deg); } }
+
+/* ── "Check my payment" row in buy overlay ───────────────────────────────── */
+.license-recover-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.license-recover-label {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+.license-btn-recover {
+  padding: 8px 20px;
+  background: transparent;
+  color: #3b5bdb;
+  border: 1.5px solid #3b5bdb;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.license-btn-recover:hover { background: #eff6ff; }
+.license-btn-recover:disabled { opacity: 0.5; cursor: not-allowed; }
+
+
+.auth-tab-row {
+  display: flex;
+  gap: 0;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.auth-tab-btn {
   flex: 1;
-  padding: 10px 12px;
+  padding: 10px;
+  background: #f8fafc;
+  color: #64748b;
+  border: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.auth-tab-btn.active {
+  background: #3b5bdb;
+  color: #fff;
+}
+.auth-tab-btn:not(.active):hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+.auth-field {
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.auth-input {
+  width: 100%;
+  padding: 11px 14px;
   border: 1.5px solid #e2e8f0;
   border-radius: 10px;
-  font-size: 0.9rem;
-  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 0.92rem;
+  font-family: inherit;
   color: #1e293b;
   background: #f8fafc;
   outline: none;
-  text-transform: uppercase;
-  letter-spacing: 1.5px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-.license-key-input:focus {
+.auth-input:focus {
   border-color: #3b5bdb;
   background: #fff;
   box-shadow: 0 0 0 3px rgba(59, 91, 219, 0.12);
 }
 
-.license-btn-activate {
-  padding: 10px 16px;
-  background: #1e293b;
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  font-size: 0.88rem;
-  font-weight: 700;
-  font-family: inherit;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background 0.15s;
-  flex-shrink: 0;
-}
-.license-btn-activate:hover { background: #334155; }
-.license-btn-activate:disabled { opacity: 0.5; cursor: not-allowed; }
+.license-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Station Grid ─────────────────────────────────────────────────────────── */
 .stations-grid {

@@ -9,6 +9,8 @@ const MAX_STATIONS = 6;
 
 // ─── Global state ─────────────────────────────────────────────────────────────
 let trialDaysLeft = null;
+let licenseDaysLeft = null;
+let currentUserRole = null;
 let barcodeBuffer = '';
 let barcodeTimeout = null;
 let currentPlayingPath = null;
@@ -1205,73 +1207,338 @@ function applyTranslations() {
     }
   }
 
+  if (licenseDaysLeft !== null) {
+    const licenseBadgeText = document.getElementById('license-badge-text');
+    const licenseBadge = document.getElementById('license-badge');
+    if (licenseBadgeText && licenseBadge && !licenseBadge.classList.contains('hidden')) {
+      licenseBadgeText.textContent = t('license.badge', licenseDaysLeft);
+    }
+  }
+
   renderRecordingsList();
 }
 
-// ─── License / Trial ──────────────────────────────────────────────────────────
-const licenseOverlay  = document.getElementById('license-overlay');
-const trialBadge      = document.getElementById('trial-badge');
-const trialBadgeText  = document.getElementById('trial-badge-text');
-const trialBuyBtn     = document.getElementById('trial-buy-btn');
-const overlayBuyBtn   = document.getElementById('overlay-buy-btn');
-const licenseKeyInput = document.getElementById('license-key-input');
-const activateBtn     = document.getElementById('activate-btn');
-const licenseFeedback = document.getElementById('license-feedback');
+// ─── License / Auth ───────────────────────────────────────────────────────────
+const licenseOverlay   = document.getElementById('license-overlay');
+const authSection      = document.getElementById('auth-section');
+const buySection       = document.getElementById('buy-section');
+const trialBadge       = document.getElementById('trial-badge');
+const trialBadgeText   = document.getElementById('trial-badge-text');
+const trialBuyBtn      = document.getElementById('trial-buy-btn');
+const licenseBadge     = document.getElementById('license-badge');
+const licenseBadgeText = document.getElementById('license-badge-text');
+const licenseBuyBtn    = document.getElementById('license-buy-btn');
+const licenseRefreshBtn = document.getElementById('license-refresh-btn');
+const userInfo         = document.getElementById('user-info');
+const welcomeText      = document.getElementById('welcome-text');
+const logoutBtn        = document.getElementById('logout-btn');
+const overlayBuyBtn    = document.getElementById('overlay-buy-btn');
+const overlayRecoverBtn = document.getElementById('overlay-recover-btn');
+const authFeedback     = document.getElementById('auth-feedback');
+const buyFeedback      = document.getElementById('buy-feedback');
+const testModeSettingRow = document.getElementById('test-mode-setting-row');
+
+// Auth tab toggle
+const tabLoginBtn    = document.getElementById('tab-login-btn');
+const tabRegisterBtn = document.getElementById('tab-register-btn');
+const loginForm      = document.getElementById('login-form');
+const registerForm   = document.getElementById('register-form');
+
+if (tabLoginBtn) {
+  tabLoginBtn.addEventListener('click', () => {
+    tabLoginBtn.classList.add('active');
+    tabRegisterBtn.classList.remove('active');
+    loginForm.classList.remove('hidden');
+    registerForm.classList.add('hidden');
+    setAuthFeedback('', '');
+  });
+}
+if (tabRegisterBtn) {
+  tabRegisterBtn.addEventListener('click', () => {
+    tabRegisterBtn.classList.add('active');
+    tabLoginBtn.classList.remove('active');
+    registerForm.classList.remove('hidden');
+    loginForm.classList.add('hidden');
+    setAuthFeedback('', '');
+  });
+}
+
+// Login handler
+const loginBtn = document.getElementById('login-btn');
+if (loginBtn) {
+  loginBtn.addEventListener('click', async () => {
+    const email    = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    if (!email || !password) { setAuthFeedback('error', 'Please enter your email and password.'); return; }
+    setAuthFeedback('', '');
+    loginBtn.disabled = true;
+    loginBtn.textContent = 'Logging in…';
+    const result = await window.electronAPI.login({ email, password });
+    loginBtn.disabled = false;
+    loginBtn.textContent = t ? t('overlay.loginBtn') : 'Login';
+    if (result.success) {
+      onAuthSuccess(result);
+    } else {
+      setAuthFeedback('error', result.error || 'Login failed.');
+    }
+  });
+}
+
+// Register handler
+const registerBtn = document.getElementById('register-btn');
+if (registerBtn) {
+  registerBtn.addEventListener('click', async () => {
+    const username = document.getElementById('register-username').value.trim();
+    const email    = document.getElementById('register-email').value.trim();
+    const password = document.getElementById('register-password').value;
+    const confirm  = document.getElementById('register-confirm').value;
+    if (!username || !email || !password) { setAuthFeedback('error', 'Please fill in all fields.'); return; }
+    if (password !== confirm) { setAuthFeedback('error', 'Passwords do not match.'); return; }
+    if (password.length < 6)  { setAuthFeedback('error', 'Password must be at least 6 characters.'); return; }
+    setAuthFeedback('', '');
+    registerBtn.disabled = true;
+    registerBtn.textContent = 'Creating account…';
+    const result = await window.electronAPI.register({ username, email, password });
+    registerBtn.disabled = false;
+    registerBtn.textContent = t ? t('overlay.registerBtn') : 'Create Account';
+    if (result.success) {
+      onAuthSuccess(result);
+    } else {
+      setAuthFeedback('error', result.error || 'Registration failed.');
+    }
+  });
+}
+
+/** Called after a successful login or register. Shows the appropriate state. */
+function onAuthSuccess(result) {
+  const { username, role, licenseExpiresAt } = result;
+  currentUserRole = role || 'user';
+
+  // Show welcome + logout in nav
+  if (welcomeText) welcomeText.textContent = `Welcome, ${username}`;
+  if (userInfo) userInfo.classList.remove('hidden');
+
+  // Show/hide test mode toggle based on role
+  applyRoleUI(role);
+
+  const expiresAt = licenseExpiresAt ? new Date(licenseExpiresAt) : null;
+  const licensed  = expiresAt && expiresAt > new Date();
+
+  if (licensed) {
+    // Close overlay, show license badge
+    if (licenseOverlay) licenseOverlay.classList.add('hidden');
+    const days = Math.ceil((expiresAt - new Date()) / 86400000);
+    licenseDaysLeft = days;
+    if (licenseBadgeText) licenseBadgeText.textContent = t ? t('license.badge', days) : `License: ${days} days left`;
+    if (days <= 7 && licenseBadge) licenseBadge.classList.add('trial-badge-urgent');
+    if (licenseBadge) licenseBadge.classList.remove('hidden');
+    if (trialBadge) trialBadge.classList.add('hidden');
+  } else {
+    // Licensed status unknown / no license
+    // If overlay is still showing, switch from auth form to buy section
+    if (authSection) authSection.classList.add('hidden');
+    // Check trial state inline (we need to await, so use a separate async call)
+    _handlePostLoginTrialState();
+  }
+}
+
+async function _handlePostLoginTrialState() {
+  // Re-fetch status to get trial info (we already have it in getLicenseStatus)
+  const status = await window.electronAPI.getLicenseStatus();
+  if (status.licensed) {
+    // License appeared (race condition / just activated) — call onAuthSuccess properly
+    const days = status.licenseDaysLeft;
+    licenseDaysLeft = days;
+    if (licenseBadgeText) licenseBadgeText.textContent = t ? t('license.badge', days) : `License: ${days} days left`;
+    if (days <= 7 && licenseBadge) licenseBadge.classList.add('trial-badge-urgent');
+    if (licenseBadge) licenseBadge.classList.remove('hidden');
+    if (licenseOverlay) licenseOverlay.classList.add('hidden');
+    return;
+  }
+  if (!status.trialExpired) {
+    // Trial still active — close overlay, show trial badge
+    if (licenseOverlay) licenseOverlay.classList.add('hidden');
+    const days = status.trialDaysLeft;
+    trialDaysLeft = days;
+    if (trialBadgeText) trialBadgeText.textContent = t ? t('trial.badge', days) : `Trial: ${days} days left`;
+    if (days <= 2 && trialBadge) trialBadge.classList.add('trial-badge-urgent');
+    if (trialBadge) trialBadge.classList.remove('hidden');
+  } else {
+    // Trial expired, no license — show buy section inside overlay
+    if (authSection) authSection.classList.add('hidden');
+    if (buySection) buySection.classList.remove('hidden');
+    if (licenseOverlay) licenseOverlay.classList.remove('hidden');
+  }
+}
+
+/** Shows/hides admin-only UI elements based on role. */
+function applyRoleUI(role) {
+  if (testModeSettingRow) {
+    if (role === 'admin') {
+      testModeSettingRow.classList.remove('hidden');
+    } else {
+      testModeSettingRow.classList.add('hidden');
+    }
+  }
+}
+
+// Buy button
+if (overlayBuyBtn) {
+  overlayBuyBtn.addEventListener('click', () => window.electronAPI.openPurchasePage());
+}
+if (trialBuyBtn) {
+  trialBuyBtn.addEventListener('click', () => window.electronAPI.openPurchasePage());
+}
+if (licenseBuyBtn) {
+  licenseBuyBtn.addEventListener('click', () => window.electronAPI.openPurchasePage());
+}
+
+// ── "Check My Payment" button — in the buy overlay (trial expired, no license) ──
+if (overlayRecoverBtn) {
+  overlayRecoverBtn.addEventListener('click', async () => {
+    setBuyFeedback('', '');
+    overlayRecoverBtn.disabled = true;
+    overlayRecoverBtn.textContent = t('overlay.recovering');
+    const result = await window.electronAPI.recoverLicense();
+    overlayRecoverBtn.disabled = false;
+    overlayRecoverBtn.textContent = t('overlay.checkPayment');
+
+    if (result.recovered && result.licenseExpiresAt) {
+      // License restored — update UI and close overlay
+      const expiresAt = new Date(result.licenseExpiresAt);
+      const days = Math.ceil((expiresAt - new Date()) / 86400000);
+      licenseDaysLeft = days;
+      if (licenseBadgeText) licenseBadgeText.textContent = t('license.badge', days);
+      if (days <= 7 && licenseBadge) licenseBadge.classList.add('trial-badge-urgent');
+      if (licenseBadge) licenseBadge.classList.remove('hidden');
+      if (trialBadge) trialBadge.classList.add('hidden');
+      setBuyFeedback('success', t('overlay.recoveredOk', result.count || 1));
+      setTimeout(() => {
+        if (licenseOverlay) licenseOverlay.classList.add('hidden');
+      }, 1800);
+    } else if (result.error) {
+      setBuyFeedback('error', result.error);
+    } else {
+      setBuyFeedback('error', t('overlay.recoveredNone'));
+    }
+  });
+}
+
+// ── "Refresh ↺" button — in the nav license badge (licensed users) ──
+if (licenseRefreshBtn) {
+  licenseRefreshBtn.addEventListener('click', async () => {
+    licenseRefreshBtn.disabled = true;
+    licenseRefreshBtn.classList.add('spinning');
+    const result = await window.electronAPI.recoverLicense();
+    licenseRefreshBtn.disabled = false;
+    licenseRefreshBtn.classList.remove('spinning');
+
+    if (result.recovered && result.licenseExpiresAt) {
+      // New days were stacked — update the badge text
+      const expiresAt = new Date(result.licenseExpiresAt);
+      const days = Math.ceil((expiresAt - new Date()) / 86400000);
+      licenseDaysLeft = days;
+      if (licenseBadgeText) licenseBadgeText.textContent = t('license.badge', days);
+      if (days <= 7) {
+        licenseBadge.classList.add('trial-badge-urgent');
+      } else {
+        licenseBadge.classList.remove('trial-badge-urgent');
+      }
+      // Brief flash to confirm update
+      licenseBadge.style.transition = 'opacity 0.15s';
+      licenseBadge.style.opacity = '0.4';
+      setTimeout(() => { licenseBadge.style.opacity = '1'; }, 200);
+    }
+    // If recovered: false — silently do nothing (license is already up to date)
+  });
+}
+
+
+// Logout
+if (logoutBtn) {
+  logoutBtn.addEventListener('click', async () => {
+    await window.electronAPI.logout();
+    // Reset UI state
+    if (userInfo) userInfo.classList.add('hidden');
+    if (trialBadge) trialBadge.classList.add('hidden');
+    if (licenseBadge) licenseBadge.classList.add('hidden');
+    if (authSection) authSection.classList.remove('hidden');
+    if (buySection) buySection.classList.add('hidden');
+    // Re-show login tab by default
+    if (tabLoginBtn) tabLoginBtn.click();
+    if (licenseOverlay) licenseOverlay.classList.remove('hidden');
+    // Reset inputs
+    ['login-email','login-password','register-username','register-email','register-password','register-confirm']
+      .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    setAuthFeedback('', '');
+    // Hide test mode toggle (no role known after logout)
+    applyRoleUI('user');
+    currentUserRole = null;
+    licenseDaysLeft = null;
+    trialDaysLeft = null;
+  });
+}
 
 async function initLicense() {
   if (!licenseOverlay) return; // station window has no overlay
   const status = await window.electronAPI.getLicenseStatus();
-  if (status.licensed) return;
 
-  if (status.trialExpired) {
+  if (!status.loggedIn) {
+    // Show login/register overlay
+    if (authSection) authSection.classList.remove('hidden');
+    if (buySection) buySection.classList.add('hidden');
     licenseOverlay.classList.remove('hidden');
-  } else {
+    return;
+  }
+
+  // Logged in — update nav with username and role
+  if (welcomeText && status.username) welcomeText.textContent = `Welcome, ${status.username}`;
+  if (userInfo) userInfo.classList.remove('hidden');
+  currentUserRole = status.role || 'user';
+  applyRoleUI(currentUserRole);
+
+  if (status.licensed) {
+    // Active license — show license countdown badge
+    const days = status.licenseDaysLeft;
+    licenseDaysLeft = days;
+    if (licenseBadgeText) licenseBadgeText.textContent = t('license.badge', days);
+    if (days <= 7 && licenseBadge) licenseBadge.classList.add('trial-badge-urgent');
+    if (licenseBadge) licenseBadge.classList.remove('hidden');
+    return;
+  }
+
+  if (!status.trialExpired) {
+    // Trial still active — show trial badge
     const days = status.trialDaysLeft;
     trialDaysLeft = days;
     if (trialBadgeText) trialBadgeText.textContent = t('trial.badge', days);
     if (days <= 2 && trialBadge) trialBadge.classList.add('trial-badge-urgent');
     if (trialBadge) trialBadge.classList.remove('hidden');
+    return;
   }
+
+  // Trial expired, no license, logged in — show buy overlay
+  if (authSection) authSection.classList.add('hidden');
+  if (buySection) buySection.classList.remove('hidden');
+  licenseOverlay.classList.remove('hidden');
 }
 
-if (licenseKeyInput) {
-  licenseKeyInput.addEventListener('input', () => {
-    let raw = licenseKeyInput.value.replace(/[^A-Z0-9]/gi, '').toUpperCase().slice(0, 16);
-    const parts = raw.match(/.{1,4}/g) || [];
-    licenseKeyInput.value = parts.join('-');
-  });
+function setAuthFeedback(type, msg) {
+  if (!authFeedback) return;
+  authFeedback.textContent = msg;
+  authFeedback.className = 'license-feedback';
+  if (type) authFeedback.classList.add(type);
+  if (msg) authFeedback.classList.remove('hidden');
+  else authFeedback.classList.add('hidden');
 }
 
-[trialBuyBtn, overlayBuyBtn].forEach(btn => {
-  if (btn) btn.addEventListener('click', () => window.electronAPI.openPurchasePage());
-});
-
-if (activateBtn) {
-  activateBtn.addEventListener('click', async () => {
-    const key = licenseKeyInput.value.trim();
-    if (!key) return;
-    setLicenseFeedback('', '');
-    activateBtn.disabled = true;
-    activateBtn.textContent = t('activate.checking');
-    const result = await window.electronAPI.activateLicense(key);
-    activateBtn.disabled = false;
-    activateBtn.textContent = t('activate.btn');
-    if (result.valid) {
-      setLicenseFeedback('success', t('activate.success', result.message));
-      setTimeout(() => { if (licenseOverlay) licenseOverlay.classList.add('hidden'); }, 1800);
-    } else {
-      setLicenseFeedback('error', result.message || t('activate.failed'));
-    }
-  });
-}
-
-function setLicenseFeedback(type, msg) {
-  if (!licenseFeedback) return;
-  licenseFeedback.textContent = msg;
-  licenseFeedback.className = 'license-feedback';
-  if (type) licenseFeedback.classList.add(type);
-  if (msg) licenseFeedback.classList.remove('hidden');
-  else licenseFeedback.classList.add('hidden');
+function setBuyFeedback(type, msg) {
+  if (!buyFeedback) return;
+  buyFeedback.textContent = msg;
+  buyFeedback.className = 'license-feedback';
+  if (type) buyFeedback.classList.add(type);
+  if (msg) buyFeedback.classList.remove('hidden');
+  else buyFeedback.classList.add('hidden');
 }
 
 // ─── Tab Navigation ───────────────────────────────────────────────────────────

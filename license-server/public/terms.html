@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Terms &amp; Conditions — Packing Recorder</title>
+  <meta name="description" content="Terms of Service, refund policy, and privacy notice for Packing Recorder by Aldeo Studio." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:   #3b5bdb;
+      --purple: #7c3aed;
+      --dark:   #1e293b;
+      --mid:    #475569;
+      --light:  #64748b;
+      --border: #e2e8f0;
+      --bg:     #f8fafc;
+      --white:  #ffffff;
+      --radius: 16px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', 'Segoe UI', Tahoma, sans-serif;
+      color: var(--dark);
+      background: var(--white);
+      line-height: 1.7;
+    }
+
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .hidden { display: none !important; }
+
+    /* ── Nav ── */
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+    }
+    .nav-brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .nav-logo {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .nav-logo svg { width: 18px; height: 18px; fill: #fff; }
+    .nav-name { font-size: 1rem; font-weight: 800; color: var(--dark); letter-spacing: -0.2px; }
+    .nav-right { display: flex; align-items: center; gap: 10px; }
+    .lang-toggle { display: flex; border: 1.5px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .lang-btn {
+      padding: 5px 11px; font-size: 0.78rem; font-weight: 700;
+      font-family: inherit; background: transparent; border: none;
+      cursor: pointer; color: var(--light); transition: background 0.15s, color 0.15s;
+    }
+    .lang-btn.active { background: var(--blue); color: #fff; }
+    .nav-home-link {
+      font-size: 0.82rem; font-weight: 600; color: var(--mid);
+      padding: 6px 12px; border: 1.5px solid var(--border);
+      border-radius: 10px; transition: border-color 0.15s, color 0.15s;
+    }
+    .nav-home-link:hover { color: var(--blue); border-color: var(--blue); text-decoration: none; }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(160deg, #f0f4ff 0%, #f5f0ff 50%, #e8f0fe 100%);
+      padding: 64px 0 56px;
+      text-align: center;
+    }
+    .hero h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 800; letter-spacing: -0.5px; color: var(--dark); margin-bottom: 12px; }
+    .hero p { font-size: 1rem; color: var(--mid); }
+
+    /* ── Content ── */
+    .content {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 56px 24px 100px;
+    }
+
+    .toc {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px 28px;
+      margin-bottom: 48px;
+    }
+    .toc-title { font-size: 0.78rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--blue); margin-bottom: 12px; }
+    .toc ol { padding-left: 18px; }
+    .toc li { margin-bottom: 6px; font-size: 0.92rem; }
+    .toc a { color: var(--mid); }
+    .toc a:hover { color: var(--blue); }
+
+    .section { margin-bottom: 48px; }
+    .section h2 {
+      font-size: 1.2rem; font-weight: 800; color: var(--dark);
+      margin-bottom: 14px; padding-bottom: 10px;
+      border-bottom: 2px solid var(--border);
+    }
+    .section h2 .num {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      color: #fff; border-radius: 8px; font-size: 0.78rem;
+      font-weight: 800; margin-right: 10px; flex-shrink: 0;
+      vertical-align: middle;
+    }
+    .section p { font-size: 0.96rem; color: var(--mid); margin-bottom: 12px; }
+    .section ul, .section ol { padding-left: 20px; margin-bottom: 12px; }
+    .section li { font-size: 0.96rem; color: var(--mid); margin-bottom: 6px; }
+    .section strong { color: var(--dark); }
+
+    .notice-box {
+      background: #fff7ed;
+      border-left: 4px solid #f59e0b;
+      border-radius: 0 10px 10px 0;
+      padding: 14px 18px;
+      margin-bottom: 14px;
+    }
+    .notice-box p { margin: 0; color: #92400e; font-size: 0.92rem; }
+
+    .contact-box {
+      background: #f0f4ff;
+      border: 1px solid #c7d2fe;
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-top: 8px;
+    }
+    .contact-box p { margin: 0 0 4px; font-size: 0.92rem; color: var(--mid); }
+    .contact-box a { color: var(--blue); font-weight: 600; }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 24px;
+      text-align: center;
+      font-size: 0.82rem;
+      color: var(--light);
+    }
+    footer a { color: var(--blue); }
+  </style>
+</head>
+<body>
+
+<!-- ── Nav ── -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-brand">
+      <div class="nav-logo">
+        <svg viewBox="0 0 24 24"><path d="M4 4h16v2H4V4zm0 4h16v2H4V8zm0 4h10v2H4v-2zm0 4h10v2H4v-2zm12 0l2 2 4-4-1.4-1.4L18 17.2l-.6-.6L16 18z"/></svg>
+      </div>
+      <span class="nav-name">Packing Recorder</span>
+    </a>
+    <div class="nav-right">
+      <div class="lang-toggle">
+        <button class="lang-btn" id="btn-id" onclick="setLang('id')">ID</button>
+        <button class="lang-btn" id="btn-en" onclick="setLang('en')">EN</button>
+      </div>
+      <a href="/" class="nav-home-link" data-i18n="nav.home">Beranda</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Hero ── -->
+<div class="hero">
+  <h1 data-i18n="hero.title">Syarat &amp; Ketentuan</h1>
+  <p data-i18n="hero.sub">Berlaku untuk Packing Recorder oleh Aldeo Studio</p>
+</div>
+
+<!-- ── Content ── -->
+<div class="content">
+
+  <!-- Table of Contents -->
+  <div class="toc">
+    <div class="toc-title" data-i18n="toc.title">Daftar Isi</div>
+    <ol>
+      <li><a href="#sec-general"     data-i18n="toc.1">Ketentuan Umum</a></li>
+      <li><a href="#sec-license"     data-i18n="toc.2">Lisensi Perangkat Lunak</a></li>
+      <li><a href="#sec-payment"     data-i18n="toc.3">Pembayaran &amp; Harga</a></li>
+      <li><a href="#sec-refund"      data-i18n="toc.4">Kebijakan Pengembalian Dana</a></li>
+      <li><a href="#sec-trial"       data-i18n="toc.5">Masa Percobaan Gratis</a></li>
+      <li><a href="#sec-account"     data-i18n="toc.6">Akun &amp; Keamanan</a></li>
+      <li><a href="#sec-privacy"     data-i18n="toc.7">Privasi &amp; Data</a></li>
+      <li><a href="#sec-disclaimer"  data-i18n="toc.8">Penafian &amp; Batasan Tanggung Jawab</a></li>
+      <li><a href="#sec-changes"     data-i18n="toc.9">Perubahan Ketentuan</a></li>
+      <li><a href="#sec-contact"     data-i18n="toc.10">Kontak</a></li>
+    </ol>
+  </div>
+
+  <!-- 1 -->
+  <div class="section" id="sec-general">
+    <h2><span class="num">1</span> <span data-i18n="s1.title">Ketentuan Umum</span></h2>
+    <p data-i18n="s1.p1">Dengan mengunduh, menginstal, atau menggunakan Packing Recorder ("Perangkat Lunak"), Anda menyetujui Syarat &amp; Ketentuan ini. Jika Anda tidak menyetujui, jangan gunakan Perangkat Lunak ini.</p>
+    <p data-i18n="s1.p2">Perangkat Lunak ini dikembangkan dan didistribusikan oleh <strong>Aldeo Studio</strong>. Penggunaan Perangkat Lunak ini tunduk pada hukum yang berlaku di Indonesia.</p>
+  </div>
+
+  <!-- 2 -->
+  <div class="section" id="sec-license">
+    <h2><span class="num">2</span> <span data-i18n="s2.title">Lisensi Perangkat Lunak</span></h2>
+    <p data-i18n="s2.p1">Aldeo Studio memberikan Anda lisensi terbatas, non-eksklusif, tidak dapat dipindahtangankan untuk menggunakan Packing Recorder untuk keperluan bisnis internal Anda.</p>
+    <ul>
+      <li data-i18n="s2.li1">Satu lisensi berlaku selama <strong>30 hari</strong> sejak pembelian atau perpanjangan.</li>
+      <li data-i18n="s2.li2">Lisensi terikat pada akun pengguna, bukan pada perangkat tertentu.</li>
+      <li data-i18n="s2.li3">Anda boleh menggunakan satu akun di beberapa komputer secara bergantian.</li>
+      <li data-i18n="s2.li4">Berbagi akun dengan pihak lain di luar organisasi Anda tidak diperbolehkan.</li>
+      <li data-i18n="s2.li5">Rekayasa balik, dekompilasi, atau modifikasi Perangkat Lunak tidak diperbolehkan.</li>
+    </ul>
+  </div>
+
+  <!-- 3 -->
+  <div class="section" id="sec-payment">
+    <h2><span class="num">3</span> <span data-i18n="s3.title">Pembayaran &amp; Harga</span></h2>
+    <p data-i18n="s3.p1">Semua harga tercantum dalam <strong>Rupiah (IDR)</strong> dan sudah termasuk pajak yang berlaku.</p>
+    <ul>
+      <li data-i18n="s3.li1">Harga saat ini: <strong>Rp 75.000</strong> per 30 hari.</li>
+      <li data-i18n="s3.li2">Pembayaran dilakukan melalui QRIS di dalam aplikasi menggunakan layanan Midtrans.</li>
+      <li data-i18n="s3.li3">Lisensi akan diaktifkan secara otomatis setelah pembayaran dikonfirmasi oleh Midtrans.</li>
+      <li data-i18n="s3.li4">Jika lisensi tidak aktif dalam 10 menit setelah pembayaran berhasil, gunakan tombol "Cek Pembayaran" di dalam aplikasi.</li>
+      <li data-i18n="s3.li5">Harga dapat berubah sewaktu-waktu; harga yang berlaku adalah harga pada saat transaksi.</li>
+    </ul>
+  </div>
+
+  <!-- 4 -->
+  <div class="section" id="sec-refund">
+    <h2><span class="num">4</span> <span data-i18n="s4.title">Kebijakan Pengembalian Dana</span></h2>
+    <div class="notice-box">
+      <p data-i18n="s4.notice"><strong>Penting:</strong> Karena sifat produk digital, pengembalian dana umumnya tidak tersedia setelah lisensi diaktifkan.</p>
+    </div>
+    <p data-i18n="s4.p1">Pengembalian dana hanya dapat dipertimbangkan dalam kondisi berikut:</p>
+    <ul>
+      <li data-i18n="s4.li1">Pembayaran berhasil ditagih tetapi lisensi <strong>tidak pernah diaktifkan</strong> di akun Anda meski sudah menggunakan tombol "Cek Pembayaran".</li>
+      <li data-i18n="s4.li2">Terdapat duplikasi tagihan akibat kesalahan teknis yang dapat diverifikasi.</li>
+    </ul>
+    <p data-i18n="s4.p2">Untuk mengajukan klaim pengembalian dana, hubungi <a href="mailto:aldeojason@gmail.com">aldeojason@gmail.com</a> dalam waktu <strong>7 hari kalender</strong> sejak tanggal transaksi, sertakan bukti pembayaran (ID transaksi Midtrans).</p>
+    <p data-i18n="s4.p3">Pengajuan yang disetujui akan diproses dalam 7–14 hari kerja melalui metode pembayaran asli.</p>
+  </div>
+
+  <!-- 5 -->
+  <div class="section" id="sec-trial">
+    <h2><span class="num">5</span> <span data-i18n="s5.title">Masa Percobaan Gratis</span></h2>
+    <p data-i18n="s5.p1">Packing Recorder menyediakan masa percobaan gratis selama <strong>7 hari</strong> untuk pengguna baru, tanpa memerlukan kartu kredit atau pembayaran.</p>
+    <ul>
+      <li data-i18n="s5.li1">Masa percobaan dimulai sejak pertama kali aplikasi dijalankan.</li>
+      <li data-i18n="s5.li2">Setelah masa percobaan berakhir, pembelian lisensi diperlukan untuk melanjutkan penggunaan.</li>
+      <li data-i18n="s5.li3">Masa percobaan tidak dapat direset atau diperpanjang.</li>
+    </ul>
+  </div>
+
+  <!-- 6 -->
+  <div class="section" id="sec-account">
+    <h2><span class="num">6</span> <span data-i18n="s6.title">Akun &amp; Keamanan</span></h2>
+    <p data-i18n="s6.p1">Anda bertanggung jawab penuh atas keamanan kredensial akun Anda.</p>
+    <ul>
+      <li data-i18n="s6.li1">Jangan bagikan kata sandi akun kepada siapa pun.</li>
+      <li data-i18n="s6.li2">Segera hubungi kami jika Anda menduga akun Anda telah diakses tanpa izin.</li>
+      <li data-i18n="s6.li3">Aldeo Studio tidak bertanggung jawab atas kerugian akibat kata sandi yang dikompromikan oleh pengguna.</li>
+      <li data-i18n="s6.li4">Kami berhak menangguhkan akun yang terindikasi penyalahgunaan.</li>
+    </ul>
+  </div>
+
+  <!-- 7 -->
+  <div class="section" id="sec-privacy">
+    <h2><span class="num">7</span> <span data-i18n="s7.title">Privasi &amp; Data</span></h2>
+    <p data-i18n="s7.p1">Kami hanya mengumpulkan data minimum yang diperlukan untuk mengoperasikan layanan:</p>
+    <ul>
+      <li data-i18n="s7.li1"><strong>Data akun:</strong> nama pengguna, alamat email, kata sandi terenkripsi (bcrypt).</li>
+      <li data-i18n="s7.li2"><strong>Data lisensi:</strong> tanggal aktivasi, tanggal kadaluarsa, riwayat pembelian.</li>
+      <li data-i18n="s7.li3"><strong>Data rekaman video:</strong> disimpan <em>sepenuhnya di perangkat lokal Anda</em> dan tidak pernah dikirim ke server kami.</li>
+    </ul>
+    <p data-i18n="s7.p2">Kami tidak menjual, menyewakan, atau membagikan data pribadi Anda kepada pihak ketiga, kecuali diwajibkan oleh hukum.</p>
+    <p data-i18n="s7.p3">Pemrosesan pembayaran dilakukan oleh Midtrans; data kartu/QRIS tidak pernah menyentuh server kami.</p>
+  </div>
+
+  <!-- 8 -->
+  <div class="section" id="sec-disclaimer">
+    <h2><span class="num">8</span> <span data-i18n="s8.title">Penafian &amp; Batasan Tanggung Jawab</span></h2>
+    <p data-i18n="s8.p1">Perangkat Lunak disediakan "sebagaimana adanya" (<em>as-is</em>) tanpa jaminan apa pun, tersurat maupun tersirat.</p>
+    <ul>
+      <li data-i18n="s8.li1">Aldeo Studio tidak bertanggung jawab atas kehilangan data, kerusakan bisnis, atau kerugian tidak langsung akibat penggunaan Perangkat Lunak.</li>
+      <li data-i18n="s8.li2">Tanggung jawab maksimum kami tidak melebihi jumlah yang Anda bayarkan dalam 30 hari terakhir.</li>
+      <li data-i18n="s8.li3">Kami berhak menghentikan atau mengubah layanan dengan pemberitahuan yang wajar.</li>
+    </ul>
+  </div>
+
+  <!-- 9 -->
+  <div class="section" id="sec-changes">
+    <h2><span class="num">9</span> <span data-i18n="s9.title">Perubahan Ketentuan</span></h2>
+    <p data-i18n="s9.p1">Kami dapat memperbarui Syarat &amp; Ketentuan ini sewaktu-waktu. Versi terbaru selalu tersedia di halaman ini.</p>
+    <p data-i18n="s9.p2">Penggunaan Perangkat Lunak yang berkelanjutan setelah perubahan diterbitkan berarti Anda menerima ketentuan yang diperbarui.</p>
+    <p><span data-i18n="s9.updated">Terakhir diperbarui:</span> <strong>31 Mei 2025</strong></p>
+  </div>
+
+  <!-- 10 -->
+  <div class="section" id="sec-contact">
+    <h2><span class="num">10</span> <span data-i18n="s10.title">Kontak</span></h2>
+    <p data-i18n="s10.p1">Jika Anda memiliki pertanyaan tentang Syarat &amp; Ketentuan ini atau membutuhkan bantuan, hubungi kami:</p>
+    <div class="contact-box">
+      <p><strong>Aldeo Studio</strong></p>
+      <p data-i18n="s10.email">Email: <a href="mailto:aldeojason@gmail.com">aldeojason@gmail.com</a></p>
+      <p data-i18n="s10.response">Waktu respons: 1–3 hari kerja</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Footer ── -->
+<footer>
+  <p>&copy; 2025 Aldeo Studio. <a href="/" data-i18n="footer.home">Beranda</a> &nbsp;·&nbsp; <a href="/terms.html" data-i18n="footer.terms">Syarat &amp; Ketentuan</a></p>
+</footer>
+
+<script>
+  const TEXT = {
+    id: {
+      'nav.home':    'Beranda',
+      'hero.title':  'Syarat &amp; Ketentuan',
+      'hero.sub':    'Berlaku untuk Packing Recorder oleh Aldeo Studio',
+      'toc.title':   'Daftar Isi',
+      'toc.1':       'Ketentuan Umum',
+      'toc.2':       'Lisensi Perangkat Lunak',
+      'toc.3':       'Pembayaran &amp; Harga',
+      'toc.4':       'Kebijakan Pengembalian Dana',
+      'toc.5':       'Masa Percobaan Gratis',
+      'toc.6':       'Akun &amp; Keamanan',
+      'toc.7':       'Privasi &amp; Data',
+      'toc.8':       'Penafian &amp; Batasan Tanggung Jawab',
+      'toc.9':       'Perubahan Ketentuan',
+      'toc.10':      'Kontak',
+      's1.title':    'Ketentuan Umum',
+      's1.p1':       'Dengan mengunduh, menginstal, atau menggunakan Packing Recorder ("Perangkat Lunak"), Anda menyetujui Syarat &amp; Ketentuan ini. Jika Anda tidak menyetujui, jangan gunakan Perangkat Lunak ini.',
+      's1.p2':       'Perangkat Lunak ini dikembangkan dan didistribusikan oleh <strong>Aldeo Studio</strong>. Penggunaan Perangkat Lunak ini tunduk pada hukum yang berlaku di Indonesia.',
+      's2.title':    'Lisensi Perangkat Lunak',
+      's2.p1':       'Aldeo Studio memberikan Anda lisensi terbatas, non-eksklusif, tidak dapat dipindahtangankan untuk menggunakan Packing Recorder untuk keperluan bisnis internal Anda.',
+      's2.li1':      'Satu lisensi berlaku selama <strong>30 hari</strong> sejak pembelian atau perpanjangan.',
+      's2.li2':      'Lisensi terikat pada akun pengguna, bukan pada perangkat tertentu.',
+      's2.li3':      'Anda boleh menggunakan satu akun di beberapa komputer secara bergantian.',
+      's2.li4':      'Berbagi akun dengan pihak lain di luar organisasi Anda tidak diperbolehkan.',
+      's2.li5':      'Rekayasa balik, dekompilasi, atau modifikasi Perangkat Lunak tidak diperbolehkan.',
+      's3.title':    'Pembayaran &amp; Harga',
+      's3.p1':       'Semua harga tercantum dalam <strong>Rupiah (IDR)</strong> dan sudah termasuk pajak yang berlaku.',
+      's3.li1':      'Harga saat ini: <strong>Rp 75.000</strong> per 30 hari.',
+      's3.li2':      'Pembayaran dilakukan melalui QRIS di dalam aplikasi menggunakan layanan Midtrans.',
+      's3.li3':      'Lisensi akan diaktifkan secara otomatis setelah pembayaran dikonfirmasi oleh Midtrans.',
+      's3.li4':      'Jika lisensi tidak aktif dalam 10 menit setelah pembayaran berhasil, gunakan tombol "Cek Pembayaran" di dalam aplikasi.',
+      's3.li5':      'Harga dapat berubah sewaktu-waktu; harga yang berlaku adalah harga pada saat transaksi.',
+      's4.title':    'Kebijakan Pengembalian Dana',
+      's4.notice':   '<strong>Penting:</strong> Karena sifat produk digital, pengembalian dana umumnya tidak tersedia setelah lisensi diaktifkan.',
+      's4.p1':       'Pengembalian dana hanya dapat dipertimbangkan dalam kondisi berikut:',
+      's4.li1':      'Pembayaran berhasil ditagih tetapi lisensi <strong>tidak pernah diaktifkan</strong> di akun Anda meski sudah menggunakan tombol "Cek Pembayaran".',
+      's4.li2':      'Terdapat duplikasi tagihan akibat kesalahan teknis yang dapat diverifikasi.',
+      's4.p2':       'Untuk mengajukan klaim pengembalian dana, hubungi <a href="mailto:aldeojason@gmail.com">aldeojason@gmail.com</a> dalam waktu <strong>7 hari kalender</strong> sejak tanggal transaksi, sertakan bukti pembayaran (ID transaksi Midtrans).',
+      's4.p3':       'Pengajuan yang disetujui akan diproses dalam 7–14 hari kerja melalui metode pembayaran asli.',
+      's5.title':    'Masa Percobaan Gratis',
+      's5.p1':       'Packing Recorder menyediakan masa percobaan gratis selama <strong>7 hari</strong> untuk pengguna baru, tanpa memerlukan kartu kredit atau pembayaran.',
+      's5.li1':      'Masa percobaan dimulai sejak pertama kali aplikasi dijalankan.',
+      's5.li2':      'Setelah masa percobaan berakhir, pembelian lisensi diperlukan untuk melanjutkan penggunaan.',
+      's5.li3':      'Masa percobaan tidak dapat direset atau diperpanjang.',
+      's6.title':    'Akun &amp; Keamanan',
+      's6.p1':       'Anda bertanggung jawab penuh atas keamanan kredensial akun Anda.',
+      's6.li1':      'Jangan bagikan kata sandi akun kepada siapa pun.',
+      's6.li2':      'Segera hubungi kami jika Anda menduga akun Anda telah diakses tanpa izin.',
+      's6.li3':      'Aldeo Studio tidak bertanggung jawab atas kerugian akibat kata sandi yang dikompromikan oleh pengguna.',
+      's6.li4':      'Kami berhak menangguhkan akun yang terindikasi penyalahgunaan.',
+      's7.title':    'Privasi &amp; Data',
+      's7.p1':       'Kami hanya mengumpulkan data minimum yang diperlukan untuk mengoperasikan layanan:',
+      's7.li1':      '<strong>Data akun:</strong> nama pengguna, alamat email, kata sandi terenkripsi (bcrypt).',
+      's7.li2':      '<strong>Data lisensi:</strong> tanggal aktivasi, tanggal kadaluarsa, riwayat pembelian.',
+      's7.li3':      '<strong>Data rekaman video:</strong> disimpan <em>sepenuhnya di perangkat lokal Anda</em> dan tidak pernah dikirim ke server kami.',
+      's7.p2':       'Kami tidak menjual, menyewakan, atau membagikan data pribadi Anda kepada pihak ketiga, kecuali diwajibkan oleh hukum.',
+      's7.p3':       'Pemrosesan pembayaran dilakukan oleh Midtrans; data kartu/QRIS tidak pernah menyentuh server kami.',
+      's8.title':    'Penafian &amp; Batasan Tanggung Jawab',
+      's8.p1':       'Perangkat Lunak disediakan "sebagaimana adanya" (<em>as-is</em>) tanpa jaminan apa pun, tersurat maupun tersirat.',
+      's8.li1':      'Aldeo Studio tidak bertanggung jawab atas kehilangan data, kerusakan bisnis, atau kerugian tidak langsung akibat penggunaan Perangkat Lunak.',
+      's8.li2':      'Tanggung jawab maksimum kami tidak melebihi jumlah yang Anda bayarkan dalam 30 hari terakhir.',
+      's8.li3':      'Kami berhak menghentikan atau mengubah layanan dengan pemberitahuan yang wajar.',
+      's9.title':    'Perubahan Ketentuan',
+      's9.p1':       'Kami dapat memperbarui Syarat &amp; Ketentuan ini sewaktu-waktu. Versi terbaru selalu tersedia di halaman ini.',
+      's9.p2':       'Penggunaan Perangkat Lunak yang berkelanjutan setelah perubahan diterbitkan berarti Anda menerima ketentuan yang diperbarui.',
+      's9.updated':  'Terakhir diperbarui:',
+      's10.title':   'Kontak',
+      's10.p1':      'Jika Anda memiliki pertanyaan tentang Syarat &amp; Ketentuan ini atau membutuhkan bantuan, hubungi kami:',
+      's10.email':   'Email: <a href="mailto:aldeojason@gmail.com">aldeojason@gmail.com</a>',
+      's10.response':'Waktu respons: 1–3 hari kerja',
+      'footer.home': 'Beranda',
+      'footer.terms':'Syarat &amp; Ketentuan',
+    },
+    en: {
+      'nav.home':    'Home',
+      'hero.title':  'Terms &amp; Conditions',
+      'hero.sub':    'Applicable to Packing Recorder by Aldeo Studio',
+      'toc.title':   'Table of Contents',
+      'toc.1':       'General Terms',
+      'toc.2':       'Software License',
+      'toc.3':       'Payment &amp; Pricing',
+      'toc.4':       'Refund Policy',
+      'toc.5':       'Free Trial',
+      'toc.6':       'Account &amp; Security',
+      'toc.7':       'Privacy &amp; Data',
+      'toc.8':       'Disclaimer &amp; Limitation of Liability',
+      'toc.9':       'Changes to Terms',
+      'toc.10':      'Contact',
+      's1.title':    'General Terms',
+      's1.p1':       'By downloading, installing, or using Packing Recorder ("Software"), you agree to these Terms &amp; Conditions. If you do not agree, do not use this Software.',
+      's1.p2':       'This Software is developed and distributed by <strong>Aldeo Studio</strong>. Use of this Software is governed by applicable Indonesian law.',
+      's2.title':    'Software License',
+      's2.p1':       'Aldeo Studio grants you a limited, non-exclusive, non-transferable license to use Packing Recorder for your internal business purposes.',
+      's2.li1':      'One license is valid for <strong>30 days</strong> from the date of purchase or renewal.',
+      's2.li2':      'The license is tied to a user account, not to a specific device.',
+      's2.li3':      'You may use one account on multiple computers interchangeably.',
+      's2.li4':      'Sharing your account with parties outside your organization is not permitted.',
+      's2.li5':      'Reverse engineering, decompiling, or modifying the Software is not permitted.',
+      's3.title':    'Payment &amp; Pricing',
+      's3.p1':       'All prices are listed in <strong>Indonesian Rupiah (IDR)</strong> and include applicable taxes.',
+      's3.li1':      'Current price: <strong>Rp 75,000</strong> per 30 days.',
+      's3.li2':      'Payment is made via QRIS inside the app using the Midtrans payment service.',
+      's3.li3':      'Your license will be activated automatically after payment is confirmed by Midtrans.',
+      's3.li4':      'If your license is not active within 10 minutes of a successful payment, use the "Check My Payment" button inside the app.',
+      's3.li5':      'Prices may change at any time; the price at the time of transaction is final.',
+      's4.title':    'Refund Policy',
+      's4.notice':   '<strong>Important:</strong> Due to the digital nature of the product, refunds are generally not available once a license has been activated.',
+      's4.p1':       'Refunds will only be considered under the following circumstances:',
+      's4.li1':      'Payment was successfully charged but the license was <strong>never activated</strong> on your account even after using the "Check My Payment" button.',
+      's4.li2':      'A duplicate charge occurred due to a verifiable technical error.',
+      's4.p2':       'To request a refund, contact <a href="mailto:aldeojason@gmail.com">aldeojason@gmail.com</a> within <strong>7 calendar days</strong> of the transaction date, including proof of payment (Midtrans transaction ID).',
+      's4.p3':       'Approved refunds will be processed within 7–14 business days via the original payment method.',
+      's5.title':    'Free Trial',
+      's5.p1':       'Packing Recorder provides a <strong>7-day</strong> free trial for new users, with no credit card or payment required.',
+      's5.li1':      'The trial begins on the first launch of the application.',
+      's5.li2':      'After the trial ends, a license purchase is required to continue use.',
+      's5.li3':      'The trial period cannot be reset or extended.',
+      's6.title':    'Account &amp; Security',
+      's6.p1':       'You are fully responsible for the security of your account credentials.',
+      's6.li1':      'Do not share your account password with anyone.',
+      's6.li2':      'Contact us immediately if you suspect unauthorized access to your account.',
+      's6.li3':      'Aldeo Studio is not responsible for losses resulting from a password compromised by the user.',
+      's6.li4':      'We reserve the right to suspend accounts showing signs of abuse.',
+      's7.title':    'Privacy &amp; Data',
+      's7.p1':       'We collect only the minimum data necessary to operate the service:',
+      's7.li1':      '<strong>Account data:</strong> username, email address, encrypted password (bcrypt).',
+      's7.li2':      '<strong>License data:</strong> activation date, expiry date, purchase history.',
+      's7.li3':      '<strong>Video recordings:</strong> stored <em>entirely on your local device</em> and never sent to our servers.',
+      's7.p2':       'We do not sell, rent, or share your personal data with third parties, except as required by law.',
+      's7.p3':       'Payment processing is handled by Midtrans; card/QRIS data never touches our servers.',
+      's8.title':    'Disclaimer &amp; Limitation of Liability',
+      's8.p1':       'The Software is provided "as-is" without warranties of any kind, express or implied.',
+      's8.li1':      'Aldeo Studio is not liable for data loss, business damage, or indirect losses resulting from use of the Software.',
+      's8.li2':      'Our maximum liability shall not exceed the amount you paid in the last 30 days.',
+      's8.li3':      'We reserve the right to discontinue or modify the service with reasonable notice.',
+      's9.title':    'Changes to Terms',
+      's9.p1':       'We may update these Terms &amp; Conditions at any time. The latest version is always available on this page.',
+      's9.p2':       'Continued use of the Software after changes are published constitutes acceptance of the updated terms.',
+      's9.updated':  'Last updated:',
+      's10.title':   'Contact',
+      's10.p1':      'If you have questions about these Terms &amp; Conditions or need assistance, contact us:',
+      's10.email':   'Email: <a href="mailto:aldeojason@gmail.com">aldeojason@gmail.com</a>',
+      's10.response':'Response time: 1–3 business days',
+      'footer.home': 'Home',
+      'footer.terms':'Terms &amp; Conditions',
+    }
+  };
+
+  function applyLang(lang) {
+    const t = TEXT[lang];
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (t[key] !== undefined) el.innerHTML = t[key];
+    });
+    document.documentElement.lang = lang;
+    document.getElementById('btn-id').classList.toggle('active', lang === 'id');
+    document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+  }
+
+  function setLang(lang) {
+    localStorage.setItem('pr_lang', lang);
+    applyLang(lang);
+  }
+
+  // Init
+  const saved = localStorage.getItem('pr_lang') || 'id';
+  applyLang(saved);
+</script>
+</body>
+</html>

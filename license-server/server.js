@@ -5,6 +5,8 @@ const { Pool } = require('pg');
 const crypto = require('crypto');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
@@ -13,7 +15,10 @@ const IS_PRODUCTION = process.env.MIDTRANS_ENVIRONMENT === 'production';
 const MIDTRANS_BASE_URL = IS_PRODUCTION
   ? 'https://api.midtrans.com/v2'
   : 'https://api.sandbox.midtrans.com/v2';
-const PRODUCT_PRICE = 55000; // IDR
+const PRODUCT_PRICE = 75000; // IDR
+const LICENSE_DAYS = 30;
+const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-please';
+const JWT_EXPIRY = '7d'; // sliding window — renewed on each /me call
 
 // ─── Database ─────────────────────────────────────────────────────────────────
 const pool = new Pool({
@@ -22,44 +27,73 @@ const pool = new Pool({
 });
 
 async function initDB() {
+  // Users table
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS orders (
+    CREATE TABLE IF NOT EXISTS users (
+      id            SERIAL PRIMARY KEY,
+      username      VARCHAR(50)  UNIQUE NOT NULL,
+      email         VARCHAR(255) UNIQUE NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      role          VARCHAR(20)  NOT NULL DEFAULT 'user',
+      created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  // Licenses table — each row represents a period grant; expires_at can be extended
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS licenses (
       id          SERIAL PRIMARY KEY,
-      order_id    VARCHAR(60)  UNIQUE NOT NULL,
-      email       VARCHAR(255) NOT NULL,
-      status      VARCHAR(20)  NOT NULL DEFAULT 'pending',
-      license_key VARCHAR(50),
+      user_id     INT          NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at  TIMESTAMPTZ  NOT NULL,
       created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
     )
   `);
+
+  // Orders table — now linked to user_id
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS activations (
-      id            SERIAL PRIMARY KEY,
-      license_key   VARCHAR(50)  NOT NULL,
-      machine_id    VARCHAR(100) NOT NULL,
-      activated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-      UNIQUE(license_key, machine_id)
+    CREATE TABLE IF NOT EXISTS orders (
+      id           SERIAL PRIMARY KEY,
+      order_id     VARCHAR(60)  UNIQUE NOT NULL,
+      user_id      INT          REFERENCES users(id) ON DELETE SET NULL,
+      email        VARCHAR(255) NOT NULL,
+      status       VARCHAR(20)  NOT NULL DEFAULT 'pending',
+      created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+      recovered_at TIMESTAMPTZ
     )
   `);
+
+  // Add recovered_at column to existing deployments that don't have it yet
+  await pool.query(`
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS recovered_at TIMESTAMPTZ
+  `);
+
+  // Seed admin account
+  await seedAdmin();
+}
+
+async function seedAdmin() {
+  const ADMIN_EMAIL    = 'aldeojason@gmail.com';
+  const ADMIN_USERNAME = 'JasonAdmin';
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Ijganpass12';
+  const ADMIN_ROLE     = 'admin';
+
+  const existing = await pool.query('SELECT id FROM users WHERE email = $1', [ADMIN_EMAIL]);
+  if (existing.rows.length === 0) {
+    const hash = await bcrypt.hash(ADMIN_PASSWORD, 12);
+    await pool.query(
+      'INSERT INTO users (username, email, password_hash, role) VALUES ($1, $2, $3, $4)',
+      [ADMIN_USERNAME, ADMIN_EMAIL, hash, ADMIN_ROLE]
+    );
+    console.log('[seed] Admin account created:', ADMIN_EMAIL);
+  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-/** Generates a key in XXXX-XXXX-XXXX-XXXX format using cryptographically secure random bytes. */
-function generateLicenseKey() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  const segment = () => {
-    const bytes = crypto.randomBytes(4);
-    return Array.from(bytes, b => chars[b % chars.length]).join('');
-  };
-  return `${segment()}-${segment()}-${segment()}-${segment()}`;
-}
-
-/** Generates a unique order ID. */
 function generateOrderId() {
   return `PR-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 }
 
-/** Calls Midtrans Core API to create a QRIS charge and returns the response JSON. */
+/** Calls Midtrans Core API to create a QRIS charge. */
 async function createMidtransQRIS(orderId, email) {
   const auth = Buffer.from(MIDTRANS_SERVER_KEY + ':').toString('base64');
   const response = await fetch(`${MIDTRANS_BASE_URL}/charge`, {
@@ -71,15 +105,11 @@ async function createMidtransQRIS(orderId, email) {
     },
     body: JSON.stringify({
       payment_type: 'qris',
-      transaction_details: {
-        order_id: orderId,
-        gross_amount: PRODUCT_PRICE,
-      },
+      transaction_details: { order_id: orderId, gross_amount: PRODUCT_PRICE },
       qris: { acquirer: 'gopay' },
       customer_details: { email },
     }),
   });
-
   const data = await response.json();
   if (!response.ok) {
     throw new Error(`Midtrans error ${response.status}: ${data.status_message || JSON.stringify(data)}`);
@@ -87,50 +117,228 @@ async function createMidtransQRIS(orderId, email) {
   return data;
 }
 
+/** Signs a JWT for a user row. Returns a fresh token valid for JWT_EXPIRY. */
+function signToken(user) {
+  return jwt.sign(
+    { sub: user.id, email: user.email, username: user.username, role: user.role },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRY }
+  );
+}
+
+/** Returns the active license expiry for a user (or null if no active license). */
+async function getActiveLicense(userId) {
+  const result = await pool.query(
+    `SELECT expires_at FROM licenses
+      WHERE user_id = $1 AND expires_at > NOW()
+      ORDER BY expires_at DESC LIMIT 1`,
+    [userId]
+  );
+  return result.rows.length > 0 ? result.rows[0].expires_at : null;
+}
+
+/** Stacks LICENSE_DAYS days onto existing remaining time (or NOW) for a user. */
+async function stackLicense(userId) {
+  // Find current expiry if any (must be future)
+  const current = await getActiveLicense(userId);
+  const base = current ? new Date(current) : new Date();
+  const newExpiry = new Date(base.getTime() + LICENSE_DAYS * 24 * 60 * 60 * 1000);
+
+  if (current) {
+    // Update the existing active row
+    await pool.query(
+      `UPDATE licenses SET expires_at = $1
+        WHERE user_id = $2 AND expires_at = $3`,
+      [newExpiry, userId, current]
+    );
+  } else {
+    // Insert a new license row
+    await pool.query(
+      'INSERT INTO licenses (user_id, expires_at) VALUES ($1, $2)',
+      [userId, newExpiry]
+    );
+  }
+  return newExpiry;
+}
+
 // ─── Express Setup ────────────────────────────────────────────────────────────
 const app = express();
-app.set('trust proxy', 1); // Railway sits behind a proxy
+app.set('trust proxy', 1);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Rate limiters
+// ─── Auth Middleware ──────────────────────────────────────────────────────────
+function requireAuth(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  const token = authHeader.slice(7);
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+    next();
+  } catch (_) {
+    return res.status(401).json({ error: 'Token expired or invalid. Please log in again.' });
+  }
+}
+
+// ─── Rate Limiters ────────────────────────────────────────────────────────────
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
+});
+
 const createOrderLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
 });
 
-const validateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 30,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { valid: false, message: 'Too many requests, please try again later.' },
-});
-
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 /**
- * POST /create-order
- * Body: { email: string }
- * Creates a Midtrans QRIS charge and stores a pending order.
- * Returns: { orderId, qrCodeUrl, expiryTime }
+ * POST /register
+ * Body: { username, email, password }
+ * Returns: { token, username, email, role, licenseExpiresAt }
  */
-app.post('/create-order', createOrderLimiter, async (req, res) => {
+app.post('/register', authLimiter, async (req, res) => {
   try {
-    const { email } = req.body;
+    const { username, email, password } = req.body;
+
+    if (!username || typeof username !== 'string' || username.trim().length < 2 || username.trim().length > 50) {
+      return res.status(400).json({ error: 'Username must be between 2 and 50 characters.' });
+    }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return res.status(400).json({ error: 'A valid email address is required.' });
     }
+    if (!password || typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+    }
 
+    const cleanUsername = username.trim();
+    const cleanEmail = email.trim().toLowerCase();
+
+    const hash = await bcrypt.hash(password, 12);
+    const result = await pool.query(
+      'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email, role',
+      [cleanUsername, cleanEmail, hash]
+    );
+    const user = result.rows[0];
+    const token = signToken(user);
+
+    res.json({ token, username: user.username, email: user.email, role: user.role, licenseExpiresAt: null });
+  } catch (err) {
+    if (err.code === '23505') {
+      // Unique violation
+      if (err.constraint && err.constraint.includes('email')) {
+        return res.status(409).json({ error: 'An account with this email already exists.' });
+      }
+      if (err.constraint && err.constraint.includes('username')) {
+        return res.status(409).json({ error: 'This username is already taken.' });
+      }
+      return res.status(409).json({ error: 'Account already exists.' });
+    }
+    console.error('[register]', err.message);
+    res.status(500).json({ error: 'Registration failed. Please try again.' });
+  }
+});
+
+/**
+ * POST /login
+ * Body: { email, password }
+ * Returns: { token, username, email, role, licenseExpiresAt }
+ */
+app.post('/login', authLimiter, async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required.' });
+    }
+
+    const result = await pool.query(
+      'SELECT id, username, email, password_hash, role FROM users WHERE email = $1',
+      [email.trim().toLowerCase()]
+    );
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+    const user = result.rows[0];
+    const match = await bcrypt.compare(password, user.password_hash);
+    if (!match) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+
+    const licenseExpiresAt = await getActiveLicense(user.id);
+    const token = signToken(user);
+
+    res.json({
+      token,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      licenseExpiresAt: licenseExpiresAt ? licenseExpiresAt.toISOString() : null,
+    });
+  } catch (err) {
+    console.error('[login]', err.message);
+    res.status(500).json({ error: 'Login failed. Please try again.' });
+  }
+});
+
+/**
+ * GET /me
+ * JWT required. Returns current user info + license status.
+ * Also slides the token window (issues a new token in the response).
+ * Returns: { token, username, email, role, licenseExpiresAt }
+ */
+app.get('/me', requireAuth, async (req, res) => {
+  try {
+    // Re-fetch user from DB to pick up any role/username changes
+    const result = await pool.query(
+      'SELECT id, username, email, role FROM users WHERE id = $1',
+      [req.user.sub]
+    );
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'User not found.' });
+    }
+    const user = result.rows[0];
+    const licenseExpiresAt = await getActiveLicense(user.id);
+
+    // Issue a fresh token (sliding 7-day window)
+    const newToken = signToken(user);
+
+    res.json({
+      token: newToken,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      licenseExpiresAt: licenseExpiresAt ? licenseExpiresAt.toISOString() : null,
+    });
+  } catch (err) {
+    console.error('[me]', err.message);
+    res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+/**
+ * POST /create-order
+ * JWT required.
+ * Creates a Midtrans QRIS charge and stores a pending order linked to the user.
+ * Returns: { orderId, qrCodeUrl, expiryTime }
+ */
+app.post('/create-order', requireAuth, createOrderLimiter, async (req, res) => {
+  try {
+    const userId = req.user.sub;
+    const email  = req.user.email;
     const orderId = generateOrderId();
 
-    // Persist pending order before calling Midtrans to prevent orphaned records
     await pool.query(
-      'INSERT INTO orders (order_id, email) VALUES ($1, $2)',
-      [orderId, email]
+      'INSERT INTO orders (order_id, user_id, email) VALUES ($1, $2, $3)',
+      [orderId, userId, email]
     );
 
     const charge = await createMidtransQRIS(orderId, email);
@@ -148,23 +356,29 @@ app.post('/create-order', createOrderLimiter, async (req, res) => {
 
 /**
  * GET /check-order/:orderId
- * Polling endpoint — returns payment status and license key (once paid).
+ * JWT required. Polling endpoint — returns payment status.
  */
-app.get('/check-order/:orderId', async (req, res) => {
+app.get('/check-order/:orderId', requireAuth, async (req, res) => {
   try {
-    // Sanitize input
     const orderId = req.params.orderId.replace(/[^A-Z0-9\-]/gi, '');
     const result = await pool.query(
-      'SELECT status, license_key FROM orders WHERE order_id = $1',
+      'SELECT status, user_id FROM orders WHERE order_id = $1',
       [orderId]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Order not found.' });
     }
-    const { status, license_key } = result.rows[0];
+    const { status } = result.rows[0];
+
+    // If paid, return current license expiry so the UI can show it
+    let licenseExpiresAt = null;
+    if (status === 'paid') {
+      licenseExpiresAt = await getActiveLicense(req.user.sub);
+    }
+
     res.json({
       status,
-      licenseKey: status === 'paid' ? license_key : null,
+      licenseExpiresAt: licenseExpiresAt ? licenseExpiresAt.toISOString() : null,
     });
   } catch (err) {
     console.error('[check-order]', err.message);
@@ -174,14 +388,12 @@ app.get('/check-order/:orderId', async (req, res) => {
 
 /**
  * POST /midtrans-webhook
- * Midtrans HTTP notification. Verifies signature and marks order as paid.
- * Configure this URL in: Midtrans Dashboard → Settings → Configuration → Payment Notification URL
+ * Midtrans HTTP notification. Verifies signature and stacks license onto user account.
  */
 app.post('/midtrans-webhook', async (req, res) => {
   try {
     const { order_id, status_code, gross_amount, signature_key, transaction_status, fraud_status } = req.body;
 
-    // Verify Midtrans signature: SHA512(order_id + status_code + gross_amount + server_key)
     const expectedSig = crypto
       .createHash('sha512')
       .update(`${order_id}${status_code}${gross_amount}${MIDTRANS_SERVER_KEY}`)
@@ -192,25 +404,27 @@ app.post('/midtrans-webhook', async (req, res) => {
       return res.status(403).json({ error: 'Invalid signature.' });
     }
 
-    // Determine if this is a successful payment
     const isPaid =
       (transaction_status === 'capture' && fraud_status === 'accept') ||
       transaction_status === 'settlement';
 
     if (isPaid) {
       const existing = await pool.query(
-        'SELECT status FROM orders WHERE order_id = $1',
+        'SELECT status, user_id FROM orders WHERE order_id = $1',
         [order_id]
       );
       if (existing.rows.length > 0 && existing.rows[0].status === 'pending') {
-        const licenseKey = generateLicenseKey();
+        const { user_id } = existing.rows[0];
         await pool.query(
-          'UPDATE orders SET status = $1, license_key = $2 WHERE order_id = $3',
-          ['paid', licenseKey, order_id]
+          "UPDATE orders SET status = 'paid', recovered_at = NOW() WHERE order_id = $1",
+          [order_id]
         );
-        console.log(`[webhook] Order ${order_id} marked as paid. Key generated.`);
+        if (user_id) {
+          const newExpiry = await stackLicense(user_id);
+          console.log(`[webhook] Order ${order_id} paid. License stacked until ${newExpiry.toISOString()} for user ${user_id}.`);
+        }
       }
-    } else if (transaction_status === 'expire' || transaction_status === 'cancel' || transaction_status === 'deny') {
+    } else if (['expire', 'cancel', 'deny'].includes(transaction_status)) {
       await pool.query(
         "UPDATE orders SET status = $1 WHERE order_id = $2 AND status = 'pending'",
         [transaction_status, order_id]
@@ -224,63 +438,156 @@ app.post('/midtrans-webhook', async (req, res) => {
   }
 });
 
+// ─── Admin Basic Auth Middleware ──────────────────────────────────────────────
+function requireAdmin(req, res, next) {
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+  if (!ADMIN_PASSWORD) {
+    return res.status(503).json({ error: 'Admin panel not configured. Set ADMIN_PASSWORD env var.' });
+  }
+  const authHeader = req.headers['authorization'];
+  if (!authHeader || !authHeader.startsWith('Basic ')) {
+    res.set('WWW-Authenticate', 'Basic realm="Packing Recorder Admin"');
+    return res.status(401).send('Authentication required.');
+  }
+  const base64 = authHeader.slice(6);
+  const decoded = Buffer.from(base64, 'base64').toString('utf8');
+  const colonIdx = decoded.indexOf(':');
+  const password = colonIdx >= 0 ? decoded.slice(colonIdx + 1) : decoded;
+  if (password !== ADMIN_PASSWORD) {
+    res.set('WWW-Authenticate', 'Basic realm="Packing Recorder Admin"');
+    return res.status(401).send('Invalid password.');
+  }
+  next();
+}
+
+// ─── Admin Routes ─────────────────────────────────────────────────────────────
+
 /**
- * POST /validate-license
- * Called by the Electron app on startup to validate a license key.
- * Body: { key: string, machineId: string }
- * Returns: { valid: boolean, message: string }
+ * GET /admin
+ * Serves the admin panel HTML (Basic Auth protected).
  */
-app.post('/validate-license', validateLimiter, async (req, res) => {
+app.get('/admin', requireAdmin, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+/**
+ * POST /admin/lookup-user
+ * Body: { email }
+ * Returns user info + license status + paid orders.
+ */
+app.post('/admin/lookup-user', requireAdmin, async (req, res) => {
   try {
-    const { key, machineId } = req.body;
-    if (!key || !machineId || typeof key !== 'string' || typeof machineId !== 'string') {
-      return res.status(400).json({ valid: false, message: 'Missing parameters.' });
-    }
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required.' });
 
-    // Sanitize
-    const cleanKey = key.trim().toUpperCase().slice(0, 50);
-    const cleanMachineId = machineId.trim().slice(0, 100);
-
-    // Check key exists and is paid
-    const orderResult = await pool.query(
-      "SELECT license_key FROM orders WHERE license_key = $1 AND status = 'paid'",
-      [cleanKey]
+    const userResult = await pool.query(
+      'SELECT id, username, email, role, created_at FROM users WHERE email = $1',
+      [email.trim().toLowerCase()]
     );
-    if (orderResult.rows.length === 0) {
-      return res.json({ valid: false, message: 'License key not found or not yet activated.' });
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
     }
+    const user = userResult.rows[0];
+    const licenseExpiresAt = await getActiveLicense(user.id);
 
-    // Check activations for this key
-    const activationResult = await pool.query(
-      'SELECT machine_id FROM activations WHERE license_key = $1',
-      [cleanKey]
+    const ordersResult = await pool.query(
+      `SELECT order_id, status, created_at, recovered_at
+         FROM orders WHERE user_id = $1 ORDER BY created_at DESC`,
+      [user.id]
     );
 
-    if (activationResult.rows.length === 0) {
-      // First time activation — register this machine
-      await pool.query(
-        'INSERT INTO activations (license_key, machine_id) VALUES ($1, $2)',
-        [cleanKey, cleanMachineId]
-      );
-      return res.json({ valid: true, message: 'License activated successfully. Thank you!' });
-    }
-
-    // Already activated — verify it's the same machine
-    if (activationResult.rows[0].machine_id === cleanMachineId) {
-      return res.json({ valid: true, message: 'License valid.' });
-    }
-
-    return res.json({
-      valid: false,
-      message: 'This license key is already activated on another machine. Please contact support.',
+    res.json({
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      createdAt: user.created_at,
+      licenseExpiresAt: licenseExpiresAt ? licenseExpiresAt.toISOString() : null,
+      orders: ordersResult.rows,
     });
   } catch (err) {
-    console.error('[validate-license]', err.message);
-    res.status(500).json({ valid: false, message: 'Server error. Please try again later.' });
+    console.error('[admin/lookup-user]', err.message);
+    res.status(500).json({ error: 'Server error.' });
   }
 });
 
-// ─── Start ────────────────────────────────────────────────────────────────────
+/**
+ * POST /admin/grant-license
+ * Body: { email }
+ * Manually stacks 30 days onto the user's license.
+ */
+app.post('/admin/grant-license', requireAdmin, async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required.' });
+
+    const userResult = await pool.query(
+      'SELECT id, username, email FROM users WHERE email = $1',
+      [email.trim().toLowerCase()]
+    );
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+    const user = userResult.rows[0];
+    const newExpiry = await stackLicense(user.id);
+
+    console.log(`[admin] Manually granted 30 days to ${user.email}. New expiry: ${newExpiry.toISOString()}`);
+    res.json({
+      success: true,
+      username: user.username,
+      email: user.email,
+      newExpiresAt: newExpiry.toISOString(),
+    });
+  } catch (err) {
+    console.error('[admin/grant-license]', err.message);
+    res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+/**
+ * POST /recover-license
+ * JWT required. Finds any paid orders for this user that haven't been recovered yet
+ * and stacks the license for each one. Marks them as recovered to prevent double-stacking.
+ * Returns: { recovered: boolean, licenseExpiresAt: string|null, count: number }
+ */
+app.post('/recover-license', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.sub;
+
+    // Find paid orders not yet recovered for this user
+    const ordersResult = await pool.query(
+      `SELECT id, order_id FROM orders
+         WHERE user_id = $1 AND status = 'paid' AND recovered_at IS NULL`,
+      [userId]
+    );
+
+    if (ordersResult.rows.length === 0) {
+      return res.json({ recovered: false, count: 0, licenseExpiresAt: null });
+    }
+
+    // Stack license for each unrecovered paid order
+    let newExpiry = null;
+    for (const order of ordersResult.rows) {
+      newExpiry = await stackLicense(userId);
+      await pool.query(
+        'UPDATE orders SET recovered_at = NOW() WHERE id = $1',
+        [order.id]
+      );
+      console.log(`[recover] Order ${order.order_id} recovered for user ${userId}. Expiry: ${newExpiry.toISOString()}`);
+    }
+
+    res.json({
+      recovered: true,
+      count: ordersResult.rows.length,
+      licenseExpiresAt: newExpiry ? newExpiry.toISOString() : null,
+    });
+  } catch (err) {
+    console.error('[recover-license]', err.message);
+    res.status(500).json({ error: 'Server error. Please try again.' });
+  }
+});
+
+
 initDB()
   .then(() => {
     app.listen(PORT, () => {

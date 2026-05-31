@@ -48,8 +48,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Dashboard listens for station events from station windows
   onStationEvent:        (cb)                       => ipcRenderer.on('station-event', (_, payload) => cb(payload)),
 
-  // ─── License ───────────────────────────────────────────────────────────────
+  // ─── License / Auth ────────────────────────────────────────────────────────
   getLicenseStatus:      ()                         => ipcRenderer.invoke('get-license-status'),
-  activateLicense:       (key)                      => ipcRenderer.invoke('activate-license', key),
+  register:              (opts)                     => ipcRenderer.invoke('register', opts),
+  login:                 (opts)                     => ipcRenderer.invoke('login', opts),
+  logout:                ()                         => ipcRenderer.invoke('logout'),
   openPurchasePage:      ()                         => ipcRenderer.invoke('open-purchase-page'),
+  recoverLicense:        ()                         => ipcRenderer.invoke('recover-license'),
 });
