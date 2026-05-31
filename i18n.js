@@ -19,6 +19,7 @@
     // Nav
     'nav.logout': 'Logout',
     'nav.welcome': (name) => `Welcome, ${name}`,
+    'nav.adminBadge': '&#9679; Admin',
 
     // Auth overlay
     'overlay.authSub': 'Sign in to your account to continue.',
@@ -201,6 +202,7 @@
     // Nav
     'nav.logout': 'Keluar',
     'nav.welcome': (name) => `Selamat datang, ${name}`,
+    'nav.adminBadge': '&#9679; Admin',
 
     // Auth overlay
     'overlay.authSub': 'Masuk ke akun Anda untuk melanjutkan.',

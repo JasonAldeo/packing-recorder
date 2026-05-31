@@ -1229,6 +1229,7 @@ const licenseBadge     = document.getElementById('license-badge');
 const licenseBadgeText = document.getElementById('license-badge-text');
 const licenseBuyBtn    = document.getElementById('license-buy-btn');
 const licenseRefreshBtn = document.getElementById('license-refresh-btn');
+const adminBadge       = document.getElementById('admin-badge');
 const userInfo         = document.getElementById('user-info');
 const welcomeText      = document.getElementById('welcome-text');
 const logoutBtn        = document.getElementById('logout-btn');
@@ -1373,12 +1374,17 @@ async function _handlePostLoginTrialState() {
 
 /** Shows/hides admin-only UI elements based on role. */
 function applyRoleUI(role) {
+  const isAdmin = role === 'admin';
   if (testModeSettingRow) {
-    if (role === 'admin') {
-      testModeSettingRow.classList.remove('hidden');
-    } else {
-      testModeSettingRow.classList.add('hidden');
-    }
+    testModeSettingRow.classList.toggle('hidden', !isAdmin);
+  }
+  if (adminBadge) {
+    adminBadge.classList.toggle('hidden', !isAdmin);
+  }
+  // Hide trial/license badges for admin — they don't need them
+  if (isAdmin) {
+    if (trialBadge)   trialBadge.classList.add('hidden');
+    if (licenseBadge) licenseBadge.classList.add('hidden');
   }
 }
 
@@ -1496,6 +1502,9 @@ async function initLicense() {
   if (userInfo) userInfo.classList.remove('hidden');
   currentUserRole = status.role || 'user';
   applyRoleUI(currentUserRole);
+
+  // Admins are never gated by trial or license
+  if (currentUserRole === 'admin') return;
 
   if (status.licensed) {
     // Active license — show license countdown badge
