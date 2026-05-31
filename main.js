@@ -256,7 +256,8 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: false,
+      devTools: false
     }
   });
 
@@ -390,7 +391,8 @@ ipcMain.handle('open-station-window', (event, stationId) => {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: false,
+      devTools: false
     }
   });
 
@@ -619,7 +621,8 @@ ipcMain.handle('open-print-stations', (event, stationsData) => {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: false,
+      devTools: false
     }
   });
   win.loadFile('print-stations.html', { query: { data: JSON.stringify(stationsData) } });
