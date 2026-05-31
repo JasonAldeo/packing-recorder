@@ -345,9 +345,13 @@ app.post('/create-order', requireAuth, createOrderLimiter, async (req, res) => {
       'INSERT INTO orders (order_id, user_id, email) VALUES ($1, $2, $3)',
       [orderId, userId, email]
     );
+    console.log(`[create-order] DB insert OK — orderId=${orderId} userId=${userId}`);
 
     const charge = await createMidtransQRIS(orderId, email);
+    console.log(`[create-order] Midtrans response:`, JSON.stringify(charge));
     const qrAction = (charge.actions || []).find(a => a.name === 'generate-qr-code');
+
+    console.log(`[create-order] qrAction=${qrAction ? qrAction.url : 'none'} qr_string=${charge.qr_string ? 'present' : 'missing'}`);
 
     res.json({
       orderId,
