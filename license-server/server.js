@@ -17,7 +17,8 @@ const MIDTRANS_BASE_URL = IS_PRODUCTION
   : 'https://api.sandbox.midtrans.com/v2';
 const PRODUCT_PRICE = 75000; // IDR
 const LICENSE_DAYS = 30;
-const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production-please';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('[startup] JWT_SECRET env var is required. Set it in your Railway environment variables.');
 const JWT_EXPIRY = '7d'; // sliding window — renewed on each /me call
 
 // ─── Database ─────────────────────────────────────────────────────────────────
@@ -91,10 +92,14 @@ async function initDB() {
 }
 
 async function seedAdmin() {
-  const ADMIN_EMAIL    = 'aldeojason@gmail.com';
-  const ADMIN_USERNAME = 'JasonAdmin';
-  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Ijganpass12';
+  const ADMIN_EMAIL    = process.env.ADMIN_EMAIL    || 'aldeojason@gmail.com';
+  const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'JasonAdmin';
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
   const ADMIN_ROLE     = 'admin';
+
+  if (!ADMIN_PASSWORD) {
+    throw new Error('[seed] ADMIN_PASSWORD env var is required. Set it in your Railway environment variables.');
+  }
 
   const existing = await pool.query('SELECT id FROM users WHERE email = $1', [ADMIN_EMAIL]);
   if (existing.rows.length === 0) {
