@@ -35,6 +35,7 @@ async function initDB() {
       email         VARCHAR(255) UNIQUE NOT NULL,
       password_hash VARCHAR(255) NOT NULL,
       role          VARCHAR(20)  NOT NULL DEFAULT 'user',
+      machine_id    VARCHAR(255),
       created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
     )
   `);
@@ -70,6 +71,11 @@ async function initDB() {
   // Add user_id column to existing deployments that don't have it yet
   await pool.query(`
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS user_id INT REFERENCES users(id) ON DELETE SET NULL
+  `);
+
+  // Add machine_id column to existing deployments that don't have it yet
+  await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS machine_id VARCHAR(255)
   `);
 
   // Seed admin account
@@ -208,12 +214,12 @@ const createOrderLimiter = rateLimit({
 
 /**
  * POST /register
- * Body: { username, email, password }
+ * Body: { username, email, password, machineId }
  * Returns: { token, username, email, role, licenseExpiresAt }
  */
 app.post('/register', authLimiter, async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, machineId } = req.body;
 
     if (!username || typeof username !== 'string' || username.trim().length < 2 || username.trim().length > 50) {
       return res.status(400).json({ error: 'Username must be between 2 and 50 characters.' });
@@ -227,11 +233,23 @@ app.post('/register', authLimiter, async (req, res) => {
 
     const cleanUsername = username.trim();
     const cleanEmail = email.trim().toLowerCase();
+    const cleanMachineId = (machineId && typeof machineId === 'string') ? machineId.trim() : null;
+
+    // Check if this machine has already used a free trial
+    if (cleanMachineId) {
+      const machineCheck = await pool.query(
+        'SELECT id FROM users WHERE machine_id = $1 LIMIT 1',
+        [cleanMachineId]
+      );
+      if (machineCheck.rows.length > 0) {
+        return res.status(409).json({ error: 'A free trial has already been used on this device. Please log in to your existing account or purchase a license.' });
+      }
+    }
 
     const hash = await bcrypt.hash(password, 12);
     const result = await pool.query(
-      'INSERT INTO users (username, email, password_hash) VALUES ($1, $2, $3) RETURNING id, username, email, role',
-      [cleanUsername, cleanEmail, hash]
+      'INSERT INTO users (username, email, password_hash, machine_id) VALUES ($1, $2, $3, $4) RETURNING id, username, email, role',
+      [cleanUsername, cleanEmail, hash, cleanMachineId]
     );
     const user = result.rows[0];
     const token = signToken(user);

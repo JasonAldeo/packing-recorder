@@ -184,10 +184,27 @@ ipcMain.handle('get-license-status', async () => {
   };
 });
 
+/** Reads the Windows MachineGuid from the registry. Resolves to a string or null. */
+function getMachineId() {
+  return new Promise((resolve) => {
+    execFile(
+      'reg',
+      ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid'],
+      { windowsHide: true },
+      (err, stdout) => {
+        if (err) { resolve(null); return; }
+        const match = stdout.match(/MachineGuid\s+REG_SZ\s+(\S+)/i);
+        resolve(match ? match[1].trim() : null);
+      }
+    );
+  });
+}
+
 // IPC: register a new account
 ipcMain.handle('register', async (_, { username, email, password }) => {
   try {
-    const resp = await serverRequest('POST', '/register', { username, email, password });
+    const machineId = await getMachineId();
+    const resp = await serverRequest('POST', '/register', { username, email, password, machineId });
     if (resp.status !== 200 && resp.status !== 201) {
       return { success: false, error: resp.body.error || 'Registration failed.' };
     }
