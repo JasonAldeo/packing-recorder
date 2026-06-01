@@ -37,10 +37,10 @@ Go to your `license-server` service → **"Variables"** tab and add the followin
 ### Step 5: Get your Railway public URL
 1. Go to your `license-server` service → **"Settings"** → **"Networking"**
 2. Click **"Generate Domain"**
-3. Copy the URL (e.g. `https://packing-recorder-production.up.railway.app`)
+3. Copy the URL (e.g. `https://packing-recorder.up.railway.app`)
 4. Open `main.js` and replace line 14:
    ```js
-   const LICENSE_SERVER_URL = 'https://packing-recorder-production.up.railway.app';
+   const LICENSE_SERVER_URL = 'https://packing-recorder.up.railway.app';
    ```
 
 ### Step 6: Verify the deployment
@@ -294,10 +294,10 @@ Go to your `license-server` service → **"Variables"** tab and add the followin
 ### Step 5: Get your Railway public URL
 1. Go to your `license-server` service → **"Settings"** → **"Networking"**
 2. Click **"Generate Domain"**
-3. Copy the URL (e.g. `https://packing-recorder-production.up.railway.app`)
+3. Copy the URL (e.g. `https://packing-recorder.up.railway.app`)
 4. Open `main.js` and replace line 14:
    ```js
-   const LICENSE_SERVER_URL = 'https://packing-recorder-production.up.railway.app';
+   const LICENSE_SERVER_URL = 'https://packing-recorder.up.railway.app';
    ```
 
 ### Step 6: Verify the deployment

@@ -1440,7 +1440,7 @@ if (licenseBuyBtn) {
 
   if (helpExtLink) {
     helpExtLink.addEventListener('click', () => {
-      window.electronAPI.openExternalUrl('https://packing-recorder-production.up.railway.app/tutorial.html');
+      window.electronAPI.openExternalUrl('https://packing-recorder.up.railway.app/tutorial.html');
     });
   }
 })();
