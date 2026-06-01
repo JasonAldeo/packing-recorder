@@ -11,7 +11,8 @@ const ffmpegPath = require('ffmpeg-static');
 // ⚠️  Replace this URL with your Railway app URL after deployment.
 const LICENSE_SERVER_URL = 'https://packing-recorder-production.up.railway.app';
 const TRIAL_DAYS = 7;
-const TRIAL_OFFLINE_GRACE_MS = 60 * 60 * 1000; // 1 hour grace window for offline trial users before blocking access
+const TRIAL_OFFLINE_GRACE_MS   = 60 * 60 * 1000;       // 1 hour
+const LICENSE_OFFLINE_GRACE_MS = 10 * 1000;  // 24 hours grace window for offline trial users before blocking access
 const LICENSE_PATH = path.join(app.getPath('userData'), 'license.json');
 
 function getLicenseData() {
@@ -104,6 +105,7 @@ ipcMain.handle('get-license-status', async () => {
       delete data.trialDaysLeft;
       delete data.trialExpired;
       delete data.trialCachedAt;
+      delete data.licenseCachedAt;
       saveLicenseData(data);
       const trial = getLocalTrialInfo();
       return {
@@ -125,6 +127,7 @@ ipcMain.handle('get-license-status', async () => {
     data.trialDaysLeft  = me.trialDaysLeft;
     data.trialExpired   = me.trialExpired;
     data.trialCachedAt  = Date.now();
+    data.licenseCachedAt = Date.now();
     saveLicenseData(data);
   } catch (_) {
     // Network error — use cached values with grace window logic below
@@ -140,29 +143,42 @@ ipcMain.handle('get-license-status', async () => {
 
   // Compute trial state from cache
   // For trial users offline: enforce 1-hour grace window
-  let trialDaysLeft      = data.trialDaysLeft  ?? 0;
-  let trialExpired       = data.trialExpired    ?? true;
-  let offlineTrialExpired = false;
+  let trialDaysLeft       = data.trialDaysLeft  ?? 0;
+  let trialExpired        = data.trialExpired    ?? true;
+  let offlineTrialExpired   = false;
+  let offlineLicenseExpired = false;
 
-  if (networkError && !licensed) {
-    const cachedAt = data.trialCachedAt || 0;
-    const age = Date.now() - cachedAt;
-    if (age >= TRIAL_OFFLINE_GRACE_MS) {
-      // Offline grace exhausted — block the user
-      trialExpired        = true;
-      offlineTrialExpired = true;
+  if (networkError) {
+    if (!licensed) {
+      // Trial user offline — enforce 1-hour grace
+      const trialAge = Date.now() - (data.trialCachedAt || 0);
+      if (trialAge >= TRIAL_OFFLINE_GRACE_MS) {
+        trialExpired        = true;
+        offlineTrialExpired = true;
+      }
+    } else {
+      // Licensed user offline — enforce 24-hour grace
+      // (licensed is true here, meaning expiresAt is still in the future)
+      const licenseAge = Date.now() - (data.licenseCachedAt || 0);
+      if (licenseAge >= LICENSE_OFFLINE_GRACE_MS) {
+        // Grace exhausted — treat as offline-blocked (not a genuine expiry)
+        offlineLicenseExpired = true;
+      }
     }
-    // else: within grace window, use cached trialDaysLeft / trialExpired as-is
   }
+
+  // If offline license grace exhausted, override licensed state
+  const effectiveLicensed = licensed && !offlineLicenseExpired;
 
   return {
     loggedIn: true,
-    licensed,
-    licenseDaysLeft,
+    licensed: effectiveLicensed,
+    licenseDaysLeft: effectiveLicensed ? licenseDaysLeft : 0,
     licenseExpiresAt: expiresAt ? expiresAt.toISOString() : null,
     trialDaysLeft,
     trialExpired,
     offlineTrialExpired,
+    offlineLicenseExpired,
     username: data.username || null,
     role: data.role || 'user',
   };

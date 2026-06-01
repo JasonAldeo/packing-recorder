@@ -108,7 +108,9 @@ const cameraWarningEl      = document.getElementById('camera-warning');
   }
 
   applyTranslations();
+  const loadingOverlay = document.getElementById('loading-overlay');
   await initLicense();
+  if (loadingOverlay) loadingOverlay.classList.add('hidden');
 })();
 
 // ─── Main window init ─────────────────────────────────────────────────────────
@@ -1559,6 +1561,13 @@ async function initLicense() {
     return;
   }
 
+  // Licensed but offline grace exhausted
+  if (status.offlineLicenseExpired) {
+    showBuyOverlay('offlineLicense');
+    startLicensePoller();
+    return;
+  }
+
   if (!status.trialExpired) {
     // Trial still active — show trial badge, poll in background in case user purchases
     const days = status.trialDaysLeft;
@@ -1570,8 +1579,8 @@ async function initLicense() {
     return;
   }
 
-  // Trial expired (genuine) or offline grace exhausted — show buy/offline overlay
-  showBuyOverlay(status.offlineTrialExpired);
+  // Trial expired (genuine) or offline trial grace exhausted — show buy/offline overlay
+  showBuyOverlay(status.offlineTrialExpired ? 'offlineTrial' : 'expired');
   startLicensePoller();
 }
 
@@ -1588,7 +1597,7 @@ function startLicensePoller() {
     if (!status.loggedIn) return;
 
     if (status.licensed) {
-      // License activated (purchased or reconnected) — stop polling and update UI
+      // License active (purchased or reconnected after offline block) — stop polling
       stopLicensePoller();
 
       const days = status.licenseDaysLeft;
@@ -1602,9 +1611,15 @@ function startLicensePoller() {
       return;
     }
 
+    // Licensed but offline grace exhausted — show reconnect overlay
+    if (status.offlineLicenseExpired) {
+      showBuyOverlay('offlineLicense');
+      return;
+    }
+
     // Not licensed — update overlay variant (may have just reconnected during offline block)
     if (status.trialExpired) {
-      showBuyOverlay(status.offlineTrialExpired);
+      showBuyOverlay(status.offlineTrialExpired ? 'offlineTrial' : 'expired');
     } else {
       // Trial still active (reconnected after offline block while trial was still valid)
       if (licenseOverlay) licenseOverlay.classList.add('hidden');
@@ -1627,28 +1642,35 @@ function stopLicensePoller() {
 
 /**
  * Shows the buy/block overlay.
- * offlineExpired = true  → "No internet" message, buy buttons hidden
- * offlineExpired = false → "Trial ended" message, buy buttons shown
+ * mode = 'expired'       → trial ended, show buy buttons
+ * mode = 'offlineTrial'  → offline >1h during trial, hide buy buttons
+ * mode = 'offlineLicense'→ offline >24h during active license, hide buy buttons
  */
-function showBuyOverlay(offlineExpired) {
-  const overlayTitle    = document.getElementById('overlay-title');
-  const overlaySub      = document.getElementById('overlay-sub');
-  const overlayIcon     = document.getElementById('overlay-icon');
-  const buyControls     = document.getElementById('overlay-buy-controls');
+function showBuyOverlay(mode) {
+  const overlayTitle = document.getElementById('overlay-title');
+  const overlaySub   = document.getElementById('overlay-sub');
+  const overlayIcon  = document.getElementById('overlay-icon');
+  const buyControls  = document.getElementById('overlay-buy-controls');
 
   if (authSection) authSection.classList.add('hidden');
   if (buySection)  buySection.classList.remove('hidden');
   if (licenseOverlay) licenseOverlay.classList.remove('hidden');
 
-  if (offlineExpired) {
-    if (overlayIcon)  overlayIcon.textContent   = '📡';
-    if (overlayTitle) overlayTitle.textContent  = t('overlay.offlineTitle');
-    if (overlaySub)   overlaySub.textContent    = t('overlay.offlineSub');
+  if (mode === 'offlineTrial') {
+    if (overlayIcon)  overlayIcon.textContent  = '📡';
+    if (overlayTitle) overlayTitle.textContent = t('overlay.offlineTitle');
+    if (overlaySub)   overlaySub.textContent   = t('overlay.offlineSub');
+    if (buyControls)  buyControls.classList.add('hidden');
+  } else if (mode === 'offlineLicense') {
+    if (overlayIcon)  overlayIcon.textContent  = '📡';
+    if (overlayTitle) overlayTitle.textContent = t('overlay.offlineLicenseTitle');
+    if (overlaySub)   overlaySub.textContent   = t('overlay.offlineLicenseSub');
     if (buyControls)  buyControls.classList.add('hidden');
   } else {
-    if (overlayIcon)  overlayIcon.textContent   = '🔒';
-    if (overlayTitle) overlayTitle.textContent  = t('overlay.title');
-    if (overlaySub)   overlaySub.textContent    = t('overlay.sub');
+    // 'expired' — genuine trial end, show purchase UI
+    if (overlayIcon)  overlayIcon.textContent  = '🔒';
+    if (overlayTitle) overlayTitle.textContent = t('overlay.title');
+    if (overlaySub)   overlaySub.textContent   = t('overlay.sub');
     if (buyControls)  buyControls.classList.remove('hidden');
   }
 }

@@ -13,6 +13,9 @@
     'trial.badge': (n) => `Trial: ${n} day${n === 1 ? '' : 's'} left`,
     'trial.buyBtn': 'Buy License',
 
+    // Loading overlay
+    'loading.text': 'Loading\u2026',
+
     // License badge (active paid license)
     'license.badge': (n) => `License: ${n} day${n === 1 ? '' : 's'} left`,
 
@@ -67,6 +70,8 @@
     'overlay.sub': 'Your 7-day free trial has expired. Purchase a license to continue using Packing Recorder.',
     'overlay.offlineTitle': 'No Internet Connection',
     'overlay.offlineSub':   'An internet connection is required to continue. Packing Recorder needs to verify your trial status every hour.',
+    'overlay.offlineLicenseTitle': 'No Internet Connection',
+    'overlay.offlineLicenseSub':   'Your license could not be verified. Reconnect to the internet to continue using Packing Recorder.',
     'overlay.priceLabel': '30-day license',
     'overlay.buyBtn': 'Buy License (QRIS)',
     'overlay.alreadyPaid': 'Already paid but license didn\'t appear?',
@@ -228,6 +233,9 @@
     'trial.badge': (n) => `Percobaan: sisa ${n} hari`,
     'trial.buyBtn': 'Beli Lisensi',
 
+    // Loading overlay
+    'loading.text': 'Memuat\u2026',
+
     // License badge (active paid license)
     'license.badge': (n) => `Lisensi: sisa ${n} hari`,
 
@@ -282,6 +290,8 @@
     'overlay.sub': 'Masa percobaan 7 hari Anda telah berakhir. Beli lisensi untuk terus menggunakan Packing Recorder.',
     'overlay.offlineTitle': 'Tidak Ada Koneksi Internet',
     'overlay.offlineSub':   'Koneksi internet diperlukan untuk melanjutkan. Packing Recorder perlu memverifikasi status trial Anda setiap 1 jam.',
+    'overlay.offlineLicenseTitle': 'Tidak Ada Koneksi Internet',
+    'overlay.offlineLicenseSub':   'Lisensi kamu tidak dapat diverifikasi. Sambungkan kembali ke internet untuk melanjutkan menggunakan Packing Recorder.',
     'overlay.priceLabel': 'Lisensi 30 hari',
     'overlay.buyBtn': 'Beli Lisensi (QRIS)',
     'overlay.alreadyPaid': 'Sudah bayar tapi lisensi belum muncul?',
