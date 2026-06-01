@@ -30,6 +30,7 @@ jobs:
 
       - name: Notify license server of new version
         shell: pwsh
+        continue-on-error: true
         run: |
           Invoke-RestMethod -Uri "https://packing-recorder-production.up.railway.app/set-version" `
             -Method POST `
