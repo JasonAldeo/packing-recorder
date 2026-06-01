@@ -56,4 +56,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openPurchasePage:      ()                         => ipcRenderer.invoke('open-purchase-page'),
   recoverLicense:        ()                         => ipcRenderer.invoke('recover-license'),
   openExternalUrl:       (url)                      => ipcRenderer.invoke('open-external-url', url),
+
+  // ─── App version & updates ─────────────────────────────────────────────────
+  getAppVersion:         ()                         => ipcRenderer.invoke('get-app-version'),
+  checkForUpdates:       ()                         => ipcRenderer.invoke('check-for-updates'),
+  onUpdateAvailable:     (cb)                       => ipcRenderer.on('update-available', (_, info) => cb(info)),
+  onUpdateDownloaded:    (cb)                       => ipcRenderer.on('update-downloaded', (_, info) => cb(info)),
 });

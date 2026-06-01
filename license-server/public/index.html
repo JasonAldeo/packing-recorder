@@ -690,6 +690,7 @@
       </a>
     </div>
     <p class="hero-note" data-i18n="hero.note">Gratis 7 hari &middot; Tidak perlu kartu kredit</p>
+    <p id="hero-version" class="hero-version" style="display:none;margin-top:8px;font-size:0.75rem;color:#94a3b8;"></p>
   </div>
 </section>
 
@@ -880,6 +881,7 @@
       <svg class="windows-icon" viewBox="0 0 24 24"><path d="M3 12V6.75l6-1.32v6.57H3zm17 0V4.5l-8 1.41V12h8zm-17 1h6v6.43L3 18V13zm17 0h-8v6.1l8 1.4V13z"/></svg>
       <span data-i18n="dl.note">Windows 64-bit &middot; Installer (.exe)</span>
     </div>
+    <p id="dl-version" style="display:none;margin-top:10px;font-size:0.75rem;color:#475569;"></p>
   </div>
 </section>
 
@@ -1089,6 +1091,21 @@
       btn.classList.toggle('active', btn.getAttribute('onclick').includes(name));
     });
   }
+
+  // ── Latest version ──────────────────────────────────────────────────────────
+  fetch('/latest-version')
+    .then(r => r.json())
+    .then(data => {
+      if (!data.version) return;
+      const label = currentLang === 'id'
+        ? `Versi saat ini: ${data.version}`
+        : `Current version: ${data.version}`;
+      ['hero-version', 'dl-version'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.textContent = label; el.style.display = ''; }
+      });
+    })
+    .catch(() => { /* silently ignore if server unreachable */ });
 </script>
 </body>
 </html>

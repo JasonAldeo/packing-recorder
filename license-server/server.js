@@ -27,6 +27,14 @@ const pool = new Pool({
 });
 
 async function initDB() {
+  // App metadata table (stores current app version for website display)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS app_meta (
+      key   VARCHAR(64) PRIMARY KEY,
+      value TEXT        NOT NULL
+    )
+  `);
+
   // Users table
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -621,6 +629,44 @@ app.post('/recover-license', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('[recover-license]', err.message);
     res.status(500).json({ error: 'Server error. Please try again.' });
+  }
+});
+
+
+// ─── App version ──────────────────────────────────────────────────────────────
+
+// GET /latest-version — public, returns current app version
+app.get('/latest-version', async (req, res) => {
+  try {
+    const result = await pool.query(`SELECT value FROM app_meta WHERE key = 'app_version'`);
+    const version = result.rows.length > 0 ? result.rows[0].value : null;
+    res.json({ version });
+  } catch (err) {
+    console.error('[latest-version]', err.message);
+    res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+// POST /set-version — protected by VERSION_UPDATE_TOKEN, called by CI after each release
+app.post('/set-version', async (req, res) => {
+  const token = process.env.VERSION_UPDATE_TOKEN;
+  const auth  = (req.headers['authorization'] || '').replace('Bearer ', '');
+  if (!token || auth !== token) return res.status(401).json({ error: 'Unauthorized.' });
+
+  const { version } = req.body;
+  if (!version || typeof version !== 'string') return res.status(400).json({ error: 'version required.' });
+
+  try {
+    await pool.query(
+      `INSERT INTO app_meta (key, value) VALUES ('app_version', $1)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+      [version]
+    );
+    console.log(`[set-version] App version set to ${version}`);
+    res.json({ ok: true, version });
+  } catch (err) {
+    console.error('[set-version]', err.message);
+    res.status(500).json({ error: 'Server error.' });
   }
 });
 

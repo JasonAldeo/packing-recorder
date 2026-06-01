@@ -1972,6 +1972,63 @@ if (pickDirBtn) {
   });
 }
 
+// ─── App Version & Updates ────────────────────────────────────────────────────
+const appVersionDisplay = document.getElementById('app-version-display');
+const checkUpdateBtn    = document.getElementById('check-update-btn');
+const updateStatusEl    = document.getElementById('update-status');
+
+function setUpdateStatus(text, type) {
+  if (!updateStatusEl) return;
+  updateStatusEl.classList.remove('hidden', 'success', 'info', 'error');
+  updateStatusEl.textContent = text;
+  if (type) updateStatusEl.classList.add(type);
+}
+
+// Display version on load
+if (appVersionDisplay) {
+  window.electronAPI.getAppVersion().then(v => {
+    appVersionDisplay.textContent = `v${v}`;
+  });
+}
+
+// Manual "Check for Updates" button
+if (checkUpdateBtn) {
+  checkUpdateBtn.addEventListener('click', async () => {
+    checkUpdateBtn.disabled = true;
+    setUpdateStatus(t('settings.updateChecking'), 'info');
+    try {
+      const result = await window.electronAPI.checkForUpdates();
+      // If no update-available event fires within 4s, assume up to date
+      setTimeout(() => {
+        if (checkUpdateBtn.disabled) {
+          checkUpdateBtn.disabled = false;
+          if (updateStatusEl && updateStatusEl.textContent === t('settings.updateChecking')) {
+            setUpdateStatus(t('settings.updateNotAvailable'), 'success');
+          }
+        }
+      }, 4000);
+    } catch (_) {
+      checkUpdateBtn.disabled = false;
+      setUpdateStatus(t('settings.updateError'), 'error');
+    }
+  });
+}
+
+// Push events from main process
+if (window.electronAPI.onUpdateAvailable) {
+  window.electronAPI.onUpdateAvailable((info) => {
+    if (checkUpdateBtn) checkUpdateBtn.disabled = false;
+    setUpdateStatus(t('settings.updateAvailable', info.version), 'info');
+  });
+}
+
+if (window.electronAPI.onUpdateDownloaded) {
+  window.electronAPI.onUpdateDownloaded((info) => {
+    if (checkUpdateBtn) checkUpdateBtn.disabled = false;
+    setUpdateStatus(t('settings.updateReady', info.version), 'success');
+  });
+}
+
 // ─── QR Code (manual) ─────────────────────────────────────────────────────────
 if (printQrBtn) {
   printQrBtn.addEventListener('click', async () => {

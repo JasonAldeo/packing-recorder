@@ -222,6 +222,15 @@
     'voice.recording':  (label) => `${label}, recording`,
     'voice.saved':      (label) => `${label}, saved`,
     'voice.cancelled':  (label) => `${label}, cancelled`,
+
+    // App version & updates
+    'settings.appVersionTitle': 'App Version',
+    'settings.checkUpdate':     'Check for Updates',
+    'settings.updateChecking':  'Checking for updates\u2026',
+    'settings.updateAvailable': (v) => `Downloading version ${v}\u2026`,
+    'settings.updateReady':     (v) => `Version ${v} ready \u2014 restart to install`,
+    'settings.updateNotAvailable': 'You\u2019re up to date.',
+    'settings.updateError':     'Update check failed. Please try again later.',
   },
 
   id: {
@@ -444,6 +453,15 @@
     'voice.recording':  (label) => `${label}, merekam`,
     'voice.saved':      (label) => `${label}, tersimpan`,
     'voice.cancelled':  (label) => `${label}, dibatalkan`,
+
+    // App version & updates
+    'settings.appVersionTitle': 'Versi Aplikasi',
+    'settings.checkUpdate':     'Cek Pembaruan',
+    'settings.updateChecking':  'Memeriksa pembaruan\u2026',
+    'settings.updateAvailable': (v) => `Mengunduh versi ${v}\u2026`,
+    'settings.updateReady':     (v) => `Versi ${v} siap \u2014 restart untuk menginstal`,
+    'settings.updateNotAvailable': 'Aplikasi sudah versi terbaru.',
+    'settings.updateError':     'Gagal memeriksa pembaruan. Coba lagi nanti.',
   }
 };
 

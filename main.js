@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
@@ -340,6 +341,39 @@ app.whenReady().then(() => {
   createWindow();
   runAutoDelete();
 
+  // ─── Auto-updater ────────────────────────────────────────────────────────────
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = false;
+
+  autoUpdater.on('update-available', (info) => {
+    if (mainWindow) mainWindow.webContents.send('update-available', info);
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    if (mainWindow) mainWindow.webContents.send('update-downloaded', info);
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Update Ready',
+      message: `Version ${info.version} has been downloaded. Restart now to install the update?`,
+      buttons: ['Restart Now', 'Later'],
+      defaultId: 0,
+      cancelId: 1
+    }).then(({ response }) => {
+      if (response === 0) autoUpdater.quitAndInstall();
+    });
+  });
+
+  autoUpdater.on('error', (err) => {
+    console.error('[auto-updater] error:', err.message);
+  });
+
+  // Check for updates silently on startup (delay 3s to let window finish loading)
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch(err => {
+      console.error('[auto-updater] check failed:', err.message);
+    });
+  }, 3000);
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -352,6 +386,15 @@ app.on('window-all-closed', () => {
 // Ensure videos directory exists
 ipcMain.handle('ensure-videos-dir', () => {
   return getVideosDir();
+});
+
+// ─── App version & updates ────────────────────────────────────────────────────
+ipcMain.handle('get-app-version', () => app.getVersion());
+
+ipcMain.handle('check-for-updates', () => {
+  return autoUpdater.checkForUpdates().catch(err => {
+    console.error('[auto-updater] manual check failed:', err.message);
+  });
 });
 
 // ─── Streaming video write — per-station ──────────────────────────────────────
