@@ -1,7 +1,7 @@
 {
   "name": "packing-recorder",
-  "version": "2.0.0",
-  "description": "Packing video recording system with barcode scanner support, update: support multiple stations",
+  "version": "2.1.6",
+  "description": "Packing video recording system with barcode scanner support",
   "author": {
     "name": "Jason Aldeo Leonard",
     "email": "aldeojason@gmail.com"
