@@ -38,6 +38,7 @@ jobs:
           archive: false
 
       - name: Sign installer with SignPath
+        continue-on-error: true
         uses: signpath/github-action-submit-signing-request@v2
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
@@ -50,8 +51,12 @@ jobs:
 
       - name: Create GitHub Release with signed installer
         run: |
-          gh release create ${{ github.ref_name }} `
-            dist/signed/PackingRecorder-Setup.exe `
+          $installer = if (Test-Path "dist/signed/PackingRecorder-Setup.exe") {
+            "dist/signed/PackingRecorder-Setup.exe"
+          } else {
+            "dist/PackingRecorder-Setup.exe"
+          }
+          gh release create ${{ github.ref_name }} $installer `
             --title "${{ github.ref_name }}" `
             --generate-notes
         env:
