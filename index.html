@@ -95,17 +95,19 @@
 
       <!-- ── Logged in but trial expired + no license: buy prompt ── -->
       <div id="buy-section" class="hidden">
-        <div class="license-overlay-icon">🔒</div>
-        <h2 class="license-overlay-title" data-i18n="overlay.title">Trial Period Ended</h2>
-        <p class="license-overlay-sub" data-i18n="overlay.sub">Your 7-day free trial has expired.</p>
-        <div class="license-price-tag">
-          <span class="license-price-label" data-i18n="overlay.priceLabel">30-day license</span>
-          <span class="license-price-amount">Rp 75.000</span>
-        </div>
-        <button id="overlay-buy-btn" class="license-btn-primary" data-i18n="overlay.buyBtn">Buy License (QRIS)</button>
-        <div class="license-recover-row">
-          <span class="license-recover-label" data-i18n="overlay.alreadyPaid">Already paid but license didn't appear?</span>
-          <button id="overlay-recover-btn" class="license-btn-recover" data-i18n="overlay.checkPayment">Check My Payment</button>
+        <div id="overlay-icon" class="license-overlay-icon">🔒</div>
+        <h2 id="overlay-title" class="license-overlay-title" data-i18n="overlay.title">Trial Period Ended</h2>
+        <p id="overlay-sub" class="license-overlay-sub" data-i18n="overlay.sub">Your 7-day free trial has expired.</p>
+        <div id="overlay-buy-controls">
+          <div class="license-price-tag">
+            <span class="license-price-label" data-i18n="overlay.priceLabel">30-day license</span>
+            <span class="license-price-amount">Rp 75.000</span>
+          </div>
+          <button id="overlay-buy-btn" class="license-btn-primary" data-i18n="overlay.buyBtn">Buy License (QRIS)</button>
+          <div class="license-recover-row">
+            <span class="license-recover-label" data-i18n="overlay.alreadyPaid">Already paid but license didn't appear?</span>
+            <button id="overlay-recover-btn" class="license-btn-recover" data-i18n="overlay.checkPayment">Check My Payment</button>
+          </div>
         </div>
         <div id="buy-feedback" class="license-feedback hidden"></div>
       </div>

@@ -11,6 +11,7 @@ const ffmpegPath = require('ffmpeg-static');
 // ⚠️  Replace this URL with your Railway app URL after deployment.
 const LICENSE_SERVER_URL = 'https://packing-recorder-production.up.railway.app';
 const TRIAL_DAYS = 7;
+const TRIAL_OFFLINE_GRACE_MS = 60 * 60 * 1000; // 1 hour
 const LICENSE_PATH = path.join(app.getPath('userData'), 'license.json');
 
 function getLicenseData() {
@@ -24,8 +25,12 @@ function saveLicenseData(data) {
   fs.writeFileSync(LICENSE_PATH, JSON.stringify(data, null, 2), 'utf8');
 }
 
-/** Returns { daysLeft: number, expired: boolean } */
-function getTrialInfo() {
+/**
+ * Pre-login fallback only — used when user is not yet logged in.
+ * Returns { daysLeft, expired } based on local firstLaunchDate.
+ * Once logged in, trial is owned entirely by the server (users.created_at).
+ */
+function getLocalTrialInfo() {
   let data = getLicenseData();
   if (!data.firstLaunchDate) {
     data.firstLaunchDate = Date.now();
@@ -70,65 +75,94 @@ function serverRequest(method, urlPath, body, token) {
 
 // IPC: get trial + account/license status
 ipcMain.handle('get-license-status', async () => {
-  const trial = getTrialInfo();
   const data = getLicenseData();
 
-  // Not logged in
+  // Not logged in — use local trial info for pre-login UI display only
   if (!data.token) {
+    const trial = getLocalTrialInfo();
     return {
       loggedIn: false,
       licensed: false,
       trialDaysLeft: trial.daysLeft,
       trialExpired: trial.expired,
+      offlineTrialExpired: false,
       username: null,
       role: null,
     };
   }
 
-  // Logged in — call /me to refresh token (sliding window) and get license status
-  // Honour cached data on network failure (offline grace)
+  // Logged in — call /me to refresh token and get server-authoritative trial + license status
+  let networkError = false;
   try {
     const resp = await serverRequest('GET', '/me', null, data.token);
     if (resp.status === 401) {
-      // Token expired — clear it
+      // Token expired — log out
       delete data.token;
       delete data.username;
       delete data.role;
       delete data.licenseExpiresAt;
+      delete data.trialDaysLeft;
+      delete data.trialExpired;
+      delete data.trialCachedAt;
       saveLicenseData(data);
+      const trial = getLocalTrialInfo();
       return {
         loggedIn: false,
         licensed: false,
         trialDaysLeft: trial.daysLeft,
         trialExpired: trial.expired,
+        offlineTrialExpired: false,
         username: null,
         role: null,
       };
     }
     const me = resp.body;
-    // Save refreshed token + latest user info
-    data.token = me.token;
-    data.username = me.username;
-    data.role = me.role;
+    // Save refreshed token + latest server-authoritative values
+    data.token          = me.token;
+    data.username       = me.username;
+    data.role           = me.role;
     data.licenseExpiresAt = me.licenseExpiresAt || null;
+    data.trialDaysLeft  = me.trialDaysLeft;
+    data.trialExpired   = me.trialExpired;
+    data.trialCachedAt  = Date.now();
     saveLicenseData(data);
   } catch (_) {
-    // Network error — use cached values
+    // Network error — use cached values with grace window logic below
+    networkError = true;
   }
 
+  // Compute license state from cache
   const expiresAt = data.licenseExpiresAt ? new Date(data.licenseExpiresAt) : null;
-  const licensed = expiresAt && expiresAt > new Date();
+  const licensed = !!(expiresAt && expiresAt > new Date());
   const licenseDaysLeft = licensed
     ? Math.ceil((expiresAt - new Date()) / 86400000)
     : 0;
+
+  // Compute trial state from cache
+  // For trial users offline: enforce 1-hour grace window
+  let trialDaysLeft      = data.trialDaysLeft  ?? 0;
+  let trialExpired       = data.trialExpired    ?? true;
+  let offlineTrialExpired = false;
+
+  if (networkError && !licensed) {
+    const cachedAt = data.trialCachedAt || 0;
+    const age = Date.now() - cachedAt;
+    if (age >= TRIAL_OFFLINE_GRACE_MS) {
+      // Offline grace exhausted — block the user
+      trialExpired        = true;
+      offlineTrialExpired = true;
+    }
+    // else: within grace window, use cached trialDaysLeft / trialExpired as-is
+  }
 
   return {
     loggedIn: true,
     licensed,
     licenseDaysLeft,
     licenseExpiresAt: expiresAt ? expiresAt.toISOString() : null,
-    trialDaysLeft: trial.daysLeft,
-    trialExpired: trial.expired,
+    trialDaysLeft,
+    trialExpired,
+    offlineTrialExpired,
     username: data.username || null,
     role: data.role || 'user',
   };

@@ -1570,10 +1570,8 @@ async function initLicense() {
     return;
   }
 
-  // Trial expired, no license, logged in — show buy overlay and poll
-  if (authSection) authSection.classList.add('hidden');
-  if (buySection) buySection.classList.remove('hidden');
-  licenseOverlay.classList.remove('hidden');
+  // Trial expired (genuine) or offline grace exhausted — show buy/offline overlay
+  showBuyOverlay(status.offlineTrialExpired);
   startLicensePoller();
 }
 
@@ -1586,24 +1584,37 @@ function startLicensePoller() {
   if (_licensePollerTimer) return; // already running
   _licensePollerTimer = setInterval(async () => {
     const status = await window.electronAPI.getLicenseStatus();
-    if (!status.loggedIn || !status.licensed) return; // not yet licensed, keep polling
 
-    // License activated — stop polling and update UI
-    stopLicensePoller();
+    if (!status.loggedIn) return;
 
-    const days = status.licenseDaysLeft;
-    licenseDaysLeft = days;
+    if (status.licensed) {
+      // License activated (purchased or reconnected) — stop polling and update UI
+      stopLicensePoller();
 
-    // Update badge
-    if (licenseBadgeText) licenseBadgeText.textContent = t('license.badge', days);
-    if (days <= 7 && licenseBadge) licenseBadge.classList.add('trial-badge-urgent');
-    if (licenseBadge) licenseBadge.classList.remove('hidden');
+      const days = status.licenseDaysLeft;
+      licenseDaysLeft = days;
 
-    // Hide trial badge if it was showing
-    if (trialBadge) trialBadge.classList.add('hidden');
+      if (licenseBadgeText) licenseBadgeText.textContent = t('license.badge', days);
+      if (days <= 7 && licenseBadge) licenseBadge.classList.add('trial-badge-urgent');
+      if (licenseBadge) licenseBadge.classList.remove('hidden');
+      if (trialBadge) trialBadge.classList.add('hidden');
+      if (licenseOverlay) licenseOverlay.classList.add('hidden');
+      return;
+    }
 
-    // Hide the overlay if it was showing
-    if (licenseOverlay) licenseOverlay.classList.add('hidden');
+    // Not licensed — update overlay variant (may have just reconnected during offline block)
+    if (status.trialExpired) {
+      showBuyOverlay(status.offlineTrialExpired);
+    } else {
+      // Trial still active (reconnected after offline block while trial was still valid)
+      if (licenseOverlay) licenseOverlay.classList.add('hidden');
+      const days = status.trialDaysLeft;
+      trialDaysLeft = days;
+      if (trialBadgeText) trialBadgeText.textContent = t('trial.badge', days);
+      if (days <= 2 && trialBadge) trialBadge.classList.add('trial-badge-urgent');
+      else if (trialBadge) trialBadge.classList.remove('trial-badge-urgent');
+      if (trialBadge) trialBadge.classList.remove('hidden');
+    }
   }, 30000); // every 30 seconds
 }
 
@@ -1611,6 +1622,34 @@ function stopLicensePoller() {
   if (_licensePollerTimer) {
     clearInterval(_licensePollerTimer);
     _licensePollerTimer = null;
+  }
+}
+
+/**
+ * Shows the buy/block overlay.
+ * offlineExpired = true  → "No internet" message, buy buttons hidden
+ * offlineExpired = false → "Trial ended" message, buy buttons shown
+ */
+function showBuyOverlay(offlineExpired) {
+  const overlayTitle    = document.getElementById('overlay-title');
+  const overlaySub      = document.getElementById('overlay-sub');
+  const overlayIcon     = document.getElementById('overlay-icon');
+  const buyControls     = document.getElementById('overlay-buy-controls');
+
+  if (authSection) authSection.classList.add('hidden');
+  if (buySection)  buySection.classList.remove('hidden');
+  if (licenseOverlay) licenseOverlay.classList.remove('hidden');
+
+  if (offlineExpired) {
+    if (overlayIcon)  overlayIcon.textContent   = '📡';
+    if (overlayTitle) overlayTitle.textContent  = t('overlay.offlineTitle');
+    if (overlaySub)   overlaySub.textContent    = t('overlay.offlineSub');
+    if (buyControls)  buyControls.classList.add('hidden');
+  } else {
+    if (overlayIcon)  overlayIcon.textContent   = '🔒';
+    if (overlayTitle) overlayTitle.textContent  = t('overlay.title');
+    if (overlaySub)   overlaySub.textContent    = t('overlay.sub');
+    if (buyControls)  buyControls.classList.remove('hidden');
   }
 }
 

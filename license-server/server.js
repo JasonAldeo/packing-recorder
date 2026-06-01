@@ -296,15 +296,16 @@ app.post('/login', authLimiter, async (req, res) => {
 
 /**
  * GET /me
- * JWT required. Returns current user info + license status.
+ * JWT required. Returns current user info + license status + trial status.
  * Also slides the token window (issues a new token in the response).
- * Returns: { token, username, email, role, licenseExpiresAt }
+ * Returns: { token, username, email, role, licenseExpiresAt, trialDaysLeft, trialExpired }
  */
+const TRIAL_DAYS = 7;
 app.get('/me', requireAuth, async (req, res) => {
   try {
     // Re-fetch user from DB to pick up any role/username changes
     const result = await pool.query(
-      'SELECT id, username, email, role FROM users WHERE id = $1',
+      'SELECT id, username, email, role, created_at FROM users WHERE id = $1',
       [req.user.sub]
     );
     if (result.rows.length === 0) {
@@ -312,6 +313,11 @@ app.get('/me', requireAuth, async (req, res) => {
     }
     const user = result.rows[0];
     const licenseExpiresAt = await getActiveLicense(user.id);
+
+    // Calculate trial status server-side from account creation date
+    const daysElapsed = Math.floor((Date.now() - new Date(user.created_at)) / 86400000);
+    const trialDaysLeft = Math.max(0, TRIAL_DAYS - daysElapsed);
+    const trialExpired = trialDaysLeft === 0;
 
     // Issue a fresh token (sliding 7-day window)
     const newToken = signToken(user);
@@ -322,6 +328,8 @@ app.get('/me', requireAuth, async (req, res) => {
       email: user.email,
       role: user.role,
       licenseExpiresAt: licenseExpiresAt ? licenseExpiresAt.toISOString() : null,
+      trialDaysLeft,
+      trialExpired,
     });
   } catch (err) {
     console.error('[me]', err.message);
