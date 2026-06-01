@@ -36,6 +36,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     },
+    "artifactName": "PackingRecorder-Setup.exe",
     "publish": null
   },
   "devDependencies": {
