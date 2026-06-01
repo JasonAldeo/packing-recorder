@@ -91,26 +91,31 @@ const cameraWarningEl      = document.getElementById('camera-warning');
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 (async () => {
-  await window.electronAPI.ensureVideosDir();
-  appSettings = await window.electronAPI.getSettings();
+  try {
+    await window.electronAPI.ensureVideosDir();
+    appSettings = await window.electronAPI.getSettings();
 
-  // Restore locale first so UI is translated on load
-  if (appSettings.locale) {
-    window._i18n.setLocale(appSettings.locale);
+    // Restore locale first so UI is translated on load
+    if (appSettings.locale) {
+      window._i18n.setLocale(appSettings.locale);
+    }
+
+    if (stationWindowId) {
+      // This is a station-specific window — render only that station
+      await initAsStationWindow(stationWindowId);
+    } else {
+      // Main window
+      await initMainWindow();
+    }
+
+    applyTranslations();
+    await initLicense();
+  } catch (err) {
+    console.error('[startup] init failed:', err);
+  } finally {
+    const loadingOverlay = document.getElementById('loading-overlay');
+    if (loadingOverlay) loadingOverlay.classList.add('hidden');
   }
-
-  if (stationWindowId) {
-    // This is a station-specific window — render only that station
-    await initAsStationWindow(stationWindowId);
-  } else {
-    // Main window
-    await initMainWindow();
-  }
-
-  applyTranslations();
-  const loadingOverlay = document.getElementById('loading-overlay');
-  await initLicense();
-  if (loadingOverlay) loadingOverlay.classList.add('hidden');
 })();
 
 // ─── Main window init ─────────────────────────────────────────────────────────
@@ -441,6 +446,17 @@ async function initStationCamera(sid) {
   const videoEl = st.elements.video;
   const cameraError = st.elements.cameraError;
 
+  // Race getUserMedia against a 5s timeout so a missing or unresponsive camera
+  // never hangs the startup sequence indefinitely.
+  function getUserMediaWithTimeout(constraints, ms = 5000) {
+    return Promise.race([
+      navigator.mediaDevices.getUserMedia(constraints),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Camera timeout')), ms)
+      ),
+    ]);
+  }
+
   try {
     const constraints = {
       video: st.cameraDeviceId
@@ -448,13 +464,13 @@ async function initStationCamera(sid) {
         : true,
       audio: false
     };
-    st.stream = await navigator.mediaDevices.getUserMedia(constraints);
+    st.stream = await getUserMediaWithTimeout(constraints);
     if (videoEl) videoEl.srcObject = st.stream;
     if (cameraError) cameraError.classList.add('hidden');
   } catch (err) {
     // Fallback: try without exact deviceId
     try {
-      st.stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      st.stream = await getUserMediaWithTimeout({ video: true, audio: false });
       if (videoEl) videoEl.srcObject = st.stream;
       if (cameraError) cameraError.classList.add('hidden');
     } catch (err2) {

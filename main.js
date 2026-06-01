@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
@@ -338,6 +338,12 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Grant camera/media permissions so getUserMedia always settles (never hangs)
+  // on machines where Electron's default permission handler leaves requests pending.
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    callback(['media', 'mediaKeySystem'].includes(permission));
+  });
+
   createWindow();
   runAutoDelete();
 
