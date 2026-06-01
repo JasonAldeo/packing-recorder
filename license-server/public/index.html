@@ -383,6 +383,63 @@
       font-style: italic;
     }
 
+    /* ── Video Demo ── */
+    .video-wrap {
+      margin-top: 48px;
+      max-width: 860px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .video-frame {
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 8px 40px rgba(30,41,59,0.13), 0 1.5px 0 rgba(30,41,59,0.07);
+      border: 1px solid var(--border);
+      background: #000;
+      line-height: 0;
+    }
+    .video-frame video {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .video-captions {
+      display: flex;
+      gap: 16px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    .video-caption {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      flex: 1;
+      min-width: 220px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+    }
+    .video-caption-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      color: #fff;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .video-caption p {
+      font-size: 0.88rem;
+      color: var(--mid);
+      margin: 0;
+      line-height: 1.5;
+    }
+
     /* ── Pricing ── */
     .pricing-grid {
       display: grid;
@@ -717,6 +774,37 @@
   </div>
 </section>
 
+<!-- ── Video Demo ── -->
+<section class="section" id="demo">
+  <div class="container">
+    <div class="section-label" data-i18n="video.label">Demo</div>
+    <h2 class="section-title" data-i18n="video.title">Lihat cara kerjanya</h2>
+    <p class="section-sub" data-i18n="video.sub">Tidak perlu tombol apapun — cukup scan.</p>
+
+    <div class="video-wrap">
+      <div class="video-frame">
+        <video
+          controls
+          preload="none"
+          poster="/videos/PackRecorderExampleThumbnail.png"
+        >
+          <source src="/videos/PackRecorderExample.webm" type="video/webm" />
+        </video>
+      </div>
+      <div class="video-captions">
+        <div class="video-caption">
+          <span class="video-caption-num">1</span>
+          <p data-i18n="video.cap1">Scan barcode resi untuk mulai merekam</p>
+        </div>
+        <div class="video-caption">
+          <span class="video-caption-num">2</span>
+          <p data-i18n="video.cap2">Scan barcode yang sama lagi untuk berhenti</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ── Pricing ── -->
 <section class="section" id="pricing" style="background: var(--bg);">
   <div class="container">
@@ -837,6 +925,11 @@
       'ss.play':                'Putar Video',
       'ss.settings':            'Pengaturan',
       'ss.disclaimer':          'Screenshot diambil dalam Test Mode \u2014 kamera nyata menghasilkan video penuh.',
+      'video.label':            'Demo',
+      'video.title':            'Lihat cara kerjanya',
+      'video.sub':              'Tidak perlu tombol apapun \u2014 cukup scan.',
+      'video.cap1':             'Scan barcode resi untuk mulai merekam',
+      'video.cap2':             'Scan barcode yang sama lagi untuk berhenti',
       'pricing.label':          'Harga',
       'pricing.title':          'Harga yang terjangkau',
       'pricing.sub':            'Mulai gratis, bayar hanya saat butuh. Tidak ada kontrak, tidak ada biaya tersembunyi.',
@@ -905,6 +998,11 @@
       'ss.play':                'Play Video',
       'ss.settings':            'Settings',
       'ss.disclaimer':          'Screenshots taken in Test Mode \u2014 a real camera produces full video.',
+      'video.label':            'Demo',
+      'video.title':            'See how it works',
+      'video.sub':              'No buttons needed \u2014 just scan.',
+      'video.cap1':             'Scan the shipping barcode to start recording',
+      'video.cap2':             'Scan the same barcode again to stop recording',
       'pricing.label':          'Pricing',
       'pricing.title':          'Simple, affordable pricing',
       'pricing.sub':            'Start free, pay only when you need it. No contracts, no hidden fees.',
