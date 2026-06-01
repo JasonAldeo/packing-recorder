@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panduan — Packing Recorder</title>
+  <meta name="description" content="Panduan penggunaan Packing Recorder — dari instalasi hingga multi-stasiun." />
+  <link rel="icon" type="image/x-icon" href="/icon.ico" />
+  <link rel="shortcut icon" type="image/x-icon" href="/icon.ico" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:   #3b5bdb;
+      --purple: #7c3aed;
+      --dark:   #1e293b;
+      --mid:    #475569;
+      --light:  #64748b;
+      --border: #e2e8f0;
+      --bg:     #f8fafc;
+      --white:  #ffffff;
+      --radius: 16px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', 'Segoe UI', Tahoma, sans-serif;
+      color: var(--dark);
+      background: var(--white);
+      line-height: 1.7;
+    }
+
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .hidden { display: none !important; }
+
+    /* ── Nav ── */
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255,255,255,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+    .nav-logo {
+      width: 30px;
+      height: 30px;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .nav-name {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--dark);
+    }
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .lang-toggle { display: flex; gap: 4px; }
+    .lang-btn {
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: transparent;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--mid);
+    }
+    .lang-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+    .nav-home-link {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--mid);
+      text-decoration: none;
+    }
+    .nav-home-link:hover { color: var(--blue); text-decoration: none; }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(135deg, #ede9fe 0%, #dbeafe 100%);
+      padding: 56px 24px;
+      text-align: center;
+    }
+    .hero h1 {
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      font-weight: 800;
+      color: var(--dark);
+      letter-spacing: -0.5px;
+      margin-bottom: 12px;
+    }
+    .hero p {
+      font-size: 1.05rem;
+      color: var(--mid);
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    /* ── Layout ── */
+    .page {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 56px 24px 80px;
+    }
+
+    /* ── TOC ── */
+    .toc {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px 28px;
+      margin-bottom: 56px;
+    }
+    .toc-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--blue);
+      margin-bottom: 14px;
+    }
+    .toc ol {
+      padding-left: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .toc li { font-size: 0.95rem; }
+    .toc a { color: var(--blue); font-weight: 500; }
+
+    /* ── Sections ── */
+    .guide-section {
+      margin-bottom: 56px;
+      scroll-margin-top: 80px;
+    }
+    .guide-section-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--blue);
+      margin-bottom: 8px;
+    }
+    .guide-section h2 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--dark);
+      letter-spacing: -0.3px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--border);
+    }
+    .guide-section p {
+      font-size: 0.97rem;
+      color: var(--mid);
+      margin-bottom: 14px;
+    }
+    .guide-section p:last-child { margin-bottom: 0; }
+
+    /* ── Steps ── */
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin: 20px 0;
+    }
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      color: #fff;
+      font-size: 0.82rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 2px;
+    }
+    .step-body { flex: 1; }
+    .step-title {
+      font-size: 0.97rem;
+      font-weight: 700;
+      color: var(--dark);
+      margin-bottom: 3px;
+    }
+    .step-desc {
+      font-size: 0.9rem;
+      color: var(--mid);
+      line-height: 1.6;
+    }
+
+    /* ── Screenshot ── */
+    .guide-screenshot {
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      margin: 24px 0;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    .guide-screenshot img {
+      width: 100%;
+      display: block;
+    }
+    .guide-screenshot-caption {
+      font-size: 0.82rem;
+      color: var(--light);
+      text-align: center;
+      padding: 10px 16px;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Tip box ── */
+    .tip {
+      background: #eff6ff;
+      border-left: 4px solid var(--blue);
+      border-radius: 0 8px 8px 0;
+      padding: 14px 18px;
+      font-size: 0.9rem;
+      color: var(--mid);
+      margin: 16px 0;
+    }
+    .tip strong { color: var(--blue); }
+
+    /* ── FAQ ── */
+    .faq-item {
+      border-bottom: 1px solid var(--border);
+      padding: 18px 0;
+    }
+    .faq-item:last-child { border-bottom: none; }
+    .faq-q {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--dark);
+      margin-bottom: 8px;
+    }
+    .faq-a {
+      font-size: 0.93rem;
+      color: var(--mid);
+    }
+
+    /* ── Footer ── */
+    footer {
+      background: var(--dark);
+      color: #94a3b8;
+      text-align: center;
+      padding: 32px 24px;
+      font-size: 0.875rem;
+      line-height: 2;
+    }
+    footer a { color: #818cf8; }
+    footer a:hover { color: #fff; }
+  </style>
+</head>
+<body>
+
+<!-- ── Nav ── -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="/" class="nav-brand">
+      <div class="nav-logo">
+        <img src="/icon.ico" alt="Packing Recorder" style="width:20px;height:20px;object-fit:contain;" />
+      </div>
+      <span class="nav-name">Packing Recorder</span>
+    </a>
+    <div class="nav-right">
+      <div class="lang-toggle">
+        <button class="lang-btn" id="btn-id" onclick="setLang('id')">ID</button>
+        <button class="lang-btn" id="btn-en" onclick="setLang('en')">EN</button>
+      </div>
+      <a href="/" class="nav-home-link" data-i18n="nav.home">Beranda</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Hero ── -->
+<div class="hero">
+  <h1 data-i18n="hero.title">Panduan Penggunaan</h1>
+  <p data-i18n="hero.sub">Dari instalasi pertama hingga setup multi-stasiun — semua ada di sini.</p>
+</div>
+
+<!-- ── Content ── -->
+<div class="page">
+
+  <!-- TOC -->
+  <div class="toc">
+    <div class="toc-title" data-i18n="toc.label">Daftar Isi</div>
+    <ol>
+      <li><a href="#quickstart" data-i18n="toc.s1">Mulai Cepat</a></li>
+      <li><a href="#basic" data-i18n="toc.s2">Penggunaan Dasar</a></li>
+      <li><a href="#multistation" data-i18n="toc.s3">Setup Multi-Stasiun</a></li>
+      <li><a href="#multiwindow" data-i18n="toc.s4">Mode Multi-Window (Dashboard)</a></li>
+      <li><a href="#license" data-i18n="toc.s5">Lisensi &amp; Akun</a></li>
+      <li><a href="#faq" data-i18n="toc.s6">FAQ</a></li>
+    </ol>
+  </div>
+
+  <!-- 1. Quick Start -->
+  <div class="guide-section" id="quickstart">
+    <div class="guide-section-label" data-i18n="s1.label">01</div>
+    <h2 data-i18n="s1.title">Mulai Cepat</h2>
+    <p data-i18n="s1.intro">Ikuti langkah berikut untuk mulai menggunakan Packing Recorder dalam hitungan menit.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="s1.step1.title">Download &amp; Install</div>
+          <div class="step-desc" data-i18n="s1.step1.desc">Download <strong>PackingRecorder-Setup.exe</strong> lalu jalankan installer. Ikuti panduan instalasi hingga selesai.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="s1.step2.title">Buat Akun</div>
+          <div class="step-desc" data-i18n="s1.step2.desc">Saat pertama buka, kamu akan diminta login atau daftar akun. Daftar gratis — tidak perlu kartu kredit.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="s1.step3.title">Trial 7 Hari Otomatis Dimulai</div>
+          <div class="step-desc" data-i18n="s1.step3.desc">Setelah login pertama, kamu langsung mendapat akses penuh selama 7 hari. Tidak ada yang perlu diaktifkan.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="s1.step4.title">Hubungkan Kamera &amp; Scanner</div>
+          <div class="step-desc" data-i18n="s1.step4.desc">Pastikan kamera USB terhubung. Scanner barcode USB otomatis terdeteksi — tidak perlu instalasi driver khusus.</div>
+        </div>
+      </div>
+    </div>
+    <div class="tip"><strong data-i18n="tip.label">Tips:</strong> <span data-i18n="s1.tip">Gunakan kamera dengan sudut pandang lebar agar seluruh area packing terlihat jelas dalam rekaman.</span></div>
+  </div>
+
+  <!-- 2. Basic Usage -->
+  <div class="guide-section" id="basic">
+    <div class="guide-section-label" data-i18n="s2.label">02</div>
+    <h2 data-i18n="s2.title">Penggunaan Dasar</h2>
+    <p data-i18n="s2.intro">Packing Recorder dirancang agar tidak perlu pencet tombol apapun saat packing. Cukup scan.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="s2.step1.title">Scan Barcode → Rekaman Dimulai</div>
+          <div class="step-desc" data-i18n="s2.step1.desc">Arahkan scanner ke barcode resi pengiriman. Begitu barcode terbaca, rekaman langsung dimulai secara otomatis.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="s2.step2.title">Scan Lagi → Rekaman Berhenti</div>
+          <div class="step-desc" data-i18n="s2.step2.desc">Scan barcode yang sama untuk menghentikan rekaman. File langsung tersimpan otomatis ke komputer.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="s2.step3.title">Cari &amp; Putar Ulang Rekaman</div>
+          <div class="step-desc" data-i18n="s2.step3.desc">Buka tab <strong>Rekaman</strong>, ketik kode resi di kolom cari, lalu klik rekaman untuk memputarnya langsung di aplikasi.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="s2.step4.title">Ekspor ke MP4</div>
+          <div class="step-desc" data-i18n="s2.step4.desc">Pilih rekaman lalu klik tombol <strong>Export MP4</strong>. File MP4 siap dikirim ke marketplace atau ekspedisi sebagai bukti packing.</div>
+        </div>
+      </div>
+    </div>
+    <div class="tip"><strong data-i18n="tip.label">Tips:</strong> <span data-i18n="s2.tip">Semua rekaman tersimpan lokal di komputer kamu — tidak ada data yang dikirim ke cloud.</span></div>
+  </div>
+
+  <!-- 3. Multi-Station -->
+  <div class="guide-section" id="multistation">
+    <div class="guide-section-label" data-i18n="s3.label">03</div>
+    <h2 data-i18n="s3.title">Setup Multi-Stasiun</h2>
+    <p data-i18n="s3.intro">Punya lebih dari satu meja packing? Aktifkan mode Multi-Stasiun untuk merekam hingga 6 stasiun sekaligus dalam satu aplikasi.</p>
+
+    <div class="guide-screenshot">
+      <img src="/screenshots/Multi_Stations_Mode.png" alt="Tampilan multi-stasiun" loading="lazy" />
+      <div class="guide-screenshot-caption" data-i18n="s3.imgCaption">Tampilan grid multi-stasiun — hingga 6 stasiun berjalan bersamaan</div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="s3.step1.title">Aktifkan Multi-Stasiun di Pengaturan</div>
+          <div class="step-desc" data-i18n="s3.step1.desc">Buka tab <strong>Pengaturan</strong>, aktifkan toggle <strong>Multi-Station Mode</strong>, lalu tentukan jumlah stasiun (maksimal 6).</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="s3.step2.title">Hubungkan Kamera ke Setiap Stasiun</div>
+          <div class="step-desc" data-i18n="s3.step2.desc">Setiap stasiun membutuhkan satu kamera. Pilih kamera yang sesuai di kartu stasiun masing-masing melalui dropdown kamera.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="s3.step3.title">Cetak QR Code Stasiun</div>
+          <div class="step-desc" data-i18n="s3.step3.desc">Di Pengaturan, klik <strong>Print Station QR</strong>. Tempelkan QR code stasiun di dekat masing-masing meja packing.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="s3.step4.title">Scan QR Stasiun → Stasiun Siap</div>
+          <div class="step-desc" data-i18n="s3.step4.desc">Scan QR code stasiun untuk "mengaktifkan" (arm) stasiun tersebut. Stasiun yang aktif akan menunggu scan barcode berikutnya.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="s3.step5.title">Scan Barcode Resi → Rekaman Mulai</div>
+          <div class="step-desc" data-i18n="s3.step5.desc">Scan barcode resi untuk memulai rekaman di stasiun yang aktif. Hanya satu stasiun yang bisa aktif (armed) pada satu waktu.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="s3.step6.title">Scan Barcode Lagi → Rekaman Berhenti</div>
+          <div class="step-desc" data-i18n="s3.step6.desc">Scan barcode yang sama untuk menghentikan rekaman. Stasiun kembali ke mode idle dan siap untuk packing berikutnya.</div>
+        </div>
+      </div>
+    </div>
+    <div class="tip"><strong data-i18n="tip.label">Tips:</strong> <span data-i18n="s3.tip">Jika scanner di meja berbeda, scan QR stasiun terlebih dahulu sebelum scan barcode resi — ini memberitahu aplikasi stasiun mana yang akan direkam.</span></div>
+  </div>
+
+  <!-- 4. Multi-Window -->
+  <div class="guide-section" id="multiwindow">
+    <div class="guide-section-label" data-i18n="s4.label">04</div>
+    <h2 data-i18n="s4.title">Mode Multi-Window (Dashboard)</h2>
+    <p data-i18n="s4.intro">Untuk setup dengan monitor terpisah di setiap stasiun, aktifkan mode Multi-Window. Setiap stasiun akan membuka jendela sendiri yang bisa dipindah ke monitor masing-masing.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="s4.step1.title">Aktifkan Multi-Window di Pengaturan</div>
+          <div class="step-desc" data-i18n="s4.step1.desc">Setelah Multi-Stasiun aktif, aktifkan juga toggle <strong>Multi-Window / Dashboard</strong> di Pengaturan.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="s4.step2.title">Dashboard sebagai Pusat Kontrol</div>
+          <div class="step-desc" data-i18n="s4.step2.desc">Jendela utama berfungsi sebagai dashboard. Semua scan diarahkan ke dashboard untuk menentukan stasiun mana yang direkam.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="s4.step3.title">Pindah Jendela Stasiun ke Monitor Masing-Masing</div>
+          <div class="step-desc" data-i18n="s4.step3.desc">Buka jendela stasiun dari dashboard, lalu drag ke monitor yang sesuai. Rekaman tetap berjalan di jendela stasiun.</div>
+        </div>
+      </div>
+    </div>
+    <div class="tip"><strong data-i18n="tip.label">Tips:</strong> <span data-i18n="s4.tip">Mode ini cocok untuk warehouse besar dengan beberapa komputer/monitor. Untuk setup satu komputer, cukup gunakan mode grid biasa tanpa Multi-Window.</span></div>
+  </div>
+
+  <!-- 5. License -->
+  <div class="guide-section" id="license">
+    <div class="guide-section-label" data-i18n="s5.label">05</div>
+    <h2 data-i18n="s5.title">Lisensi &amp; Akun</h2>
+    <p data-i18n="s5.p1">Lisensi Packing Recorder terhubung ke akunmu — bukan ke komputer. Kamu bisa login di komputer manapun dan lisensi tetap aktif.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="s5.step1.title">Beli Lisensi dari Dalam Aplikasi</div>
+          <div class="step-desc" data-i18n="s5.step1.desc">Klik tombol <strong>Beli Lisensi</strong> di notifikasi trial. Scan QRIS yang muncul menggunakan aplikasi mobile banking atau e-wallet kamu.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="s5.step2.title">Lisensi Aktif Otomatis</div>
+          <div class="step-desc" data-i18n="s5.step2.desc">Setelah pembayaran berhasil, lisensi aktif otomatis dalam beberapa detik. Aplikasi memperbarui status tanpa perlu restart.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="s5.step3.title">Sudah Bayar Tapi Lisensi Belum Aktif?</div>
+          <div class="step-desc" data-i18n="s5.step3.desc">Klik tombol <strong>Cek Pembayaran Saya</strong> di layar pembelian. Sistem akan memeriksa dan mengaktifkan lisensi secara manual.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title" data-i18n="s5.step4.title">Perpanjang Lisensi</div>
+          <div class="step-desc" data-i18n="s5.step4.desc">Lisensi 30 hari bisa ditambah kapan saja — tidak perlu menunggu habis. Klik <strong>Perpanjang</strong> di badge lisensi di pojok kanan atas.</div>
+        </div>
+      </div>
+    </div>
+    <div class="tip"><strong data-i18n="tip.label">Tips:</strong> <span data-i18n="s5.tip">Harga satu lisensi 30 hari adalah Rp 75.000. Pembelian bisa dilakukan berkali-kali dan masa aktif akan ditambahkan (stackable).</span></div>
+  </div>
+
+  <!-- 6. FAQ -->
+  <div class="guide-section" id="faq">
+    <div class="guide-section-label" data-i18n="s6.label">06</div>
+    <h2 data-i18n="s6.title">FAQ</h2>
+
+    <div class="faq-item">
+      <div class="faq-q" data-i18n="faq.q1">Kenapa lisensi saya tidak aktif setelah bayar?</div>
+      <div class="faq-a" data-i18n="faq.a1">Biasanya lisensi aktif otomatis dalam beberapa detik. Jika belum aktif setelah 1–2 menit, klik tombol <strong>Cek Pembayaran Saya</strong> di layar pembelian. Jika masih bermasalah, hubungi <a href="mailto:aldeojason@gmail.com">aldeojason@gmail.com</a> dengan bukti pembayaran.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" data-i18n="faq.q2">Bisakah saya pakai di komputer berbeda?</div>
+      <div class="faq-a" data-i18n="faq.a2">Ya. Lisensi terhubung ke akunmu, bukan ke komputer. Login dengan akun yang sama di komputer manapun dan lisensi langsung aktif.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" data-i18n="faq.q3">Apakah rekaman tersimpan di cloud?</div>
+      <div class="faq-a" data-i18n="faq.a3">Tidak. Semua rekaman tersimpan langsung di komputer kamu (folder <code>%APPDATA%\Packing Recorder\</code>). Tidak ada rekaman yang diunggah ke server kami.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" data-i18n="faq.q4">Berapa maksimal stasiun yang bisa digunakan?</div>
+      <div class="faq-a" data-i18n="faq.a4">Maksimal 6 stasiun dalam satu aplikasi. Grid otomatis menyesuaikan: 1 stasiun = 1 kolom, 2–4 stasiun = 2 kolom, 5–6 stasiun = 3 kolom.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q" data-i18n="faq.q5">Apakah bisa dipakai tanpa internet?</div>
+      <div class="faq-a" data-i18n="faq.a5">Ya. Setelah login, aplikasi bisa digunakan secara offline. Validasi lisensi di-cache selama 24 jam — kamu tetap bisa merekam meskipun tidak ada koneksi internet.</div>
+    </div>
+
+  </div>
+
+</div><!-- /page -->
+
+<footer>
+  <p>&copy; 2025 Aldeo Studio &nbsp;&middot;&nbsp; <a href="mailto:aldeojason@gmail.com">aldeojason@gmail.com</a> &nbsp;&middot;&nbsp; <a href="/" data-i18n="footer.home">Beranda</a> &nbsp;&middot;&nbsp; <a href="/terms.html" data-i18n="footer.terms">Syarat &amp; Ketentuan</a></p>
+</footer>
+
+<script>
+  const translations = {
+    id: {
+      'nav.home':           'Beranda',
+      'hero.title':         'Panduan Penggunaan',
+      'hero.sub':           'Dari instalasi pertama hingga setup multi-stasiun — semua ada di sini.',
+      'toc.label':          'Daftar Isi',
+      'toc.s1':             'Mulai Cepat',
+      'toc.s2':             'Penggunaan Dasar',
+      'toc.s3':             'Setup Multi-Stasiun',
+      'toc.s4':             'Mode Multi-Window (Dashboard)',
+      'toc.s5':             'Lisensi & Akun',
+      'toc.s6':             'FAQ',
+      'tip.label':          'Tips:',
+      's1.label':           '01',
+      's1.title':           'Mulai Cepat',
+      's1.intro':           'Ikuti langkah berikut untuk mulai menggunakan Packing Recorder dalam hitungan menit.',
+      's1.step1.title':     'Download & Install',
+      's1.step1.desc':      'Download <strong>PackingRecorder-Setup.exe</strong> lalu jalankan installer. Ikuti panduan instalasi hingga selesai.',
+      's1.step2.title':     'Buat Akun',
+      's1.step2.desc':      'Saat pertama buka, kamu akan diminta login atau daftar akun. Daftar gratis — tidak perlu kartu kredit.',
+      's1.step3.title':     'Trial 7 Hari Otomatis Dimulai',
+      's1.step3.desc':      'Setelah login pertama, kamu langsung mendapat akses penuh selama 7 hari. Tidak ada yang perlu diaktifkan.',
+      's1.step4.title':     'Hubungkan Kamera & Scanner',
+      's1.step4.desc':      'Pastikan kamera USB terhubung. Scanner barcode USB otomatis terdeteksi — tidak perlu instalasi driver khusus.',
+      's1.tip':             'Gunakan kamera dengan sudut pandang lebar agar seluruh area packing terlihat jelas dalam rekaman.',
+      's2.label':           '02',
+      's2.title':           'Penggunaan Dasar',
+      's2.intro':           'Packing Recorder dirancang agar tidak perlu pencet tombol apapun saat packing. Cukup scan.',
+      's2.step1.title':     'Scan Barcode → Rekaman Dimulai',
+      's2.step1.desc':      'Arahkan scanner ke barcode resi pengiriman. Begitu barcode terbaca, rekaman langsung dimulai secara otomatis.',
+      's2.step2.title':     'Scan Lagi → Rekaman Berhenti',
+      's2.step2.desc':      'Scan barcode yang sama untuk menghentikan rekaman. File langsung tersimpan otomatis ke komputer.',
+      's2.step3.title':     'Cari & Putar Ulang Rekaman',
+      's2.step3.desc':      'Buka tab <strong>Rekaman</strong>, ketik kode resi di kolom cari, lalu klik rekaman untuk memutarnya langsung di aplikasi.',
+      's2.step4.title':     'Ekspor ke MP4',
+      's2.step4.desc':      'Pilih rekaman lalu klik tombol <strong>Export MP4</strong>. File MP4 siap dikirim ke marketplace atau ekspedisi sebagai bukti packing.',
+      's2.tip':             'Semua rekaman tersimpan lokal di komputer kamu — tidak ada data yang dikirim ke cloud.',
+      's3.label':           '03',
+      's3.title':           'Setup Multi-Stasiun',
+      's3.intro':           'Punya lebih dari satu meja packing? Aktifkan mode Multi-Stasiun untuk merekam hingga 6 stasiun sekaligus dalam satu aplikasi.',
+      's3.imgCaption':      'Tampilan grid multi-stasiun — hingga 6 stasiun berjalan bersamaan',
+      's3.step1.title':     'Aktifkan Multi-Stasiun di Pengaturan',
+      's3.step1.desc':      'Buka tab <strong>Pengaturan</strong>, aktifkan toggle <strong>Multi-Station Mode</strong>, lalu tentukan jumlah stasiun (maksimal 6).',
+      's3.step2.title':     'Hubungkan Kamera ke Setiap Stasiun',
+      's3.step2.desc':      'Setiap stasiun membutuhkan satu kamera. Pilih kamera yang sesuai di kartu stasiun masing-masing melalui dropdown kamera.',
+      's3.step3.title':     'Cetak QR Code Stasiun',
+      's3.step3.desc':      'Di Pengaturan, klik <strong>Print Station QR</strong>. Tempelkan QR code stasiun di dekat masing-masing meja packing.',
+      's3.step4.title':     'Scan QR Stasiun → Stasiun Siap',
+      's3.step4.desc':      'Scan QR code stasiun untuk "mengaktifkan" (arm) stasiun tersebut. Stasiun yang aktif akan menunggu scan barcode berikutnya.',
+      's3.step5.title':     'Scan Barcode Resi → Rekaman Mulai',
+      's3.step5.desc':      'Scan barcode resi untuk memulai rekaman di stasiun yang aktif. Hanya satu stasiun yang bisa aktif (armed) pada satu waktu.',
+      's3.step6.title':     'Scan Barcode Lagi → Rekaman Berhenti',
+      's3.step6.desc':      'Scan barcode yang sama untuk menghentikan rekaman. Stasiun kembali ke mode idle dan siap untuk packing berikutnya.',
+      's3.tip':             'Scan QR stasiun terlebih dahulu sebelum scan barcode resi — ini memberitahu aplikasi stasiun mana yang akan direkam.',
+      's4.label':           '04',
+      's4.title':           'Mode Multi-Window (Dashboard)',
+      's4.intro':           'Untuk setup dengan monitor terpisah di setiap stasiun, aktifkan mode Multi-Window. Setiap stasiun akan membuka jendela sendiri.',
+      's4.step1.title':     'Aktifkan Multi-Window di Pengaturan',
+      's4.step1.desc':      'Setelah Multi-Stasiun aktif, aktifkan juga toggle <strong>Multi-Window / Dashboard</strong> di Pengaturan.',
+      's4.step2.title':     'Dashboard sebagai Pusat Kontrol',
+      's4.step2.desc':      'Jendela utama berfungsi sebagai dashboard. Semua scan diarahkan ke dashboard untuk menentukan stasiun mana yang direkam.',
+      's4.step3.title':     'Pindah Jendela Stasiun ke Monitor Masing-Masing',
+      's4.step3.desc':      'Buka jendela stasiun dari dashboard, lalu drag ke monitor yang sesuai. Rekaman tetap berjalan di jendela stasiun.',
+      's4.tip':             'Mode ini cocok untuk warehouse besar dengan beberapa monitor. Untuk setup satu komputer, cukup gunakan mode grid biasa.',
+      's5.label':           '05',
+      's5.title':           'Lisensi & Akun',
+      's5.p1':              'Lisensi Packing Recorder terhubung ke akunmu — bukan ke komputer. Kamu bisa login di komputer manapun dan lisensi tetap aktif.',
+      's5.step1.title':     'Beli Lisensi dari Dalam Aplikasi',
+      's5.step1.desc':      'Klik tombol <strong>Beli Lisensi</strong> di notifikasi trial. Scan QRIS yang muncul menggunakan aplikasi mobile banking atau e-wallet.',
+      's5.step2.title':     'Lisensi Aktif Otomatis',
+      's5.step2.desc':      'Setelah pembayaran berhasil, lisensi aktif otomatis dalam beberapa detik. Aplikasi memperbarui status tanpa perlu restart.',
+      's5.step3.title':     'Sudah Bayar Tapi Lisensi Belum Aktif?',
+      's5.step3.desc':      'Klik tombol <strong>Cek Pembayaran Saya</strong> di layar pembelian. Sistem akan memeriksa dan mengaktifkan lisensi secara manual.',
+      's5.step4.title':     'Perpanjang Lisensi',
+      's5.step4.desc':      'Lisensi 30 hari bisa ditambah kapan saja. Klik <strong>Perpanjang</strong> di badge lisensi di pojok kanan atas.',
+      's5.tip':             'Harga satu lisensi 30 hari adalah Rp 75.000. Pembelian bisa dilakukan berkali-kali dan masa aktif akan ditambahkan.',
+      's6.label':           '06',
+      's6.title':           'FAQ',
+      'faq.q1':             'Kenapa lisensi saya tidak aktif setelah bayar?',
+      'faq.a1':             'Biasanya lisensi aktif otomatis dalam beberapa detik. Jika belum aktif setelah 1–2 menit, klik tombol <strong>Cek Pembayaran Saya</strong>. Jika masih bermasalah, hubungi <a href="mailto:aldeojason@gmail.com">aldeojason@gmail.com</a> dengan bukti pembayaran.',
+      'faq.q2':             'Bisakah saya pakai di komputer berbeda?',
+      'faq.a2':             'Ya. Lisensi terhubung ke akunmu, bukan ke komputer. Login dengan akun yang sama di komputer manapun dan lisensi langsung aktif.',
+      'faq.q3':             'Apakah rekaman tersimpan di cloud?',
+      'faq.a3':             'Tidak. Semua rekaman tersimpan langsung di komputer kamu (<code>%APPDATA%\\Packing Recorder\\</code>). Tidak ada rekaman yang diunggah ke server kami.',
+      'faq.q4':             'Berapa maksimal stasiun yang bisa digunakan?',
+      'faq.a4':             'Maksimal 6 stasiun dalam satu aplikasi. Grid otomatis menyesuaikan: 1 stasiun = 1 kolom, 2–4 stasiun = 2 kolom, 5–6 stasiun = 3 kolom.',
+      'faq.q5':             'Apakah bisa dipakai tanpa internet?',
+      'faq.a5':             'Ya. Setelah login, aplikasi bisa digunakan secara offline. Validasi lisensi di-cache selama 24 jam — kamu tetap bisa merekam meskipun tidak ada koneksi internet.',
+      'footer.home':        'Beranda',
+      'footer.terms':       'Syarat &amp; Ketentuan',
+    },
+    en: {
+      'nav.home':           'Home',
+      'hero.title':         'User Guide',
+      'hero.sub':           'From first install to multi-station setup — everything you need is here.',
+      'toc.label':          'Table of Contents',
+      'toc.s1':             'Quick Start',
+      'toc.s2':             'Basic Usage',
+      'toc.s3':             'Multi-Station Setup',
+      'toc.s4':             'Multi-Window Mode (Dashboard)',
+      'toc.s5':             'License & Account',
+      'toc.s6':             'FAQ',
+      'tip.label':          'Tip:',
+      's1.label':           '01',
+      's1.title':           'Quick Start',
+      's1.intro':           'Follow these steps to start using Packing Recorder in minutes.',
+      's1.step1.title':     'Download & Install',
+      's1.step1.desc':      'Download <strong>PackingRecorder-Setup.exe</strong> and run the installer. Follow the setup wizard to completion.',
+      's1.step2.title':     'Create an Account',
+      's1.step2.desc':      'On first launch you\'ll be prompted to log in or register. Registration is free — no credit card required.',
+      's1.step3.title':     'Your 7-Day Trial Starts Automatically',
+      's1.step3.desc':      'After your first login, you get full access for 7 days. No activation needed.',
+      's1.step4.title':     'Connect Your Camera & Scanner',
+      's1.step4.desc':      'Make sure your USB camera is plugged in. USB barcode scanners are detected automatically — no driver installation needed.',
+      's1.tip':             'Use a wide-angle camera so the entire packing area is clearly visible in recordings.',
+      's2.label':           '02',
+      's2.title':           'Basic Usage',
+      's2.intro':           'Packing Recorder is designed so you never have to press a button while packing. Just scan.',
+      's2.step1.title':     'Scan Barcode → Recording Starts',
+      's2.step1.desc':      'Point your scanner at a shipping barcode. As soon as it\'s read, recording starts automatically.',
+      's2.step2.title':     'Scan Again → Recording Stops',
+      's2.step2.desc':      'Scan the same barcode to stop recording. The file is saved to your computer automatically.',
+      's2.step3.title':     'Search & Replay Recordings',
+      's2.step3.desc':      'Open the <strong>Recordings</strong> tab, type the shipping code in the search box, then click a recording to play it directly in the app.',
+      's2.step4.title':     'Export to MP4',
+      's2.step4.desc':      'Select a recording and click <strong>Export MP4</strong>. The MP4 file is ready to send to a marketplace or courier as proof of packing.',
+      's2.tip':             'All recordings are stored locally on your computer — no data is sent to the cloud.',
+      's3.label':           '03',
+      's3.title':           'Multi-Station Setup',
+      's3.intro':           'Have more than one packing table? Enable Multi-Station mode to record up to 6 stations simultaneously in one app.',
+      's3.imgCaption':      'Multi-station grid view — up to 6 stations running at once',
+      's3.step1.title':     'Enable Multi-Station in Settings',
+      's3.step1.desc':      'Open the <strong>Settings</strong> tab, enable the <strong>Multi-Station Mode</strong> toggle, and set the number of stations (max 6).',
+      's3.step2.title':     'Connect a Camera to Each Station',
+      's3.step2.desc':      'Each station needs one camera. Select the correct camera in each station card using the camera dropdown.',
+      's3.step3.title':     'Print Station QR Codes',
+      's3.step3.desc':      'In Settings, click <strong>Print Station QR</strong>. Stick each QR code near its corresponding packing table.',
+      's3.step4.title':     'Scan Station QR → Station Armed',
+      's3.step4.desc':      'Scan a station\'s QR code to "arm" it. An armed station waits for the next barcode scan to begin recording.',
+      's3.step5.title':     'Scan Shipping Barcode → Recording Starts',
+      's3.step5.desc':      'Scan a shipping barcode to start recording at the armed station. Only one station can be armed at a time.',
+      's3.step6.title':     'Scan Barcode Again → Recording Stops',
+      's3.step6.desc':      'Scan the same barcode to stop recording. The station returns to idle and is ready for the next package.',
+      's3.tip':             'Always scan the station QR code before scanning a shipping barcode — this tells the app which station to record on.',
+      's4.label':           '04',
+      's4.title':           'Multi-Window Mode (Dashboard)',
+      's4.intro':           'For setups with a separate monitor at each station, enable Multi-Window mode. Each station opens its own window that can be moved to its own monitor.',
+      's4.step1.title':     'Enable Multi-Window in Settings',
+      's4.step1.desc':      'With Multi-Station already active, also enable the <strong>Multi-Window / Dashboard</strong> toggle in Settings.',
+      's4.step2.title':     'Dashboard as Central Control',
+      's4.step2.desc':      'The main window acts as the dashboard. All scans are routed through the dashboard to determine which station records.',
+      's4.step3.title':     'Move Station Windows to Their Monitors',
+      's4.step3.desc':      'Open station windows from the dashboard, then drag each one to its designated monitor. Recordings run in the station window.',
+      's4.tip':             'This mode is ideal for large warehouses with multiple monitors. For a single-computer setup, the regular grid mode is sufficient.',
+      's5.label':           '05',
+      's5.title':           'License & Account',
+      's5.p1':              'Your Packing Recorder license is tied to your account — not your computer. Log in from any computer and your license is active.',
+      's5.step1.title':     'Buy a License from Inside the App',
+      's5.step1.desc':      'Click the <strong>Buy License</strong> button in the trial notification. Scan the QRIS code using your mobile banking or e-wallet app.',
+      's5.step2.title':     'License Activates Automatically',
+      's5.step2.desc':      'After a successful payment, your license activates within seconds. The app updates its status without needing a restart.',
+      's5.step3.title':     'Paid But License Didn\'t Appear?',
+      's5.step3.desc':      'Click the <strong>Check My Payment</strong> button on the purchase screen. The system will verify and activate your license manually.',
+      's5.step4.title':     'Renew Your License',
+      's5.step4.desc':      'You can stack 30-day licenses at any time — no need to wait until expiry. Click <strong>Renew</strong> in the license badge at the top right.',
+      's5.tip':             'One 30-day license costs Rp 75,000. Purchases stack — each one adds 30 days to your remaining time.',
+      's6.label':           '06',
+      's6.title':           'FAQ',
+      'faq.q1':             'Why didn\'t my license activate after payment?',
+      'faq.a1':             'Licenses usually activate within seconds. If it hasn\'t after 1–2 minutes, click <strong>Check My Payment</strong>. If the issue persists, contact <a href="mailto:aldeojason@gmail.com">aldeojason@gmail.com</a> with proof of payment.',
+      'faq.q2':             'Can I use it on a different computer?',
+      'faq.a2':             'Yes. The license is tied to your account, not your computer. Log in with the same account on any computer and your license is immediately active.',
+      'faq.q3':             'Are recordings stored in the cloud?',
+      'faq.a3':             'No. All recordings are stored locally on your computer (<code>%APPDATA%\\Packing Recorder\\</code>). No footage is uploaded to our servers.',
+      'faq.q4':             'What is the maximum number of stations?',
+      'faq.a4':             'Up to 6 stations in one app. The grid adjusts automatically: 1 station = 1 column, 2–4 stations = 2 columns, 5–6 stations = 3 columns.',
+      'faq.q5':             'Can it be used without internet?',
+      'faq.a5':             'Yes. Once logged in, the app works offline. License validation is cached for 24 hours — you can keep recording even without an internet connection.',
+      'footer.home':        'Home',
+      'footer.terms':       'Terms &amp; Conditions',
+    }
+  };
+
+  let currentLang = 'id';
+
+  function applyTranslations(lang) {
+    const t = translations[lang] || translations['id'];
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (t[key] !== undefined) el.innerHTML = t[key];
+    });
+    document.getElementById('btn-id').classList.toggle('active', lang === 'id');
+    document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+    document.documentElement.lang = lang;
+  }
+
+  function setLang(lang) {
+    currentLang = lang;
+    localStorage.setItem('pr_lang', lang);
+    applyTranslations(lang);
+  }
+
+  (function init() {
+    const saved = localStorage.getItem('pr_lang') || 'id';
+    currentLang = saved;
+    applyTranslations(saved);
+  })();
+</script>
+</body>
+</html>

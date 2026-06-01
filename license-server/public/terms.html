@@ -172,6 +172,7 @@
         <button class="lang-btn" id="btn-id" onclick="setLang('id')">ID</button>
         <button class="lang-btn" id="btn-en" onclick="setLang('en')">EN</button>
       </div>
+      <a href="/tutorial.html" class="nav-home-link" data-i18n="nav.guide">Panduan</a>
       <a href="/" class="nav-home-link" data-i18n="nav.home">Beranda</a>
     </div>
   </div>
@@ -321,13 +322,14 @@
 
 <!-- ── Footer ── -->
 <footer>
-  <p>&copy; 2025 Aldeo Studio. <a href="/" data-i18n="footer.home">Beranda</a> &nbsp;·&nbsp; <a href="/terms.html" data-i18n="footer.terms">Syarat &amp; Ketentuan</a></p>
+  <p>&copy; 2025 Aldeo Studio. <a href="/" data-i18n="footer.home">Beranda</a> &nbsp;·&nbsp; <a href="/tutorial.html" data-i18n="footer.guide">Panduan</a> &nbsp;·&nbsp; <a href="/terms.html" data-i18n="footer.terms">Syarat &amp; Ketentuan</a></p>
 </footer>
 
 <script>
   const TEXT = {
     id: {
       'nav.home':    'Beranda',
+      'nav.guide':   'Panduan',
       'hero.title':  'Syarat &amp; Ketentuan',
       'hero.sub':    'Berlaku untuk Packing Recorder oleh Aldeo Studio',
       'toc.title':   'Daftar Isi',
@@ -397,10 +399,12 @@
       's10.email':   'Email: <a href="mailto:aldeojason@gmail.com">aldeojason@gmail.com</a>',
       's10.response':'Waktu respons: 1–3 hari kerja',
       'footer.home': 'Beranda',
+      'footer.guide':'Panduan',
       'footer.terms':'Syarat &amp; Ketentuan',
     },
     en: {
       'nav.home':    'Home',
+      'nav.guide':   'Guide',
       'hero.title':  'Terms &amp; Conditions',
       'hero.sub':    'Applicable to Packing Recorder by Aldeo Studio',
       'toc.title':   'Table of Contents',
@@ -470,6 +474,7 @@
       's10.email':   'Email: <a href="mailto:aldeojason@gmail.com">aldeojason@gmail.com</a>',
       's10.response':'Response time: 1–3 business days',
       'footer.home': 'Home',
+      'footer.guide':'Guide',
       'footer.terms':'Terms &amp; Conditions',
     }
   };

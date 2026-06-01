@@ -191,6 +191,10 @@ ipcMain.handle('open-purchase-page', () => {
   shell.openExternal(`${LICENSE_SERVER_URL}/purchase.html?token=${encodeURIComponent(token)}`);
 });
 
+ipcMain.handle('open-external-url', (event, url) => {
+  shell.openExternal(url);
+});
+
 // IPC: recover license — finds paid orders not yet applied and stacks them
 ipcMain.handle('recover-license', async () => {
   const data = getLicenseData();

@@ -40,6 +40,7 @@
       <!-- Shown when logged in -->
       <div id="user-info" class="user-info hidden">
         <span id="welcome-text">Welcome, User</span>
+        <button id="help-btn" class="help-btn" data-i18n-title="help.btnTitle" title="Help / Panduan">?</button>
         <button id="logout-btn" class="logout-btn" data-i18n="nav.logout">Logout</button>
       </div>
     </div>
@@ -424,6 +425,123 @@
     </div>
 
   </div><!-- /tab-content -->
+
+  <!-- ── Help Modal ── -->
+  <div id="help-modal" class="help-modal hidden">
+    <div class="help-modal-backdrop"></div>
+    <div class="help-modal-card">
+      <div class="help-modal-header">
+        <h2 class="help-modal-title" data-i18n="help.title">Panduan Penggunaan</h2>
+        <button id="help-close-btn" class="help-close-btn" aria-label="Close">&times;</button>
+      </div>
+
+      <!-- Tab bar -->
+      <div class="help-tab-bar">
+        <button class="help-tab active" data-help-tab="basic" data-i18n="help.tabBasic">Penggunaan Dasar</button>
+        <button class="help-tab" data-help-tab="multi" data-i18n="help.tabMulti">Multi-Stasiun</button>
+        <button class="help-tab" data-help-tab="license" data-i18n="help.tabLicense">Lisensi</button>
+      </div>
+
+      <!-- Basic tab -->
+      <div class="help-tab-content active" id="help-tab-basic">
+        <div class="help-steps">
+          <div class="help-step">
+            <div class="help-step-num">1</div>
+            <div class="help-step-body">
+              <div class="help-step-title" data-i18n="help.b1.title">Scan Barcode → Rekaman Dimulai</div>
+              <div class="help-step-desc" data-i18n="help.b1.desc">Arahkan scanner ke barcode resi. Rekaman langsung dimulai otomatis.</div>
+            </div>
+          </div>
+          <div class="help-step">
+            <div class="help-step-num">2</div>
+            <div class="help-step-body">
+              <div class="help-step-title" data-i18n="help.b2.title">Scan Lagi → Rekaman Berhenti</div>
+              <div class="help-step-desc" data-i18n="help.b2.desc">Scan barcode yang sama untuk menghentikan rekaman. File tersimpan otomatis.</div>
+            </div>
+          </div>
+          <div class="help-step">
+            <div class="help-step-num">3</div>
+            <div class="help-step-body">
+              <div class="help-step-title" data-i18n="help.b3.title">Cari & Putar Ulang</div>
+              <div class="help-step-desc" data-i18n="help.b3.desc">Buka tab Rekaman, ketik kode resi, lalu klik rekaman untuk memputarnya.</div>
+            </div>
+          </div>
+          <div class="help-step">
+            <div class="help-step-num">4</div>
+            <div class="help-step-body">
+              <div class="help-step-title" data-i18n="help.b4.title">Ekspor ke MP4</div>
+              <div class="help-step-desc" data-i18n="help.b4.desc">Pilih rekaman lalu klik Export MP4 untuk menyimpan sebagai file video.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Multi-station tab -->
+      <div class="help-tab-content hidden" id="help-tab-multi">
+        <div class="help-steps">
+          <div class="help-step">
+            <div class="help-step-num">1</div>
+            <div class="help-step-body">
+              <div class="help-step-title" data-i18n="help.m1.title">Aktifkan di Pengaturan</div>
+              <div class="help-step-desc" data-i18n="help.m1.desc">Buka tab Pengaturan → aktifkan Multi-Station Mode → tentukan jumlah stasiun.</div>
+            </div>
+          </div>
+          <div class="help-step">
+            <div class="help-step-num">2</div>
+            <div class="help-step-body">
+              <div class="help-step-title" data-i18n="help.m2.title">Cetak QR Code Stasiun</div>
+              <div class="help-step-desc" data-i18n="help.m2.desc">Klik Print Station QR di Pengaturan. Tempel QR code di dekat masing-masing meja packing.</div>
+            </div>
+          </div>
+          <div class="help-step">
+            <div class="help-step-num">3</div>
+            <div class="help-step-body">
+              <div class="help-step-title" data-i18n="help.m3.title">Scan QR Stasiun → Stasiun Siap</div>
+              <div class="help-step-desc" data-i18n="help.m3.desc">Scan QR code stasiun untuk mengaktifkan (arm) stasiun tersebut.</div>
+            </div>
+          </div>
+          <div class="help-step">
+            <div class="help-step-num">4</div>
+            <div class="help-step-body">
+              <div class="help-step-title" data-i18n="help.m4.title">Scan Barcode → Rekaman Mulai di Stasiun Aktif</div>
+              <div class="help-step-desc" data-i18n="help.m4.desc">Scan barcode resi untuk mulai merekam. Scan lagi untuk menghentikan.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- License tab -->
+      <div class="help-tab-content hidden" id="help-tab-license">
+        <div class="help-steps">
+          <div class="help-step">
+            <div class="help-step-num">1</div>
+            <div class="help-step-body">
+              <div class="help-step-title" data-i18n="help.l1.title">Beli dari Dalam Aplikasi</div>
+              <div class="help-step-desc" data-i18n="help.l1.desc">Klik Beli Lisensi di notifikasi trial. Scan QRIS menggunakan mobile banking atau e-wallet.</div>
+            </div>
+          </div>
+          <div class="help-step">
+            <div class="help-step-num">2</div>
+            <div class="help-step-body">
+              <div class="help-step-title" data-i18n="help.l2.title">Lisensi Aktif Otomatis</div>
+              <div class="help-step-desc" data-i18n="help.l2.desc">Setelah bayar, lisensi aktif dalam hitungan detik tanpa perlu restart.</div>
+            </div>
+          </div>
+          <div class="help-step">
+            <div class="help-step-num">3</div>
+            <div class="help-step-body">
+              <div class="help-step-title" data-i18n="help.l3.title">Sudah Bayar Tapi Belum Aktif?</div>
+              <div class="help-step-desc" data-i18n="help.l3.desc">Klik tombol Cek Pembayaran Saya di layar pembelian untuk memperbarui status lisensi secara manual.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="help-modal-footer">
+        <a class="help-external-link" id="help-open-website" data-i18n="help.fullGuide">Buka panduan lengkap di website &#8599;</a>
+      </div>
+    </div>
+  </div>
 
   <script src="i18n.js"></script>
   <script src="renderer.js"></script>

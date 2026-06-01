@@ -126,6 +126,14 @@
       background: var(--blue);
       color: #fff;
     }
+    .nav-guide-link {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--mid);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .nav-guide-link:hover { color: var(--blue); }
     .btn-nav-download {
       padding: 8px 18px;
       background: linear-gradient(135deg, var(--blue), var(--purple));
@@ -267,6 +275,11 @@
       justify-content: center;
       font-size: 1.3rem;
       margin-bottom: 16px;
+    }
+    .feature-icon img {
+      width: 24px;
+      height: 24px;
+      filter: invert(27%) sepia(51%) saturate(2878%) hue-rotate(246deg) brightness(97%) contrast(97%);
     }
     .feature-title {
       font-size: 0.95rem;
@@ -647,6 +660,7 @@
         <button class="lang-btn" id="lang-id" onclick="setLang('id')">ID</button>
         <button class="lang-btn" id="lang-en" onclick="setLang('en')">EN</button>
       </div>
+      <a href="/tutorial.html" class="nav-guide-link" data-i18n="nav.guide">Panduan</a>
       <a class="btn-nav-download" href="https://github.com/JasonAldeo/packing-recorder/releases/latest/download/PackingRecorder-Setup.exe">
         <span data-i18n="nav.download">Download</span> &darr;
       </a>
@@ -688,32 +702,32 @@
 
     <div class="features-grid">
       <div class="feature-card">
-        <div class="feature-icon">&#128247;</div>
+        <div class="feature-icon"><img src="/icons/barcode-scan-icon.svg" alt=""></div>
         <div class="feature-title" data-i18n="feat1.title">Rekam Otomatis via Barcode</div>
         <div class="feature-desc" data-i18n="feat1.desc">Scan barcode resi pengiriman — rekaman langsung dimulai. Tidak perlu pencet tombol apapun.</div>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">&#128269;</div>
+        <div class="feature-icon"><img src="/icons/search-icon.svg" alt=""></div>
         <div class="feature-title" data-i18n="feat2.title">Cari &amp; Putar Ulang</div>
         <div class="feature-desc" data-i18n="feat2.desc">Cari rekaman berdasarkan kode pengiriman dan putar ulang langsung di dalam aplikasi kapan saja.</div>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">&#128197;</div>
+        <div class="feature-icon"><img src="/icons/mp4-icon.svg" alt=""></div>
         <div class="feature-title" data-i18n="feat3.title">Ekspor ke MP4</div>
         <div class="feature-desc" data-i18n="feat3.desc">Simpan rekaman sebagai file MP4 untuk dikirim ke marketplace atau pihak ekspedisi sebagai bukti.</div>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">&#128421;</div>
+        <div class="feature-icon"><img src="/icons/multi-stations-icon.svg" alt=""></div>
         <div class="feature-title" data-i18n="feat4.title">Multi-Stasiun</div>
         <div class="feature-desc" data-i18n="feat4.desc">Rekam di hingga 6 stasiun packing sekaligus dalam satu aplikasi. Setiap stasiun berjalan independen.</div>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">&#127760;</div>
+        <div class="feature-icon"><img src="/icons/record-icon.svg" alt=""></div>
         <div class="feature-title" data-i18n="feat5.title">Bekerja Offline</div>
         <div class="feature-desc" data-i18n="feat5.desc">Rekaman tersimpan langsung di komputer kamu. Tidak butuh internet untuk merekam atau mencari rekaman.</div>
       </div>
       <div class="feature-card">
-        <div class="feature-icon">&#128274;</div>
+        <div class="feature-icon"><img src="/icons/license-icon.svg" alt=""></div>
         <div class="feature-title" data-i18n="feat6.title">Lisensi Berbasis Akun</div>
         <div class="feature-desc" data-i18n="feat6.desc">Lisensi terhubung ke akunmu, bukan ke komputer. Ganti komputer kapan saja tanpa kehilangan lisensi.</div>
       </div>
@@ -878,6 +892,7 @@
     </div>
     <div class="footer-copy">&copy; 2025 Aldeo Studio</div>
     <div class="footer-email"><a href="mailto:aldeojason@gmail.com">aldeojason@gmail.com</a></div>
+    <div class="footer-email"><a href="/tutorial.html" data-i18n="footer.guide">Panduan</a></div>
     <div class="footer-email"><a href="/terms.html" data-i18n="footer.terms">Syarat &amp; Ketentuan</a></div>
   </div>
 </footer>
@@ -887,6 +902,7 @@
   const TEXTS = {
     id: {
       'nav.download':           'Download',
+      'nav.guide':              'Panduan',
       'hero.eyebrow':           'Windows 64-bit \u00b7 Coba gratis 7 hari',
       'hero.title':             'Rekam setiap packing,\u003Cbr/\u003E\u003Cspan\u003Elega dari segala masalah\u003C/span\u003E',
       'hero.sub':               'Rekam otomatis setiap proses packing lewat scan barcode. Cari dan putar ulang rekaman kapan saja untuk membuktikan packing yang sudah selesai.',
@@ -956,10 +972,12 @@
       'dl.sub':                 'Download gratis sekarang. Daftar akun gratis \u2014 langsung coba 7 hari penuh.',
       'dl.btn':                 'Download Packing Recorder',
       'dl.note':                'Windows 64-bit \u00b7 Installer (.exe)',
+      'footer.guide':           'Panduan',
       'footer.terms':           'Syarat &amp; Ketentuan',
     },
     en: {
       'nav.download':           'Download',
+      'nav.guide':              'Guide',
       'hero.eyebrow':           'Windows 64-bit \u00b7 Free 7-day trial',
       'hero.title':             'Record every pack,\u003Cbr/\u003E\u003Cspan\u003Enever lose a dispute again\u003C/span\u003E',
       'hero.sub':               'Automatically record every packing session with a barcode scan. Search and replay footage anytime to prove any order was packed correctly.',
@@ -1029,6 +1047,7 @@
       'dl.sub':                 'Download free now. Create a free account \u2014 full 7-day trial included.',
       'dl.btn':                 'Download Packing Recorder',
       'dl.note':                'Windows 64-bit \u00b7 Installer (.exe)',
+      'footer.guide':           'Guide',
       'footer.terms':           'Terms &amp; Conditions',
     }
   };

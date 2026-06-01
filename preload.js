@@ -55,4 +55,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   logout:                ()                         => ipcRenderer.invoke('logout'),
   openPurchasePage:      ()                         => ipcRenderer.invoke('open-purchase-page'),
   recoverLicense:        ()                         => ipcRenderer.invoke('recover-license'),
+  openExternalUrl:       (url)                      => ipcRenderer.invoke('open-external-url', url),
 });

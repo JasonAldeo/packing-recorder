@@ -1194,6 +1194,9 @@ function applyTranslations() {
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
     el.placeholder = t(el.dataset.i18nPlaceholder);
   });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    el.title = t(el.dataset.i18nTitle);
+  });
   if (localeSelect) localeSelect.value = window._i18n.getLocale();
 
   // Update station state badges
@@ -1398,6 +1401,47 @@ if (trialBuyBtn) {
 if (licenseBuyBtn) {
   licenseBuyBtn.addEventListener('click', () => window.electronAPI.openPurchasePage());
 }
+
+// ── Help modal ──
+(function initHelpModal() {
+  const helpBtn      = document.getElementById('help-btn');
+  const helpModal    = document.getElementById('help-modal');
+  const helpCloseBtn = document.getElementById('help-close-btn');
+  const backdrop     = helpModal ? helpModal.querySelector('.help-modal-backdrop') : null;
+  const helpTabs     = helpModal ? helpModal.querySelectorAll('.help-tab') : [];
+  const helpContents = helpModal ? helpModal.querySelectorAll('.help-tab-content') : [];
+  const helpExtLink  = document.getElementById('help-open-website');
+
+  if (!helpBtn || !helpModal) return;
+
+  function openHelp() { helpModal.classList.remove('hidden'); }
+  function closeHelp() { helpModal.classList.add('hidden'); }
+
+  helpBtn.addEventListener('click', openHelp);
+  helpCloseBtn.addEventListener('click', closeHelp);
+  if (backdrop) backdrop.addEventListener('click', closeHelp);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !helpModal.classList.contains('hidden')) closeHelp();
+  });
+
+  helpTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.getAttribute('data-help-tab');
+      helpTabs.forEach(t => t.classList.remove('active'));
+      helpContents.forEach(c => c.classList.add('hidden'));
+      tab.classList.add('active');
+      const content = document.getElementById(`help-tab-${target}`);
+      if (content) content.classList.remove('hidden');
+    });
+  });
+
+  if (helpExtLink) {
+    helpExtLink.addEventListener('click', () => {
+      window.electronAPI.openExternalUrl('https://packing-recorder-production.up.railway.app/tutorial.html');
+    });
+  }
+})();
 
 // ── "Check My Payment" button — in the buy overlay (trial expired, no license) ──
 if (overlayRecoverBtn) {
