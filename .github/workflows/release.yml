@@ -8,6 +8,8 @@ on:
 jobs:
   release:
     runs-on: windows-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
@@ -22,7 +24,7 @@ jobs:
         run: npm ci
 
       - name: Build Windows installer
-        run: npm run dist
+        run: npm run dist -- -p never
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
