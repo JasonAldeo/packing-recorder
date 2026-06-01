@@ -29,8 +29,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Notify license server of new version
+        shell: pwsh
         run: |
-          curl -s -X POST https://packing-recorder-production.up.railway.app/set-version \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.VERSION_UPDATE_TOKEN }}" \
-            -d "{\"version\": \"${{ github.ref_name }}\"}"
+          Invoke-RestMethod -Uri "https://packing-recorder-production.up.railway.app/set-version" `
+            -Method POST `
+            -Headers @{ "Authorization" = "Bearer ${{ secrets.VERSION_UPDATE_TOKEN }}"; "Content-Type" = "application/json" } `
+            -Body (ConvertTo-Json @{ version = "${{ github.ref_name }}" })
