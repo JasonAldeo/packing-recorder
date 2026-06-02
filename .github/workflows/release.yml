@@ -68,7 +68,7 @@ jobs:
         shell: pwsh
         continue-on-error: true
         run: |
-          Invoke-RestMethod -Uri "https://packing-recorder.up.railway.app/set-version" `
+          Invoke-RestMethod -Uri "https://packingrecorder.com/set-version" `
             -Method POST `
             -Headers @{ "Authorization" = "Bearer ${{ secrets.VERSION_UPDATE_TOKEN }}"; "Content-Type" = "application/json" } `
             -Body (ConvertTo-Json @{ version = "${{ github.ref_name }}" })
