@@ -250,7 +250,7 @@
     /* ── Features ── */
     .features-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 20px;
       margin-top: 52px;
     }
@@ -629,8 +629,10 @@
     .footer-email a:hover { color: #818cf8; }
 
     /* ── Responsive ── */
-    @media (max-width: 768px) {
+    @media (max-width: 900px) {
       .features-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 768px) {
       .steps { grid-template-columns: 1fr; }
       .steps::before { display: none; }
       .pricing-grid { grid-template-columns: 1fr; max-width: 400px; }
@@ -731,6 +733,16 @@
         <div class="feature-icon"><img src="/icons/license-icon.svg" alt=""></div>
         <div class="feature-title" data-i18n="feat6.title">Lisensi Berbasis Akun</div>
         <div class="feature-desc" data-i18n="feat6.desc">Lisensi terhubung ke akunmu, bukan ke komputer. Ganti komputer kapan saja tanpa kehilangan lisensi.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><img src="/icons/auto-delete-icon.svg" alt=""></div>
+        <div class="feature-title" data-i18n="feat7.title">Hapus Otomatis Rekaman Lama</div>
+        <div class="feature-desc" data-i18n="feat7.desc">Hapus otomatis rekaman yang sudah melewati batas hari yang ditentukan. Disk tetap lega tanpa perlu membersihkan secara manual.</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><img src="/icons/voice-icon.svg" alt=""></div>
+        <div class="feature-title" data-i18n="feat8.title">Pengumuman Suara</div>
+        <div class="feature-desc" data-i18n="feat8.desc">Mengucapkan status stasiun saat rekaman dimulai, berhenti, atau dibatalkan. Berguna untuk operator yang jauh dari layar.</div>
       </div>
     </div>
   </div>
@@ -928,6 +940,10 @@
       'feat5.desc':             'Rekaman tersimpan langsung di komputer kamu — tidak dikirim ke cloud. Koneksi internet dibutuhkan setiap 1 jam saat masa trial.',
       'feat6.title':            'Lisensi Berbasis Akun',
       'feat6.desc':             'Lisensi terhubung ke akunmu, bukan ke komputer. Ganti komputer kapan saja tanpa kehilangan lisensi.',
+      'feat7.title':            'Hapus Otomatis Rekaman Lama',
+      'feat7.desc':             'Hapus otomatis rekaman yang sudah melewati batas hari yang ditentukan. Disk tetap lega tanpa perlu membersihkan secara manual.',
+      'feat8.title':            'Pengumuman Suara',
+      'feat8.desc':             'Mengucapkan status stasiun saat rekaman dimulai, berhenti, atau dibatalkan. Berguna untuk operator yang jauh dari layar.',
       'how.label':              'Cara Kerja',
       'how.title':              'Semudah tiga langkah',
       'how.sub':                'Tidak ada pengaturan rumit. Pasang, scan, dan rekaman berjalan sendiri.',
@@ -1004,6 +1020,10 @@
       'feat5.desc':             'Recordings are saved directly to your computer — not sent to the cloud. An internet connection is required every hour during the trial.',
       'feat6.title':            'Account-based License',
       'feat6.desc':             'Your license is tied to your account, not your machine. Switch computers anytime without losing your license.',
+      'feat7.title':            'Auto-delete Old Recordings',
+      'feat7.desc':             'Automatically delete recordings older than a set number of days. Keeps disk usage under control without manual cleanup.',
+      'feat8.title':            'Voice Announcements',
+      'feat8.desc':             'Speaks station status aloud when recording starts, stops, or is cancelled. Useful for operators away from the screen.',
       'how.label':              'How It Works',
       'how.title':              'Three simple steps',
       'how.sub':                'No complicated setup. Install, scan, and recordings happen automatically.',

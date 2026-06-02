@@ -2048,20 +2048,7 @@ if (window.electronAPI.onUpdateDownloaded) {
 // ─── QR Code (manual) ─────────────────────────────────────────────────────────
 if (printQrBtn) {
   printQrBtn.addEventListener('click', async () => {
-    if (!qrCodeImg.getAttribute('src')) {
-      const dataUrl = await window.electronAPI.generateManualQR();
-      await new Promise(resolve => {
-        qrCodeImg.onload = resolve;
-        qrCodeImg.src = dataUrl;
-        if (qrCodeImg.complete) resolve();
-      });
-    }
-    qrCodeSection.classList.remove('hidden');
-    const originalParent = qrCodeSection.parentNode;
-    const originalNextSibling = qrCodeSection.nextSibling;
-    document.body.appendChild(qrCodeSection);
-    window.print();
-    originalParent.insertBefore(qrCodeSection, originalNextSibling);
+    await window.electronAPI.openPrintStations([]);
   });
 }
 
