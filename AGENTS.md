@@ -25,18 +25,78 @@ npm run dev     # node --watch server.js
 
 There are **no lint, typecheck, or test scripts** in either project.
 
+## Releasing a new version
+
+Releases are fully automated via GitHub Actions (`.github/workflows/release.yml`). Push a version tag to trigger the pipeline:
+
+```
+git tag v2.1.0
+git push origin v2.1.0
+```
+
+The workflow will:
+1. Run `npm version <tag> --no-git-tag-version` to sync `package.json` version with the tag
+2. Build the Windows installer with `electron-builder -p never`
+3. Upload `dist/PackingRecorder-Setup.exe` + `dist/latest.yml` to a GitHub Release
+4. POST the new version to the Railway license server via `POST /set-version` (notifies the website)
+
+**Do not manually bump `package.json` version before tagging** — the CI does it automatically from the tag name.
+
+### Required secrets
+| Secret | Where set | Purpose |
+|---|---|---|
+| `VERSION_UPDATE_TOKEN` | GitHub Actions + Railway env var | Authenticates CI → Railway version update |
+| `GITHUB_TOKEN` | Auto-provided by GitHub | Publishing the GitHub Release |
+
+Both `VERSION_UPDATE_TOKEN` values (GitHub secret and Railway env var) must be identical.
+
+## Auto-update (electron-updater)
+
+- Uses `electron-updater` (package: `electron-updater ^6.x`).
+- On startup, `autoUpdater.checkForUpdates()` runs silently after a 3 s delay.
+- `update-available` → renderer receives `update-available` IPC event (Settings shows "Downloading…").
+- `update-downloaded` → native dialog prompts user to restart and install.
+- Manual check available via "Check for Updates" button in Settings tab.
+- `electron-updater` compares the running version (from `package.json` at build time) against `latest.yml` hosted on the GitHub release. **Both must be in sync** — the CI handles this automatically.
+- `autoUpdater.autoDownload = true`, `autoUpdater.autoInstallOnAppQuit = false`.
+- Errors are logged silently — users are never disrupted by a failed update check.
+
+### preload.js update APIs
+```
+getAppVersion()           → string
+checkForUpdates()         → void
+onUpdateAvailable(cb)     → push event, cb receives { version, ... }
+onUpdateDownloaded(cb)    → push event, cb receives { version, ... }
+```
+
 ## Architecture — Electron app
 
 - **Context isolation ON, nodeIntegration OFF.** All Node/Electron APIs are accessed only via `window.electronAPI` (defined in `preload.js` via `contextBridge`). Never `require()` anything in renderer code.
 - Video is written to disk in chunks via a 3-step IPC protocol: `begin-video-write` → repeated `write-video-chunk` → `end-video-write`. Do not pass a full video buffer over IPC in one call.
 - WebM → MP4 export uses `ffmpeg-static` with `-c copy` (no re-encode). The binary is explicitly listed in `electron-builder` files — do not remove it.
-- `LICENSE_SERVER_URL` is hardcoded at `main.js:14` as a placeholder. Replace with the actual Railway URL before building for distribution.
+- `LICENSE_SERVER_URL` is hardcoded at `main.js:12` as `https://packing-recorder-production.up.railway.app`.
 - Runtime data (license, settings, videos) lives in `app.getPath('userData')` (e.g. `%APPDATA%\Packing Recorder\`), not in the repo directory.
 - Machine ID on Windows reads `HKLM\SOFTWARE\Microsoft\Cryptography\MachineGuid`; license validation is machine-locked.
 - License is re-validated at most once per 24 hours; cached validation enables offline use within that window.
 - `i18n.js` must be loaded before `renderer.js` in `index.html`. Translation values can be strings **or functions** (for interpolation) — check before using directly.
 - Manual scan code is the hardcoded string `'MANUALSCAN'`; those files are prefixed `MANUAL_`.
 - Shipping code filenames are sanitized with `/[^a-zA-Z0-9_\-]/g` → `_`; timestamp appended on collision.
+
+## Build files
+
+The `electron-builder` `files` array in `package.json` must include all files the app needs at runtime:
+```
+main.js, preload.js, renderer.js, index.html, i18n.js,
+print-stations.html, styles.css, videos/, node_modules/ffmpeg-static/**
+```
+Do not remove `i18n.js` or `print-stations.html` — both are required at runtime.
+
+## Print QR codes
+
+- **Station QR codes + Manual Scan QR:** both use `print-stations.html` opened via `window.electronAPI.openPrintStations(stationsData)`.
+- Passing an **empty array** (`[]`) to `openPrintStations` opens only the Manual Scan page.
+- `print-stations.html` always appends the Manual Scan page at the end regardless of the stations array.
+- The old inline print approach (`window.print()` from renderer) has been removed.
 
 ## Multi-station architecture
 
@@ -111,6 +171,28 @@ The dashboard is the **single source of truth** for armed state and routing. Sta
 - First activation binds a key to a `machineId`; subsequent activation from a different machine is rejected.
 - Midtrans webhook URL must be manually set in the Midtrans dashboard.
 - `trust proxy` is set for Railway's reverse proxy — do not remove.
+
+### Database tables
+| Table | Purpose |
+|---|---|
+| `users` | Accounts (username, email, password hash, role, machine_id) |
+| `licenses` | License periods per user (expires_at) |
+| `orders` | Midtrans payment orders |
+| `app_meta` | Key/value store for app metadata (currently stores `app_version`) |
+
+### App version endpoints
+- `GET /latest-version` — public, returns `{ version }`. Used by the website to display the current version.
+- `POST /set-version` — protected by `Authorization: Bearer <VERSION_UPDATE_TOKEN>`. Called by CI after each release to update the stored version. Body: `{ version: "v2.1.0" }`.
+
+## Website (license-server/public/index.html)
+
+- Static HTML served by the Express server from `public/`.
+- Bilingual: ID (default) + EN, switched via `localStorage` key `pr_site_lang`.
+- All translatable strings are in the `TEXTS` object at the bottom of the file — add new keys to both `TEXTS.id` and `TEXTS.en`.
+- Feature cards use SVG icons from `/icons/` directory.
+- On page load, fetches `GET /latest-version` and displays the current version below download buttons in the hero and download CTA sections.
+- Features grid is **4×2** (`repeat(4, 1fr)`), responsive: 4 cols → 2 cols (≤900px) → 1 col (≤500px).
+- Current 8 feature cards: Barcode recording, Search & replay, MP4 export, Multi-station, Offline recordings, Account-based license, Auto-delete, Voice announcements.
 
 ## Testing
 
