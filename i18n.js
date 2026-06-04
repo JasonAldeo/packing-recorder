@@ -89,7 +89,7 @@
     'test.simulateManual': 'Simulate Manual Scan',
     'test.stationLabel': 'Simulate Station QR:',
     'test.stationBtn': (n) => `Station ${n}`,
-    'test.stationHint': 'or press keys 1\u20135',
+    'test.stationHint': 'or press keys 1\u20136',
 
     // Scan tab – static labels
     'scan.statusTitle': 'Status',
@@ -217,7 +217,7 @@
     'settings.voiceSpeedHint': '1.0 is normal speed.',
 
     // Voice announcement phrases (used independently of UI locale)
-    'voice.stationNum': (n) => ['One','Two','Three','Four','Five'][n - 1] ?? String(n),
+    'voice.stationNum': (n) => ['One','Two','Three','Four','Five','Six'][n - 1] ?? String(n),
     'voice.armed':      (label) => `${label}, waiting`,
     'voice.recording':  (label) => `${label}, recording`,
     'voice.saved':      (label) => `${label}, saved`,
@@ -231,6 +231,16 @@
     'settings.updateReady':     (v) => `Version ${v} ready \u2014 restart to install`,
     'settings.updateNotAvailable': 'You\u2019re up to date.',
     'settings.updateError':     'Update check failed. Please try again later.',
+
+    // Auth validation & button states
+    'auth.emptyFields':     'Please enter your email and password.',
+    'auth.fillAllFields':   'Please fill in all fields.',
+    'auth.passwordMismatch': 'Passwords do not match.',
+    'auth.passwordTooShort': 'Password must be at least 6 characters.',
+    'auth.loggingIn':       'Logging in\u2026',
+    'auth.creatingAccount': 'Creating account\u2026',
+    'auth.loginFailed':     'Login failed.',
+    'auth.registerFailed':  'Registration failed.',
   },
 
   id: {
@@ -304,7 +314,7 @@
     'overlay.offlineTitle': 'Tidak Ada Koneksi Internet',
     'overlay.offlineSub':   'Koneksi internet diperlukan untuk melanjutkan. Packing Recorder perlu memverifikasi status trial Anda setiap 1 jam.',
     'overlay.offlineLicenseTitle': 'Tidak Ada Koneksi Internet',
-    'overlay.offlineLicenseSub':   'Lisensi kamu tidak dapat diverifikasi. Sambungkan kembali ke internet untuk melanjutkan menggunakan Packing Recorder.',
+    'overlay.offlineLicenseSub':   'Lisensi Anda tidak dapat diverifikasi. Sambungkan kembali ke internet untuk melanjutkan menggunakan Packing Recorder.',
     'overlay.priceLabel': 'Lisensi 30 hari',
     'overlay.buyBtn': 'Beli Lisensi (QRIS)',
     'overlay.alreadyPaid': 'Sudah bayar tapi lisensi belum muncul?',
@@ -320,7 +330,7 @@
     'test.simulateManual': 'Simulasi Pindai Manual',
     'test.stationLabel': 'Simulasi QR Stasiun:',
     'test.stationBtn': (n) => `Stasiun ${n}`,
-    'test.stationHint': 'atau tekan tombol 1\u20135',
+    'test.stationHint': 'atau tekan tombol 1\u20136',
 
     // Scan tab – static labels
     'scan.statusTitle': 'Status',
@@ -448,7 +458,7 @@
     'settings.voiceSpeedHint': '1.0 adalah kecepatan normal.',
 
     // Voice announcement phrases (used independently of UI locale)
-    'voice.stationNum': (n) => ['Satu','Dua','Tiga','Empat','Lima'][n - 1] ?? String(n),
+    'voice.stationNum': (n) => ['Satu','Dua','Tiga','Empat','Lima','Enam'][n - 1] ?? String(n),
     'voice.armed':      (label) => `${label}, menunggu`,
     'voice.recording':  (label) => `${label}, merekam`,
     'voice.saved':      (label) => `${label}, tersimpan`,
@@ -462,6 +472,16 @@
     'settings.updateReady':     (v) => `Versi ${v} siap \u2014 restart untuk menginstal`,
     'settings.updateNotAvailable': 'Aplikasi sudah versi terbaru.',
     'settings.updateError':     'Gagal memeriksa pembaruan. Coba lagi nanti.',
+
+    // Auth validation & button states
+    'auth.emptyFields':     'Silakan masukkan email dan kata sandi Anda.',
+    'auth.fillAllFields':   'Silakan isi semua kolom.',
+    'auth.passwordMismatch': 'Kata sandi tidak cocok.',
+    'auth.passwordTooShort': 'Kata sandi minimal 6 karakter.',
+    'auth.loggingIn':       'Masuk\u2026',
+    'auth.creatingAccount': 'Membuat akun\u2026',
+    'auth.loginFailed':     'Gagal masuk.',
+    'auth.registerFailed':  'Gagal membuat akun.',
   }
 };
 

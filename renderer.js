@@ -683,7 +683,7 @@ document.addEventListener('keydown', (e) => {
   if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement.isContentEditable) return;
 
   // ── Test mode: digit keys 1–5 simulate STATION:X QR scans ──────────────────
-  if (appSettings.testMode && appSettings.multiStation && /^[1-5]$/.test(e.key)) {
+  if (appSettings.testMode && appSettings.multiStation && /^[1-6]$/.test(e.key)) {
     const num = parseInt(e.key, 10);
     if (num <= (parseInt(appSettings.stationCount, 10) || 1)) {
       const qrCode = `${STATION_QR_PREFIX}${num}`;
@@ -1287,23 +1287,28 @@ if (tabRegisterBtn) {
 
 // Login handler
 const loginBtn = document.getElementById('login-btn');
+async function doLogin() {
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  if (!email || !password) { setAuthFeedback('error', t('auth.emptyFields')); return; }
+  setAuthFeedback('', '');
+  loginBtn.disabled = true;
+  loginBtn.textContent = t('auth.loggingIn');
+  const result = await window.electronAPI.login({ email, password });
+  loginBtn.disabled = false;
+  loginBtn.textContent = t('overlay.loginBtn');
+  if (result.success) {
+    onAuthSuccess(result);
+  } else {
+    setAuthFeedback('error', result.error || t('auth.loginFailed'));
+  }
+}
 if (loginBtn) {
-  loginBtn.addEventListener('click', async () => {
-    const email    = document.getElementById('login-email').value.trim();
-    const password = document.getElementById('login-password').value;
-    if (!email || !password) { setAuthFeedback('error', 'Please enter your email and password.'); return; }
-    setAuthFeedback('', '');
-    loginBtn.disabled = true;
-    loginBtn.textContent = 'Logging in…';
-    const result = await window.electronAPI.login({ email, password });
-    loginBtn.disabled = false;
-    loginBtn.textContent = t ? t('overlay.loginBtn') : 'Login';
-    if (result.success) {
-      onAuthSuccess(result);
-    } else {
-      setAuthFeedback('error', result.error || 'Login failed.');
-    }
-  });
+  loginBtn.addEventListener('click', doLogin);
+}
+const loginPasswordInput = document.getElementById('login-password');
+if (loginPasswordInput) {
+  loginPasswordInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
 }
 
 // Register handler
@@ -1314,19 +1319,19 @@ if (registerBtn) {
     const email    = document.getElementById('register-email').value.trim();
     const password = document.getElementById('register-password').value;
     const confirm  = document.getElementById('register-confirm').value;
-    if (!username || !email || !password) { setAuthFeedback('error', 'Please fill in all fields.'); return; }
-    if (password !== confirm) { setAuthFeedback('error', 'Passwords do not match.'); return; }
-    if (password.length < 6)  { setAuthFeedback('error', 'Password must be at least 6 characters.'); return; }
+    if (!username || !email || !password) { setAuthFeedback('error', t('auth.fillAllFields')); return; }
+    if (password !== confirm) { setAuthFeedback('error', t('auth.passwordMismatch')); return; }
+    if (password.length < 6)  { setAuthFeedback('error', t('auth.passwordTooShort')); return; }
     setAuthFeedback('', '');
     registerBtn.disabled = true;
-    registerBtn.textContent = 'Creating account…';
+    registerBtn.textContent = t('auth.creatingAccount');
     const result = await window.electronAPI.register({ username, email, password });
     registerBtn.disabled = false;
-    registerBtn.textContent = t ? t('overlay.registerBtn') : 'Create Account';
+    registerBtn.textContent = t('overlay.registerBtn');
     if (result.success) {
       onAuthSuccess(result);
     } else {
-      setAuthFeedback('error', result.error || 'Registration failed.');
+      setAuthFeedback('error', result.error || t('auth.registerFailed'));
     }
   });
 }
@@ -1337,7 +1342,7 @@ function onAuthSuccess(result) {
   currentUserRole = role || 'user';
 
   // Show welcome + logout in nav
-  if (welcomeText) welcomeText.textContent = `Welcome, ${username}`;
+  if (welcomeText) welcomeText.textContent = t('nav.welcome', username);
   if (userInfo) userInfo.classList.remove('hidden');
 
   // Show/hide test mode toggle based on role
@@ -1558,7 +1563,7 @@ async function initLicense() {
   }
 
   // Logged in — update nav with username and role
-  if (welcomeText && status.username) welcomeText.textContent = `Welcome, ${status.username}`;
+  if (welcomeText && status.username) welcomeText.textContent = t('nav.welcome', status.username);
   if (userInfo) userInfo.classList.remove('hidden');
   currentUserRole = status.role || 'user';
   applyRoleUI(currentUserRole);
@@ -2292,7 +2297,7 @@ function renderStandardRecordingsList() {
 
   recordingsListEl.innerHTML = '';
   if (filtered.length === 0) {
-    if (noRecordingsEl) { noRecordingsEl.textContent = selectedDate ? t('rec.noRecordingsOnDate') : t('rec.noRecordings'); noRecordingsEl.classList.remove('hidden'); }
+    if (noRecordingsEl) { noRecordingsEl.textContent = (selectedDate || selectedStation) ? t('rec.noRecordingsOnDate') : t('rec.noRecordings'); noRecordingsEl.classList.remove('hidden'); }
     return;
   }
   if (noRecordingsEl) noRecordingsEl.classList.add('hidden');
@@ -2334,7 +2339,7 @@ function renderManualRecordingsList() {
 
   manualRecordingsListEl.innerHTML = '';
   if (filtered.length === 0) {
-    if (noManualRecordingsEl) { noManualRecordingsEl.textContent = selectedDate ? t('rec.noManualRecordingsOnDate') : t('rec.noManualRecordings'); noManualRecordingsEl.classList.remove('hidden'); }
+    if (noManualRecordingsEl) { noManualRecordingsEl.textContent = (selectedDate || selectedStation) ? t('rec.noManualRecordingsOnDate') : t('rec.noManualRecordings'); noManualRecordingsEl.classList.remove('hidden'); }
     return;
   }
   if (noManualRecordingsEl) noManualRecordingsEl.classList.add('hidden');

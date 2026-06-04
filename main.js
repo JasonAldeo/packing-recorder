@@ -13,7 +13,7 @@ const ffmpegPath = require('ffmpeg-static');
 const LICENSE_SERVER_URL = 'https://packingrecorder.com';
 const TRIAL_DAYS = 7;
 const TRIAL_OFFLINE_GRACE_MS   = 60 * 60 * 1000;       // 1 hour
-const LICENSE_OFFLINE_GRACE_MS = 10 * 1000;  // 24 hours grace window for offline trial users before blocking access
+const LICENSE_OFFLINE_GRACE_MS = 24 * 60 * 60 * 1000;  // 24-hour grace window for licensed users before blocking access
 const LICENSE_PATH = path.join(app.getPath('userData'), 'license.json');
 
 function getLicenseData() {
