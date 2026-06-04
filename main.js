@@ -11,7 +11,7 @@ const ffmpegPath = require('ffmpeg-static');
 // ─── License / Trial ──────────────────────────────────────────────────────────
 // ⚠️  Replace this URL with your Railway app URL after deployment.
 const LICENSE_SERVER_URL = 'https://packingrecorder.com';
-const TRIAL_DAYS = 7;
+const TRIAL_DAYS = 14;
 const TRIAL_OFFLINE_GRACE_MS   = 60 * 60 * 1000;       // 1 hour
 const LICENSE_OFFLINE_GRACE_MS = 24 * 60 * 60 * 1000;  // 24-hour grace window for licensed users before blocking access
 const LICENSE_PATH = path.join(app.getPath('userData'), 'license.json');

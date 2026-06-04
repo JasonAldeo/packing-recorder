@@ -331,7 +331,7 @@ app.post('/login', authLimiter, async (req, res) => {
  * Also slides the token window (issues a new token in the response).
  * Returns: { token, username, email, role, licenseExpiresAt, trialDaysLeft, trialExpired }
  */
-const TRIAL_DAYS = 7;
+const TRIAL_DAYS = 14;
 app.get('/me', requireAuth, async (req, res) => {
   try {
     // Re-fetch user from DB to pick up any role/username changes
@@ -350,7 +350,7 @@ app.get('/me', requireAuth, async (req, res) => {
     const trialDaysLeft = Math.max(0, TRIAL_DAYS - daysElapsed);
     const trialExpired = trialDaysLeft === 0;
 
-    // Issue a fresh token (sliding 7-day window)
+    // Issue a fresh token (sliding 14-day window)
     const newToken = signToken(user);
 
     res.json({
