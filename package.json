@@ -26,6 +26,7 @@
       "print-stations.html",
       "styles.css",
       "videos/",
+      "voices/**",
       "node_modules/ffmpeg-static/**"
     ],
     "win": {

@@ -583,54 +583,53 @@ function createFakeStream() {
 
 // ─── Voice announcements ──────────────────────────────────────────────────────
 
-/** Returns the spoken label for a station in the voice locale, e.g. "Station Two" / "Stasiun Dua". */
-function voiceLabelFor(sid) {
-  const num = parseInt(sid.replace('station', ''), 10);
-  const voiceLocale = appSettings.voiceLocale || 'id';
-  const dict = window._i18n.getTranslations(voiceLocale);
-  const numWord = typeof dict['voice.stationNum'] === 'function'
-    ? dict['voice.stationNum'](num)
-    : String(num);
-  // const prefix = voiceLocale === 'id' ? 'Stasiun' : 'Station';
-  return `${numWord}`;
-}
+// Tracks the currently playing audio so it can be stopped before the next clip
+let _currentVoiceAudio = null;
 
-/** Speak a voice announcement phrase, using the voice locale independently of the UI locale. */
-function speak(voiceKey, label) {
+/**
+ * Plays a bundled voice announcement audio file.
+ * @param {string} voiceKey  - e.g. 'voice.armed', 'voice.recording', etc.
+ * @param {string} sid       - station id, e.g. 'station1', 'station2'
+ */
+function speak(voiceKey, sid) {
   if (!appSettings.voiceEnabled) return;
-  const voiceLocale = appSettings.voiceLocale || 'id';
-  const voiceSpeed  = parseFloat(appSettings.voiceSpeed) || 1.0;
-  const dict = window._i18n.getTranslations(voiceLocale);
-  const val = dict[voiceKey];
-  const phrase = typeof val === 'function' ? val(label) : (val ?? '');
-  if (!phrase) return;
-  const utter = new SpeechSynthesisUtterance(phrase);
-  utter.lang = voiceLocale === 'id' ? 'id-ID' : 'en-US';
-  utter.rate = voiceSpeed;
-  window.speechSynthesis.cancel(); // cancel any in-progress speech first
-  window.speechSynthesis.speak(utter);
+  const locale = appSettings.voiceLocale || 'id';
+  const stateKey = voiceKey.replace('voice.', ''); // 'armed' | 'recording' | 'saved' | 'cancelled'
+  const num = parseInt(sid.replace('station', ''), 10);
+  const path = `voices/${locale}/station${num}-${stateKey}.mp3`;
+
+  if (_currentVoiceAudio) { _currentVoiceAudio.pause(); _currentVoiceAudio = null; }
+  const audio = new Audio(path);
+  audio.playbackRate = parseFloat(appSettings.voiceSpeed) || 1.0;
+  _currentVoiceAudio = audio;
+  audio.play().catch(() => {}); // silently ignore missing file errors
 }
 
 /**
- * Speak multiple phrases in sequence, one after another.
- * @param {Array<{key: string, label: string}>} items
+ * Plays multiple voice announcement clips in sequence, one after another.
+ * @param {Array<{key: string, sid: string}>} items
  */
 function speakSequence(items) {
   if (!appSettings.voiceEnabled || !items.length) return;
-  const voiceLocale = appSettings.voiceLocale || 'id';
-  const voiceSpeed  = parseFloat(appSettings.voiceSpeed) || 1.0;
-  const lang = voiceLocale === 'id' ? 'id-ID' : 'en-US';
-  const dict = window._i18n.getTranslations(voiceLocale);
-  window.speechSynthesis.cancel();
-  items.forEach(({ key, label }) => {
-    const val = dict[key];
-    const phrase = typeof val === 'function' ? val(label) : (val ?? '');
-    if (!phrase) return;
-    const utter = new SpeechSynthesisUtterance(phrase);
-    utter.lang = lang;
-    utter.rate = voiceSpeed;
-    window.speechSynthesis.speak(utter); // queued, not cancelled
-  });
+  const locale = appSettings.voiceLocale || 'id';
+  const speed  = parseFloat(appSettings.voiceSpeed) || 1.0;
+
+  if (_currentVoiceAudio) { _currentVoiceAudio.pause(); _currentVoiceAudio = null; }
+
+  function playNext(index) {
+    if (index >= items.length) return;
+    const { key, sid } = items[index];
+    const stateKey = key.replace('voice.', '');
+    const num = parseInt(sid.replace('station', ''), 10);
+    const path = `voices/${locale}/station${num}-${stateKey}.mp3`;
+    const audio = new Audio(path);
+    audio.playbackRate = speed;
+    _currentVoiceAudio = audio;
+    audio.onended = () => playNext(index + 1);
+    audio.play().catch(() => playNext(index + 1)); // skip missing files
+  }
+
+  playNext(0);
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -797,8 +796,8 @@ function handleStationQR(sid) {
       armStation(sid, true /* skipVoice */);
       // Speak combined phrase: "Station Two cancelled, Station Three waiting"
       speakSequence([
-        { key: 'voice.cancelled', label: voiceLabelFor(displacedId) },
-        { key: 'voice.armed',     label: voiceLabelFor(sid) },
+        { key: 'voice.cancelled', sid: displacedId },
+        { key: 'voice.armed',     sid: sid },
       ]);
     } else {
       armStation(sid);
@@ -817,7 +816,7 @@ function armStation(sid, skipVoice = false) {
   if (!st) return;
   st.state = 'armed';
   setStationStatus(sid, 'armed');
-  if (!skipVoice) speak('voice.armed', voiceLabelFor(sid));
+  if (!skipVoice) speak('voice.armed', sid);
   pushToStationWindow(sid, { type: 'set-status', state: 'armed' });
 
   const timeoutMs = (parseInt(appSettings.armedTimeoutSecs, 10) || 15) * 1000;
@@ -851,7 +850,7 @@ function cancelArm(sid, silent = true, skipVoice = false) {
     // Flash "CANCELLED" for 1500ms then fade to idle
     setStationStatus(sid, 'cancelled');
     pushToStationWindow(sid, { type: 'set-status', state: 'cancelled' });
-    if (!skipVoice) speak('voice.cancelled', voiceLabelFor(sid));
+    if (!skipVoice) speak('voice.cancelled', sid);
     setTimeout(() => {
       if (st.state === 'idle') {
         setStationStatus(sid, 'idle');
@@ -993,7 +992,7 @@ async function startRecording(sid, code) {
 
   // Update UI
   setStationStatus(sid, 'recording');
-  speak('voice.recording', voiceLabelFor(sid));
+  speak('voice.recording', sid);
   const isManual = code.startsWith('MANUAL_');
   const displayLabel = isManual ? formatManualCode(code) : code;
 
@@ -1042,7 +1041,7 @@ async function saveStationRecording(sid) {
   try {
     const result = await window.electronAPI.endVideoWrite(sid);
     const sizeKb = (result.size / 1024).toFixed(1);
-    speak('voice.saved', voiceLabelFor(sid));
+    speak('voice.saved', sid);
     if (stations.size === 1 && statusMessage) {
       setStatus('saved', t('status.saved', result.filename));
       if (savedInfo) {
