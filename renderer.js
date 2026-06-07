@@ -143,6 +143,7 @@ async function initMainWindow() {
     if (type === 'recording-saved' || type === 'recording-aborted') {
       st.currentShippingCode = null;
       st.state = 'idle';
+      notifyRecordingState();
       setStationStatus(stationId, 'idle');
     }
   });
@@ -977,13 +978,14 @@ async function handleCodeForStation(sid, code) {
       clearArmedTimer(sid);
       st.state = 'recording';
       st.currentShippingCode = name;
+      notifyRecordingState();
       if (delegated) setStationStatus(sid, 'recording');
       pushToStationWindow(sid, { type: 'start-recording', code: name });
       if (!delegated) await startRecording(sid, name);
     } else if (st.currentShippingCode.startsWith('MANUAL_')) {
       pushToStationWindow(sid, { type: 'stop-recording' });
       if (!delegated) stopRecording(sid);
-      else { st.currentShippingCode = null; st.state = 'idle'; setStationStatus(sid, 'idle'); }
+      else { st.currentShippingCode = null; st.state = 'idle'; notifyRecordingState(); setStationStatus(sid, 'idle'); }
     } else {
       // Regular recording in progress
       if (stations.size === 1 && statusMessage) {
@@ -1011,13 +1013,14 @@ async function handleCodeForStation(sid, code) {
     clearArmedTimer(sid);
     st.state = 'recording';
     st.currentShippingCode = code;
+    notifyRecordingState();
     if (delegated) setStationStatus(sid, 'recording');
     pushToStationWindow(sid, { type: 'start-recording', code });
     if (!delegated) await startRecording(sid, code);
   } else if (code === st.currentShippingCode) {
     pushToStationWindow(sid, { type: 'stop-recording' });
     if (!delegated) stopRecording(sid);
-    else { st.currentShippingCode = null; st.state = 'idle'; setStationStatus(sid, 'idle'); }
+    else { st.currentShippingCode = null; st.state = 'idle'; notifyRecordingState(); setStationStatus(sid, 'idle'); }
   } else {
     console.log(`[${sid}] Ignored mismatched code: ${code} (current: ${st.currentShippingCode})`);
   }
@@ -1033,6 +1036,16 @@ function clearArmedTimer(sid) {
 }
 
 // ─── Recording ────────────────────────────────────────────────────────────────
+// Notify main process whether any station is actively recording.
+// Called after every state transition so the update dialog can be deferred.
+function notifyRecordingState() {
+  let anyRecording = false;
+  for (const [, st] of stations) {
+    if (st.state === 'recording') { anyRecording = true; break; }
+  }
+  window.electronAPI.setRecordingState(anyRecording);
+}
+
 async function startRecording(sid, code) {
   const st = stations.get(sid);
   if (!st) return;
@@ -1175,6 +1188,7 @@ async function saveStationRecording(sid) {
 
   st.currentShippingCode = null;
   st.state = 'idle';
+  notifyRecordingState();
   setStationStatus(sid, 'idle');
 }
 

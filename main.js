@@ -346,6 +346,24 @@ function createWindow() {
   mainWindow.loadFile('index.html');
 }
 
+// ─── Recording-aware update state ─────────────────────────────────────────────
+let rendererIsRecording = false; // true while any station is recording
+let pendingUpdateInfo   = null;  // holds update info when download finished during a recording
+
+function showUpdateDialog(info) {
+  if (!mainWindow) return;
+  dialog.showMessageBox(mainWindow, {
+    type: 'info',
+    title: 'Update Ready',
+    message: `Version ${info.version} has been downloaded. Restart now to install the update?`,
+    buttons: ['Restart Now', 'Later'],
+    defaultId: 0,
+    cancelId: 1
+  }).then(({ response }) => {
+    if (response === 0) autoUpdater.quitAndInstall();
+  });
+}
+
 app.whenReady().then(() => {
   // Grant camera/media permissions so getUserMedia always settles (never hangs)
   // on machines where Electron's default permission handler leaves requests pending.
@@ -366,16 +384,12 @@ app.whenReady().then(() => {
 
   autoUpdater.on('update-downloaded', (info) => {
     if (mainWindow) mainWindow.webContents.send('update-downloaded', info);
-    dialog.showMessageBox(mainWindow, {
-      type: 'info',
-      title: 'Update Ready',
-      message: `Version ${info.version} has been downloaded. Restart now to install the update?`,
-      buttons: ['Restart Now', 'Later'],
-      defaultId: 0,
-      cancelId: 1
-    }).then(({ response }) => {
-      if (response === 0) autoUpdater.quitAndInstall();
-    });
+    // If a recording is active, defer the restart dialog until recording finishes
+    if (rendererIsRecording) {
+      pendingUpdateInfo = info;
+    } else {
+      showUpdateDialog(info);
+    }
   });
 
   autoUpdater.on('error', (err) => {
@@ -410,6 +424,17 @@ ipcMain.handle('check-for-updates', () => {
   return autoUpdater.checkForUpdates().catch(err => {
     console.error('[auto-updater] manual check failed:', err.message);
   });
+});
+
+// Renderer notifies main whenever recording state changes so the update dialog
+// can be deferred while a recording is active.
+ipcMain.on('set-recording-state', (_, isRecording) => {
+  rendererIsRecording = isRecording;
+  if (!isRecording && pendingUpdateInfo) {
+    const info = pendingUpdateInfo;
+    pendingUpdateInfo = null;
+    showUpdateDialog(info);
+  }
 });
 
 // ─── Streaming video write — per-station ──────────────────────────────────────

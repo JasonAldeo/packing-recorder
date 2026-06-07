@@ -63,4 +63,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkForUpdates:       ()                         => ipcRenderer.invoke('check-for-updates'),
   onUpdateAvailable:     (cb)                       => ipcRenderer.on('update-available', (_, info) => cb(info)),
   onUpdateDownloaded:    (cb)                       => ipcRenderer.on('update-downloaded', (_, info) => cb(info)),
+  // Notify main whether any station is currently recording (defers update dialog)
+  setRecordingState:     (isRecording)              => ipcRenderer.send('set-recording-state', isRecording),
 });
