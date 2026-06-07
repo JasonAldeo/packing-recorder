@@ -350,7 +350,7 @@ app.whenReady().then(() => {
   // Grant camera/media permissions so getUserMedia always settles (never hangs)
   // on machines where Electron's default permission handler leaves requests pending.
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    callback(['media', 'mediaKeySystem'].includes(permission));
+    callback(['media', 'mediaKeySystem', 'fullscreen'].includes(permission));
   });
 
   createWindow();

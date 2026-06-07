@@ -145,7 +145,7 @@
     'search.btn': 'Search',
     'search.results': 'Results',
     'search.nowPlaying': 'Now Playing:',
-    'search.saveAs': '\u2B09 Save As\u2026',
+    'search.saveAs': '\u2B09 Save As MP4',
     'search.converting': 'Converting to MP4\u2026',
     'search.savedTo': (p) => `\u2713 Saved to: ${p}`,
     'search.searchError': (msg) => `Search error: ${msg}`,
@@ -153,7 +153,7 @@
     'search.enterCode': 'Please enter a shipping code.',
     'search.cantReadVideo': 'Could not read video file.',
     'search.playbackError': (msg) => `Playback error: ${msg}`,
-    'search.saveError': (msg) => `Error: ${msg}`,
+    'search.saveError': (msg) => `Error saving MP4: ${msg}`,
 
     // Settings tab
     'settings.title': 'Settings',
@@ -388,7 +388,7 @@
     'search.btn': 'Cari',
     'search.results': 'Hasil',
     'search.nowPlaying': 'Sedang Diputar:',
-    'search.saveAs': '\u2B09 Simpan Sebagai\u2026',
+    'search.saveAs': '\u2B09 Simpan Sebagai MP4',
     'search.converting': 'Mengonversi ke MP4\u2026',
     'search.savedTo': (p) => `\u2713 Tersimpan di: ${p}`,
     'search.searchError': (msg) => `Kesalahan pencarian: ${msg}`,
@@ -396,7 +396,7 @@
     'search.enterCode': 'Masukkan kode pengiriman terlebih dahulu.',
     'search.cantReadVideo': 'Tidak dapat membaca file video.',
     'search.playbackError': (msg) => `Kesalahan pemutaran: ${msg}`,
-    'search.saveError': (msg) => `Kesalahan: ${msg}`,
+    'search.saveError': (msg) => `Kesalahan menyimpan MP4: ${msg}`,
 
     // Settings tab
     'settings.title': 'Pengaturan',

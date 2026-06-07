@@ -654,23 +654,24 @@ function drawVideoOverlay(ctx, w, h, vid, code) {
   const fsBig  = Math.max(14, Math.round(h * 0.036));
   const fsSmall = Math.max(12, Math.round(h * 0.028));
 
-  // Bottom-left: shipping code (bold) + timestamp
+  // Top-left: shipping code (bold) + timestamp
   ctx.textAlign    = 'left';
-  ctx.textBaseline = 'bottom';
+  ctx.textBaseline = 'top';
   if (label) {
     ctx.font      = `bold ${fsBig}px monospace`;
     const tw      = ctx.measureText(label).width;
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(margin - 4, h - margin - fsBig - fsSmall - 6, tw + 8, fsBig + 4);
+    ctx.fillRect(margin - 4, margin - 2, tw + 8, fsBig + 4);
     ctx.fillStyle = '#fff';
-    ctx.fillText(label, margin, h - margin - fsSmall - 6);
+    ctx.fillText(label, margin, margin);
   }
   ctx.font      = `${fsSmall}px monospace`;
   const tsW     = ctx.measureText(ts).width;
+  const tsY     = margin + fsBig + 6;
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.fillRect(margin - 4, h - margin - fsSmall, tsW + 8, fsSmall + 4);
+  ctx.fillRect(margin - 4, tsY - 2, tsW + 8, fsSmall + 4);
   ctx.fillStyle = '#e2e8f0';
-  ctx.fillText(ts, margin, h - margin);
+  ctx.fillText(ts, margin, tsY);
 
   // Top-right: watermark
   const wmText = 'Packing Recorder';
