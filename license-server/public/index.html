@@ -556,6 +556,24 @@
       letter-spacing: -0.8px;
       margin-bottom: 4px;
     }
+    .pricing-price-original {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #94a3b8;
+      text-decoration: line-through;
+      margin-bottom: 2px;
+    }
+    .pricing-promo-badge {
+      display: inline-block;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      color: #fff;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      padding: 2px 10px;
+      border-radius: 20px;
+      margin-bottom: 4px;
+    }
     .pricing-price span {
       font-size: 0.85rem;
       font-weight: 500;
@@ -682,9 +700,62 @@
     }
     .footer-email a:hover { color: #818cf8; }
 
+    /* ── System Requirements ── */
+    .sysreq-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 48px;
+    }
+    .sysreq-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 22px;
+    }
+    .sysreq-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #ede9fe, #dbeafe);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .sysreq-icon img {
+      width: 22px;
+      height: 22px;
+      filter: invert(27%) sepia(51%) saturate(2878%) hue-rotate(246deg) brightness(97%) contrast(97%);
+    }
+    .sysreq-icon svg {
+      width: 22px;
+      height: 22px;
+      fill: #5b6cf8;
+    }
+    .sysreq-text { flex: 1; }
+    .sysreq-title {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--light);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 5px;
+    }
+    .sysreq-spec {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--dark);
+      line-height: 1.45;
+    }
+
     /* ── Responsive ── */
     @media (max-width: 900px) {
       .features-grid { grid-template-columns: 1fr 1fr; }
+      .sysreq-grid   { grid-template-columns: 1fr 1fr; }
     }
     @media (max-width: 768px) {
       .steps { grid-template-columns: 1fr; }
@@ -695,8 +766,73 @@
     }
     @media (max-width: 500px) {
       .features-grid { grid-template-columns: 1fr; }
+      .sysreq-grid   { grid-template-columns: 1fr; }
       .hero { padding: 64px 0 56px; }
       .section { padding: 60px 0; }
+    }
+
+    /* ── Post-download banner ── */
+    .dl-banner {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 13px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-size: 0.875rem;
+      z-index: 200;
+      transform: translateY(100%);
+      transition: transform 0.3s ease;
+      box-shadow: 0 -4px 24px rgba(0,0,0,0.2);
+    }
+    .dl-banner.visible { transform: translateY(0); }
+    .dl-banner a { color: #818cf8; text-decoration: underline; }
+    .dl-banner-close {
+      position: absolute;
+      right: 16px;
+      background: none;
+      border: none;
+      color: #64748b;
+      cursor: pointer;
+      font-size: 1.25rem;
+      line-height: 1;
+      padding: 4px 8px;
+    }
+    .dl-banner-close:hover { color: #fff; }
+
+    /* ── Install FAQ collapsible ── */
+    .install-faq { margin-top: 14px; font-size: 0.82rem; text-align: center; }
+    .install-faq summary {
+      cursor: pointer;
+      color: #94a3b8;
+      list-style: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      user-select: none;
+    }
+    .install-faq summary::-webkit-details-marker { display: none; }
+    .install-faq[open] summary { color: #64748b; }
+    .install-faq-body {
+      margin: 10px auto 0;
+      max-width: 480px;
+      padding: 14px 18px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      text-align: left;
+      color: #475569;
+      line-height: 1.65;
+    }
+    .download-section .install-faq summary { color: #475569; }
+    .download-section .install-faq[open] summary { color: #94a3b8; }
+    .download-section .install-faq-body {
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(255,255,255,0.12);
+      color: #94a3b8;
     }
   </style>
 </head>
@@ -716,8 +852,8 @@
         <button class="lang-btn" id="lang-id" onclick="setLang('id')">ID</button>
         <button class="lang-btn" id="lang-en" onclick="setLang('en')">EN</button>
       </div>
-      <a href="/tutorial.html" class="nav-guide-link" data-i18n="nav.guide">Panduan</a>
-      <a class="btn-nav-download" href="https://github.com/JasonAldeo/packing-recorder/releases/latest/download/PackingRecorder-Setup.exe">
+      <a href="/tutorial" class="nav-guide-link" data-i18n="nav.guide">Panduan</a>
+      <a class="btn-nav-download" onclick="showDownloadBanner()" href="https://github.com/JasonAldeo/packing-recorder/releases/latest/download/PackingRecorder-Setup.exe">
         <span data-i18n="nav.download">Download</span> &darr;
       </a>
     </div>
@@ -738,13 +874,17 @@
       Rekam otomatis setiap proses packing lewat scan barcode. Cari dan putar ulang rekaman kapan saja untuk membuktikan packing yang sudah selesai.
     </p>
     <div class="hero-actions">
-      <a class="btn-primary" href="https://github.com/JasonAldeo/packing-recorder/releases/latest/download/PackingRecorder-Setup.exe">
+      <a class="btn-primary" onclick="showDownloadBanner()" href="https://github.com/JasonAldeo/packing-recorder/releases/latest/download/PackingRecorder-Setup.exe">
         &#8681; <span data-i18n="hero.downloadBtn">Download Gratis</span>
       </a>
       <a class="btn-secondary" href="#pricing">
         <span data-i18n="hero.pricingBtn">Lihat Harga</span> &darr;
       </a>
     </div>
+    <details class="install-faq">
+      <summary data-i18n="dl.smartscreenQ">&#9888; Muncul peringatan keamanan Windows?</summary>
+      <p class="install-faq-body" data-i18n="dl.smartscreenA">Klik <strong>Keep</strong> &rarr; <strong>Keep anyway</strong> di browser, lalu klik <strong>More info</strong> &rarr; <strong>Run anyway</strong> pada dialog "Windows protected your PC". Ini normal untuk aplikasi tanpa sertifikat <em>signing</em> berbayar.</p>
+    </details>
     <p class="hero-note" data-i18n="hero.note">Gratis 14 hari &middot; Tidak perlu kartu kredit</p>
     <p id="hero-version" class="hero-version" style="display:none;margin-top:8px;font-size:0.75rem;color:#94a3b8;"></p>
   </div>
@@ -825,6 +965,68 @@
         <div class="step-title" data-i18n="step3.title">Cari &amp; Putar Kapan Saja</div>
         <div class="step-desc" data-i18n="step3.desc">Ketik kode pengiriman di tab Cari untuk menemukan dan memutar ulang rekaman — butuh hitungan detik.</div>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── System Requirements ── -->
+<section class="section">
+  <div class="container">
+    <div class="section-label" data-i18n="sysreq.label">Kebutuhan Sistem</div>
+    <h2 class="section-title" data-i18n="sysreq.title">Yang Anda butuhkan</h2>
+    <p class="section-sub" data-i18n="sysreq.sub">Packing Recorder berjalan di Windows dan bekerja dengan kamera serta scanner USB standar.</p>
+    <div class="sysreq-grid">
+
+      <div class="sysreq-card">
+        <div class="sysreq-icon">
+          <svg viewBox="0 0 24 24"><path d="M3 12V6.75l6-1.32v6.57H3zm17 0V4.5l-8 1.41V12h8zm-17 1h6v6.43L3 18V13zm17 0h-8v6.1l8 1.4V13z"/></svg>
+        </div>
+        <div class="sysreq-text">
+          <div class="sysreq-title" data-i18n="sysreq.os.title">Sistem Operasi</div>
+          <div class="sysreq-spec" data-i18n="sysreq.os.spec">Windows 10 / 11 (64-bit)</div>
+        </div>
+      </div>
+
+      <div class="sysreq-card">
+        <div class="sysreq-icon"><img src="/icons/ram-icon.svg" alt=""></div>
+        <div class="sysreq-text">
+          <div class="sysreq-title" data-i18n="sysreq.ram.title">RAM</div>
+          <div class="sysreq-spec" data-i18n="sysreq.ram.spec">4 GB (8 GB untuk multi-stasiun)</div>
+        </div>
+      </div>
+
+      <div class="sysreq-card">
+        <div class="sysreq-icon"><img src="/icons/harddisk-icon.svg" alt=""></div>
+        <div class="sysreq-text">
+          <div class="sysreq-title" data-i18n="sysreq.storage.title">Penyimpanan</div>
+          <div class="sysreq-spec" data-i18n="sysreq.storage.spec">~1 GB per jam rekaman</div>
+        </div>
+      </div>
+
+      <div class="sysreq-card">
+        <div class="sysreq-icon"><img src="/icons/webcam-icon.svg" alt=""></div>
+        <div class="sysreq-text">
+          <div class="sysreq-title" data-i18n="sysreq.webcam.title">Kamera</div>
+          <div class="sysreq-spec" data-i18n="sysreq.webcam.spec">Kamera USB apa pun</div>
+        </div>
+      </div>
+
+      <div class="sysreq-card">
+        <div class="sysreq-icon"><img src="/icons/barcode-icon.svg" alt=""></div>
+        <div class="sysreq-text">
+          <div class="sysreq-title" data-i18n="sysreq.scanner.title">Barcode Scanner</div>
+          <div class="sysreq-spec" data-i18n="sysreq.scanner.spec">USB 2D scanner (mendukung QR Code)</div>
+        </div>
+      </div>
+
+      <div class="sysreq-card">
+        <div class="sysreq-icon"><img src="/icons/wifi-icon.svg" alt=""></div>
+        <div class="sysreq-text">
+          <div class="sysreq-title" data-i18n="sysreq.internet.title">Internet</div>
+          <div class="sysreq-spec" data-i18n="sysreq.internet.spec">Diperlukan untuk login &amp; validasi lisensi. Pengguna berlisensi: offline hingga 24 jam.</div>
+        </div>
+      </div>
+
     </div>
   </div>
 </section>
@@ -914,7 +1116,9 @@
       <div class="pricing-card featured">
         <div class="pricing-badge" data-i18n="plan2.badge">Paling Populer</div>
         <div class="pricing-name" data-i18n="plan2.name">Lisensi Aktif</div>
-        <div class="pricing-price">Rp 75.000 <span data-i18n="plan2.per">/ 30 hari</span></div>
+        <div id="pricing-promo-badge" class="pricing-promo-badge" style="display:none;"></div>
+        <div id="pricing-original" class="pricing-price-original" style="display:none;"></div>
+        <div class="pricing-price" id="pricing-effective">Rp 199.000 <span data-i18n="plan2.per">/ 30 hari</span></div>
         <div class="pricing-period" data-i18n="plan2.period">Dapat diperpanjang kapan saja</div>
         <ul class="pricing-features">
           <li data-i18n="plan2.f1">Semua fitur tanpa batas</li>
@@ -940,9 +1144,13 @@
     <div class="section-label" data-i18n="dl.label">Download</div>
     <h2 class="section-title" data-i18n="dl.title">Siap mencoba?</h2>
     <p class="section-sub" data-i18n="dl.sub">Download gratis sekarang. Tidak perlu kartu kredit — langsung coba 14 hari penuh.</p>
-    <a class="btn-primary" href="https://github.com/JasonAldeo/packing-recorder/releases/latest/download/PackingRecorder-Setup.exe">
+    <a class="btn-primary" onclick="showDownloadBanner()" href="https://github.com/JasonAldeo/packing-recorder/releases/latest/download/PackingRecorder-Setup.exe">
       &#8681; <span data-i18n="dl.btn">Download Packing Recorder</span>
     </a>
+    <details class="install-faq">
+      <summary data-i18n="dl.smartscreenQ">&#9888; Muncul peringatan keamanan Windows?</summary>
+      <p class="install-faq-body" data-i18n="dl.smartscreenA">Klik <strong>Keep</strong> &rarr; <strong>Keep anyway</strong> di browser, lalu klik <strong>More info</strong> &rarr; <strong>Run anyway</strong> pada dialog "Windows protected your PC". Ini normal untuk aplikasi tanpa sertifikat <em>signing</em> berbayar.</p>
+    </details>
     <div class="download-os-note">
       <svg class="windows-icon" viewBox="0 0 24 24"><path d="M3 12V6.75l6-1.32v6.57H3zm17 0V4.5l-8 1.41V12h8zm-17 1h6v6.43L3 18V13zm17 0h-8v6.1l8 1.4V13z"/></svg>
       <span data-i18n="dl.note">Windows 64-bit &middot; Installer (.exe)</span>
@@ -950,6 +1158,12 @@
     <p id="dl-version" style="display:none;margin-top:10px;font-size:0.75rem;color:#475569;"></p>
   </div>
 </section>
+
+<!-- ── Post-download banner ── -->
+<div id="dl-banner" class="dl-banner">
+  <span data-i18n="dl.bannerMsg">&#8681; Download dimulai. Pertama kali instal di Windows? <a href="/tutorial#quickstart">Lihat panduan instalasi &rarr;</a></span>
+  <button class="dl-banner-close" onclick="hideDownloadBanner()" aria-label="Close">&times;</button>
+</div>
 
 <!-- ── Footer ── -->
 <footer class="footer">
@@ -960,10 +1174,10 @@
       </div>
       <span class="footer-name">Packing Recorder &mdash; Aldeo Studio</span>
     </div>
-    <div class="footer-copy">&copy; 2025 Aldeo Studio</div>
+    <div class="footer-copy">&copy; 2026 Aldeo Studio</div>
     <div class="footer-email"><a href="mailto:aldeojason@gmail.com">aldeojason@gmail.com</a></div>
-    <div class="footer-email"><a href="/tutorial.html" data-i18n="footer.guide">Panduan</a></div>
-    <div class="footer-email"><a href="/terms.html" data-i18n="footer.terms">Syarat &amp; Ketentuan</a></div>
+    <div class="footer-email"><a href="/tutorial" data-i18n="footer.guide">Panduan</a></div>
+    <div class="footer-email"><a href="/terms" data-i18n="footer.terms">Syarat &amp; Ketentuan</a></div>
   </div>
 </footer>
 
@@ -1007,6 +1221,21 @@
       'step2.desc':             'Kamera mulai merekam secara otomatis. Scan barcode yang sama lagi untuk menghentikan rekaman.',
       'step3.title':            'Cari & Putar Kapan Saja',
       'step3.desc':             'Ketik kode pengiriman di tab Cari untuk menemukan dan memutar ulang rekaman \u2014 butuh hitungan detik.',
+      'sysreq.label':           'Kebutuhan Sistem',
+      'sysreq.title':           'Yang Anda butuhkan',
+      'sysreq.sub':             'Packing Recorder berjalan di Windows dan bekerja dengan kamera serta scanner USB standar.',
+      'sysreq.os.title':        'Sistem Operasi',
+      'sysreq.os.spec':         'Windows 10 / 11 (64-bit)',
+      'sysreq.ram.title':       'RAM',
+      'sysreq.ram.spec':        '4 GB (8 GB untuk multi-stasiun)',
+      'sysreq.storage.title':   'Penyimpanan',
+      'sysreq.storage.spec':    '~1 GB per jam rekaman',
+      'sysreq.webcam.title':    'Kamera',
+      'sysreq.webcam.spec':     'Kamera USB apa pun',
+      'sysreq.scanner.title':   'Barcode Scanner',
+      'sysreq.scanner.spec':    'USB 2D scanner (mendukung QR Code)',
+      'sysreq.internet.title':  'Internet',
+      'sysreq.internet.spec':   'Diperlukan untuk login &amp; validasi lisensi. Pengguna berlisensi: offline hingga 24 jam.',
       'screenshots.label':      'Tampilan Aplikasi',
       'screenshots.title':      'Lihat Aplikasinya',
       'ss.scan':                'Scan &amp; Rekam',
@@ -1047,6 +1276,9 @@
       'dl.sub':                 'Download gratis sekarang. Daftar akun gratis \u2014 langsung coba 14 hari penuh.',
       'dl.btn':                 'Download Packing Recorder',
       'dl.note':                'Windows 64-bit \u00b7 Installer (.exe)',
+      'dl.smartscreenQ':        '\u26a0 Muncul peringatan keamanan Windows?',
+      'dl.smartscreenA':        'Klik <strong>Keep</strong> &rarr; <strong>Keep anyway</strong> di browser, lalu klik <strong>More info</strong> &rarr; <strong>Run anyway</strong> pada dialog \u201cWindows protected your PC\u201d. Ini normal untuk aplikasi tanpa sertifikat <em>signing</em> berbayar.',
+      'dl.bannerMsg':           '&#8681; Download dimulai. Pertama kali instal di Windows? <a href="/tutorial#quickstart">Lihat panduan instalasi &rarr;</a>',
       'footer.guide':           'Panduan',
       'footer.terms':           'Syarat &amp; Ketentuan',
     },
@@ -1087,6 +1319,21 @@
       'step2.desc':             'The camera starts recording right away. Scan the same barcode again to stop.',
       'step3.title':            'Search & Replay Anytime',
       'step3.desc':             'Type the shipping code in the Search tab to find and replay any recording in seconds.',
+      'sysreq.label':           'System Requirements',
+      'sysreq.title':           'What you need',
+      'sysreq.sub':             'Packing Recorder runs on Windows and works with any standard USB camera and barcode scanner.',
+      'sysreq.os.title':        'Operating System',
+      'sysreq.os.spec':         'Windows 10 / 11 (64-bit)',
+      'sysreq.ram.title':       'RAM',
+      'sysreq.ram.spec':        '4 GB (8 GB recommended for multi-station)',
+      'sysreq.storage.title':   'Storage',
+      'sysreq.storage.spec':    '~1 GB per hour of recording',
+      'sysreq.webcam.title':    'Webcam',
+      'sysreq.webcam.spec':     'Any USB webcam',
+      'sysreq.scanner.title':   'Barcode Scanner',
+      'sysreq.scanner.spec':    'USB 2D scanner with QR Code support',
+      'sysreq.internet.title':  'Internet',
+      'sysreq.internet.spec':   'Required for login &amp; license checks. Licensed users: up to 24 h offline.',
       'screenshots.label':      'App Preview',
       'screenshots.title':      'See It in Action',
       'ss.scan':                'Scan &amp; Record',
@@ -1127,6 +1374,9 @@
       'dl.sub':                 'Download free now. Create a free account \u2014 full 14-day trial included.',
       'dl.btn':                 'Download Packing Recorder',
       'dl.note':                'Windows 64-bit \u00b7 Installer (.exe)',
+      'dl.smartscreenQ':        '\u26a0 Seeing a Windows security warning?',
+      'dl.smartscreenA':        'Click <strong>Keep</strong> &rarr; <strong>Keep anyway</strong> in your browser, then click <strong>More info</strong> &rarr; <strong>Run anyway</strong> on the \u201cWindows protected your PC\u201d dialog. This is normal for apps without a paid code-signing certificate.',
+      'dl.bannerMsg':           '&#8681; Download started. First time installing on Windows? <a href="/tutorial#quickstart">See the installation guide &rarr;</a>',
       'footer.guide':           'Guide',
       'footer.terms':           'Terms &amp; Conditions',
     }
@@ -1180,6 +1430,39 @@
       });
     })
     .catch(() => { /* silently ignore if server unreachable */ });
+
+  // ── Pricing ─────────────────────────────────────────────────────────────────
+  fetch('/pricing')
+    .then(r => r.json())
+    .then(data => {
+      const perLabel = currentLang === 'id' ? '/ 30 hari' : '/ 30 days';
+      const fmt = n => 'Rp ' + Number(n).toLocaleString('id-ID');
+
+      const effectiveEl = document.getElementById('pricing-effective');
+      const originalEl  = document.getElementById('pricing-original');
+      const promoBadge  = document.getElementById('pricing-promo-badge');
+
+      if (effectiveEl) effectiveEl.innerHTML = `${fmt(data.effectivePrice)} <span>${perLabel}</span>`;
+
+      if (data.promoActive) {
+        if (originalEl)  { originalEl.textContent = fmt(data.publishedPrice); originalEl.style.display = ''; }
+        if (promoBadge)  {
+          promoBadge.textContent = currentLang === 'id' ? data.promoLabelId : data.promoLabelEn;
+          promoBadge.style.display = '';
+        }
+      }
+    })
+    .catch(() => { /* silently ignore */ });
+
+  // ── Download banner ──────────────────────────────────────────────────────────
+  function showDownloadBanner() {
+    const b = document.getElementById('dl-banner');
+    if (b) b.classList.add('visible');
+  }
+  function hideDownloadBanner() {
+    const b = document.getElementById('dl-banner');
+    if (b) b.classList.remove('visible');
+  }
 </script>
 </body>
 </html>

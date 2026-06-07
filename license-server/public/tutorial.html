@@ -281,6 +281,52 @@
     }
     footer a { color: #818cf8; }
     footer a:hover { color: #fff; }
+
+    /* ── SmartScreen Guide ── */
+    .smartscreen-guide {
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      border-left: 4px solid #f59e0b;
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin: 20px 0;
+    }
+    .sg-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .sg-icon { font-size: 1.1rem; }
+    .sg-title { font-size: 0.93rem; font-weight: 700; color: #92400e; }
+    .sg-why { font-size: 0.87rem; color: #78350f; margin-bottom: 14px; line-height: 1.55; }
+    .sg-steps { display: flex; flex-direction: column; gap: 10px; }
+    .sg-step { display: flex; align-items: flex-start; gap: 12px; }
+    .sg-num {
+      min-width: 22px;
+      height: 22px;
+      background: #f59e0b;
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .sg-step-text { font-size: 0.87rem; color: #44403c; line-height: 1.55; }
+    .sg-click {
+      display: inline-block;
+      background: #1e3a8a;
+      color: #fff;
+      padding: 1px 8px;
+      border-radius: 4px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: 'Consolas', 'Courier New', monospace;
+    }
   </style>
 </head>
 <body>
@@ -358,6 +404,27 @@
         <div class="step-body">
           <div class="step-title" data-i18n="s1.step4.title">Hubungkan Kamera &amp; Scanner</div>
           <div class="step-desc" data-i18n="s1.step4.desc">Pastikan kamera USB terhubung. Scanner barcode USB otomatis terdeteksi — tidak perlu instalasi driver khusus.</div>
+        </div>
+      </div>
+    </div>
+    <div class="smartscreen-guide">
+      <div class="sg-header">
+        <span class="sg-icon">⚠</span>
+        <span class="sg-title" data-i18n="s1.sg.title">Peringatan Keamanan Windows — Normal, Bukan Virus</span>
+      </div>
+      <p class="sg-why" data-i18n="s1.sg.why">Windows menampilkan peringatan ini karena installer belum memiliki sertifikat signing berbayar. Aplikasi ini aman — ikuti langkah berikut:</p>
+      <div class="sg-steps">
+        <div class="sg-step">
+          <div class="sg-num">1</div>
+          <div class="sg-step-text" data-i18n="s1.sg.s1">Di browser (Chrome/Edge), klik ikon <strong>&hellip;</strong> di samping file unduhan, lalu pilih <span class="sg-click">Keep</span> &rarr; <span class="sg-click">Keep anyway</span></div>
+        </div>
+        <div class="sg-step">
+          <div class="sg-num">2</div>
+          <div class="sg-step-text" data-i18n="s1.sg.s2">Saat menjalankan installer, Windows menampilkan <strong>"Windows protected your PC"</strong>. Klik <span class="sg-click">More info</span></div>
+        </div>
+        <div class="sg-step">
+          <div class="sg-num">3</div>
+          <div class="sg-step-text" data-i18n="s1.sg.s3">Klik <span class="sg-click">Run anyway</span> untuk melanjutkan instalasi</div>
         </div>
       </div>
     </div>
@@ -526,7 +593,7 @@
         </div>
       </div>
     </div>
-    <div class="tip"><strong data-i18n="tip.label">Tips:</strong> <span data-i18n="s5.tip">Harga satu lisensi 30 hari adalah Rp 75.000. Pembelian bisa dilakukan berkali-kali dan masa aktif akan ditambahkan (stackable).</span></div>
+    <div class="tip"><strong data-i18n="tip.label">Tips:</strong> <span data-i18n="s5.tip">Harga satu lisensi 30 hari adalah Rp 199.000. Pembelian bisa dilakukan berkali-kali dan masa aktif akan ditambahkan (stackable).</span></div>
   </div>
 
   <!-- 6. FAQ -->
@@ -569,7 +636,7 @@
 </div><!-- /page -->
 
 <footer>
-  <p>&copy; 2025 Aldeo Studio &nbsp;&middot;&nbsp; <a href="mailto:aldeojason@gmail.com">aldeojason@gmail.com</a> &nbsp;&middot;&nbsp; <a href="/" data-i18n="footer.home">Beranda</a> &nbsp;&middot;&nbsp; <a href="/terms.html" data-i18n="footer.terms">Syarat &amp; Ketentuan</a></p>
+  <p>&copy; 2026 Aldeo Studio &nbsp;&middot;&nbsp; <a href="mailto:aldeojason@gmail.com">aldeojason@gmail.com</a> &nbsp;&middot;&nbsp; <a href="/" data-i18n="footer.home">Beranda</a> &nbsp;&middot;&nbsp; <a href="/terms" data-i18n="footer.terms">Syarat &amp; Ketentuan</a></p>
 </footer>
 
 <script>
@@ -598,6 +665,11 @@
       's1.step4.title':     'Hubungkan Kamera & Scanner',
       's1.step4.desc':      'Pastikan kamera USB terhubung. Scanner barcode USB otomatis terdeteksi — tidak perlu instalasi driver khusus.',
       's1.tip':             'Gunakan kamera dengan sudut pandang lebar agar seluruh area packing terlihat jelas dalam rekaman.',
+      's1.sg.title':        'Peringatan Keamanan Windows \u2014 Normal, Bukan Virus',
+      's1.sg.why':          'Windows menampilkan peringatan ini karena installer belum memiliki sertifikat <em>signing</em> berbayar. Aplikasi ini aman \u2014 ikuti langkah berikut:',
+      's1.sg.s1':           'Di browser (Chrome/Edge), klik ikon <strong>&hellip;</strong> di samping file unduhan, lalu pilih <span class="sg-click">Keep</span> &rarr; <span class="sg-click">Keep anyway</span>',
+      's1.sg.s2':           'Saat menjalankan installer, Windows menampilkan <strong>\u201cWindows protected your PC\u201d</strong>. Klik <span class="sg-click">More info</span>',
+      's1.sg.s3':           'Klik <span class="sg-click">Run anyway</span> untuk melanjutkan instalasi',
       's2.label':           '02',
       's2.title':           'Penggunaan Dasar',
       's2.intro':           'Packing Recorder dirancang agar tidak perlu pencet tombol apapun saat packing. Cukup scan.',
@@ -648,7 +720,7 @@
       's5.step3.desc':      'Klik tombol <strong>Cek Pembayaran Saya</strong> di layar pembelian. Sistem akan memeriksa dan mengaktifkan lisensi secara manual.',
       's5.step4.title':     'Perpanjang Lisensi',
       's5.step4.desc':      'Lisensi 30 hari bisa ditambah kapan saja. Klik <strong>Perpanjang</strong> di badge lisensi di pojok kanan atas.',
-      's5.tip':             'Harga satu lisensi 30 hari adalah Rp 75.000. Pembelian bisa dilakukan berkali-kali dan masa aktif akan ditambahkan.',
+      's5.tip':             'Harga satu lisensi 30 hari adalah Rp 199.000. Pembelian bisa dilakukan berkali-kali dan masa aktif akan ditambahkan.',
       's6.label':           '06',
       's6.title':           'FAQ',
       'faq.q1':             'Kenapa lisensi saya tidak aktif setelah bayar?',
@@ -690,6 +762,11 @@
       's1.step4.title':     'Connect Your Camera & Scanner',
       's1.step4.desc':      'Make sure your USB camera is plugged in. USB barcode scanners are detected automatically — no driver installation needed.',
       's1.tip':             'Use a wide-angle camera so the entire packing area is clearly visible in recordings.',
+      's1.sg.title':        'Windows Security Warning \u2014 Normal, Not a Virus',
+      's1.sg.why':          'Windows shows this warning because the installer doesn\'t yet have a paid code-signing certificate. The app is safe \u2014 follow these steps:',
+      's1.sg.s1':           'In your browser (Chrome/Edge), click the <strong>&hellip;</strong> icon next to the downloaded file and choose <span class="sg-click">Keep</span> &rarr; <span class="sg-click">Keep anyway</span>',
+      's1.sg.s2':           'When you run the installer, Windows shows <strong>\u201cWindows protected your PC\u201d</strong>. Click <span class="sg-click">More info</span>',
+      's1.sg.s3':           'Click <span class="sg-click">Run anyway</span> to proceed with installation',
       's2.label':           '02',
       's2.title':           'Basic Usage',
       's2.intro':           'Packing Recorder is designed so you never have to press a button while packing. Just scan.',
@@ -740,7 +817,7 @@
       's5.step3.desc':      'Click the <strong>Check My Payment</strong> button on the purchase screen. The system will verify and activate your license manually.',
       's5.step4.title':     'Renew Your License',
       's5.step4.desc':      'You can stack 30-day licenses at any time — no need to wait until expiry. Click <strong>Renew</strong> in the license badge at the top right.',
-      's5.tip':             'One 30-day license costs Rp 75,000. Purchases stack — each one adds 30 days to your remaining time.',
+      's5.tip':             'One 30-day license costs Rp 199,000. Purchases stack — each one adds 30 days to your remaining time.',
       's6.label':           '06',
       's6.title':           'FAQ',
       'faq.q1':             'Why didn\'t my license activate after payment?',

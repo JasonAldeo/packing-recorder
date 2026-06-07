@@ -117,6 +117,24 @@
       color: #3b5bdb;
       letter-spacing: -0.5px;
     }
+    .price-original {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #94a3b8;
+      text-decoration: line-through;
+      display: none;
+    }
+    .price-promo-badge {
+      display: none;
+      font-size: 0.68rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #3b5bdb, #7c3aed);
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 20px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
     .price-note { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; }
 
     /* ── Buttons ── */
@@ -325,7 +343,10 @@
         <div class="price-label">Harga Lisensi 30 Hari</div>
         <div class="price-note">Dapat ditambah (stacking) saat masih aktif</div>
       </div>
-      <div class="price-amount">Rp 75.000</div>
+      <div style="text-align:right;">
+        <div class="price-original" id="price-original"></div>
+        <div class="price-amount" id="price-amount">Rp 199.000 <span class="price-promo-badge" id="price-promo-badge"></span></div>
+      </div>
     </div>
 
     <button class="btn-primary" id="pay-btn">Bayar dengan QRIS &rarr;</button>
@@ -382,6 +403,22 @@
 
 <script>
   const SERVER = ''; // same origin
+
+  // ── Load dynamic pricing ──────────────────────────────────────────────────
+  fetch(`${SERVER}/pricing`)
+    .then(r => r.json())
+    .then(data => {
+      const fmt = n => 'Rp ' + Number(n).toLocaleString('id-ID');
+      const amountEl = document.getElementById('price-amount');
+      const originalEl = document.getElementById('price-original');
+      const badgeEl = document.getElementById('price-promo-badge');
+      if (amountEl) amountEl.childNodes[0].textContent = fmt(data.effectivePrice) + ' ';
+      if (data.promoActive) {
+        if (originalEl) { originalEl.textContent = fmt(data.publishedPrice); originalEl.style.display = 'block'; }
+        if (badgeEl)    { badgeEl.textContent = data.promoLabelId; badgeEl.style.display = 'inline'; }
+      }
+    })
+    .catch(() => { /* silently ignore */ });
 
   // Read JWT from URL query param (?token=...)
   const urlParams = new URLSearchParams(window.location.search);

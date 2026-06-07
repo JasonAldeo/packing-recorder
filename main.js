@@ -263,6 +263,15 @@ ipcMain.handle('open-external-url', (event, url) => {
   shell.openExternal(url);
 });
 
+// IPC: fetch live pricing from server — used to display dynamic prices in the buy overlay
+ipcMain.handle('fetch-pricing', async () => {
+  try {
+    const resp = await serverRequest('GET', '/pricing');
+    if (resp.status === 200) return resp.body;
+  } catch (_) {}
+  return null;
+});
+
 // IPC: recover license — finds paid orders not yet applied and stacks them
 ipcMain.handle('recover-license', async () => {
   const data = getLicenseData();

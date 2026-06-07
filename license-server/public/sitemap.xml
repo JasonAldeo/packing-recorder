@@ -6,17 +6,17 @@
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://packingrecorder.com/tutorial.html</loc>
+    <loc>https://packingrecorder.com/tutorial</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://packingrecorder.com/terms.html</loc>
+    <loc>https://packingrecorder.com/terms</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://packingrecorder.com/purchase.html</loc>
+    <loc>https://packingrecorder.com/purchase</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>

@@ -371,6 +371,9 @@ async function buildStation(cfg, fullSize) {
     currentShippingCode: null,
     timerInterval: null,
     timerSeconds: 0,
+    overlayAnimFrame: null,
+    overlayCanvas: null,
+    hiddenVideo: null,
     elements: {}
   };
   stations.set(sid, stateObj);
@@ -581,7 +584,102 @@ function createFakeStream() {
   return canvas.captureStream(15);
 }
 
-// ─── Voice announcements ──────────────────────────────────────────────────────
+// ─── Video overlay compositing ─────────────────────────────────────────────────
+// The raw camera stream is kept on the preview <video> element unchanged.
+// For the saved recording we composite the camera into a hidden canvas and add
+// a shipping-code label, live timestamp (bottom-left) and watermark (top-right).
+
+function startCanvasOverlay(sid, code) {
+  const st = stations.get(sid);
+  if (!st || !st.stream) return;
+
+  const track = st.stream.getVideoTracks()[0];
+  const settings = track ? track.getSettings() : {};
+  const w = settings.width  || 640;
+  const h = settings.height || 480;
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+
+  const vid = document.createElement('video');
+  vid.srcObject = st.stream;
+  vid.muted = true;
+  vid.playsInline = true;
+  vid.play().catch(() => {});
+
+  st.overlayCanvas = canvas;
+  st.hiddenVideo   = vid;
+
+  function tick() {
+    drawVideoOverlay(ctx, w, h, vid, code);
+    st.overlayAnimFrame = requestAnimationFrame(tick);
+  }
+  st.overlayAnimFrame = requestAnimationFrame(tick);
+}
+
+function stopCanvasOverlay(sid) {
+  const st = stations.get(sid);
+  if (!st) return;
+  if (st.overlayAnimFrame !== null) {
+    cancelAnimationFrame(st.overlayAnimFrame);
+    st.overlayAnimFrame = null;
+  }
+  if (st.hiddenVideo) {
+    st.hiddenVideo.srcObject = null;
+    st.hiddenVideo = null;
+  }
+  st.overlayCanvas = null;
+}
+
+function drawVideoOverlay(ctx, w, h, vid, code) {
+  // Draw camera frame
+  if (vid.readyState >= 2) {
+    ctx.drawImage(vid, 0, 0, w, h);
+  } else {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  const now    = new Date();
+  const ts     = now.getFullYear() + '-' +
+                 String(now.getMonth() + 1).padStart(2, '0') + '-' +
+                 String(now.getDate()).padStart(2, '0') + '  ' +
+                 String(now.getHours()).padStart(2, '0') + ':' +
+                 String(now.getMinutes()).padStart(2, '0') + ':' +
+                 String(now.getSeconds()).padStart(2, '0');
+  const label  = code || '';
+  const margin = 14;
+  const fsBig  = Math.max(14, Math.round(h * 0.036));
+  const fsSmall = Math.max(12, Math.round(h * 0.028));
+
+  // Bottom-left: shipping code (bold) + timestamp
+  ctx.textAlign    = 'left';
+  ctx.textBaseline = 'bottom';
+  if (label) {
+    ctx.font      = `bold ${fsBig}px monospace`;
+    const tw      = ctx.measureText(label).width;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(margin - 4, h - margin - fsBig - fsSmall - 6, tw + 8, fsBig + 4);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(label, margin, h - margin - fsSmall - 6);
+  }
+  ctx.font      = `${fsSmall}px monospace`;
+  const tsW     = ctx.measureText(ts).width;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(margin - 4, h - margin - fsSmall, tsW + 8, fsSmall + 4);
+  ctx.fillStyle = '#e2e8f0';
+  ctx.fillText(ts, margin, h - margin);
+
+  // Top-right: watermark
+  const wmText = 'Packing Recorder';
+  ctx.font      = `${fsSmall}px sans-serif`;
+  ctx.textAlign    = 'right';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.fillText(wmText, w - margin, margin);
+}
 
 // Tracks the currently playing audio so it can be stopped before the next clip
 let _currentVoiceAudio = null;
@@ -963,9 +1061,16 @@ async function startRecording(sid, code) {
   const mimeType = getSupportedMimeType();
   const options = mimeType ? { mimeType } : {};
 
+  // Start canvas compositing overlay; record from canvas stream
+  startCanvasOverlay(sid, code);
+  const recordStream = (st.overlayCanvas && st.overlayCanvas.captureStream)
+    ? st.overlayCanvas.captureStream(30)
+    : st.stream;
+
   try {
-    st.mediaRecorder = new MediaRecorder(st.stream, options);
+    st.mediaRecorder = new MediaRecorder(recordStream, options);
   } catch (err) {
+    stopCanvasOverlay(sid);
     await window.electronAPI.abortVideoWrite(sid).catch(() => {});
     if (stations.size === 1 && statusMessage) {
       setStatus('waiting', t('status.failedStartRecorder', err.message));
@@ -985,6 +1090,7 @@ async function startRecording(sid, code) {
   };
 
   st.mediaRecorder.onstop = () => {
+    stopCanvasOverlay(sid);
     st.writeQueue.then(() => saveStationRecording(sid)).catch(() => saveStationRecording(sid));
   };
 
@@ -1059,6 +1165,7 @@ async function saveStationRecording(sid) {
     if (stations.size === 1 && statusMessage) {
       setStatus('waiting', t('status.errorSaving', err.message));
     }
+    stopCanvasOverlay(sid);
     await window.electronAPI.abortVideoWrite(sid).catch(() => {});
     if (stationWindowId) {
       window.electronAPI.notifyDashboard({ type: 'recording-aborted', stationId: sid }).catch(() => {});
@@ -1692,7 +1799,32 @@ function showBuyOverlay(mode) {
     if (overlayTitle) overlayTitle.textContent = t('overlay.title');
     if (overlaySub)   overlaySub.textContent   = t('overlay.sub');
     if (buyControls)  buyControls.classList.remove('hidden');
+    // Fetch live pricing from server
+    updateOverlayPricing();
   }
+}
+
+/** Fetches /pricing and updates the overlay price display dynamically. */
+function updateOverlayPricing() {
+  const effectiveEl = document.getElementById('overlay-price-effective');
+  const originalEl  = document.getElementById('overlay-price-original');
+  const badgeEl     = document.getElementById('overlay-promo-badge');
+  const fmt = n => 'Rp ' + Number(n).toLocaleString('id-ID');
+  const voiceLocale = appSettings.voiceLocale || 'id';
+
+  window.electronAPI.fetchPricing()
+    .then(data => {
+      if (!data) return;
+      if (effectiveEl) effectiveEl.textContent = fmt(data.effectivePrice);
+      if (data.promoActive) {
+        if (originalEl) { originalEl.textContent = fmt(data.publishedPrice); originalEl.classList.remove('hidden'); }
+        if (badgeEl)    { badgeEl.textContent = voiceLocale === 'id' ? data.promoLabelId : data.promoLabelEn; badgeEl.classList.remove('hidden'); }
+      } else {
+        if (originalEl) originalEl.classList.add('hidden');
+        if (badgeEl)    badgeEl.classList.add('hidden');
+      }
+    })
+    .catch(() => { /* silently keep static fallback */ });
 }
 
 function setAuthFeedback(type, msg) {

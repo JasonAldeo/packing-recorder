@@ -22,7 +22,7 @@
 ```
 558:      <div class="faq-q" data-i18n="faq.q5">Apakah bisa dipakai tanpa internet?</div>
 559:      <div class="faq-a" data-i18n="faq.a5">Ya. Setelah login, aplikasi bisa digunakan secara offline. Validasi lisensi di-cache selama 24 jam — kamu tetap bisa merekam meskipun tidak ada koneksi internet.</div>
-572:  <p>&copy; 2025 Aldeo Studio &nbsp;&middot;&nbsp; <a href="mailto:aldeojason@gmail.com">aldeojason@gmail.com</a> &nbsp;&middot;&nbsp; <a href="/" data-i18n="footer.home">Beranda</a> &nbsp;&middot;&nbsp; <a href="/terms.html" data-i18n="footer.terms">Syarat &amp; Ketentuan</a></p>
+572:  <p>&copy; 2026 Aldeo Studio &nbsp;&middot;&nbsp; <a href="mailto:aldeojason@gmail.com">aldeojason@gmail.com</a> &nbsp;&middot;&nbsp; <a href="/" data-i18n="footer.home">Beranda</a> &nbsp;&middot;&nbsp; <a href="/terms.html" data-i18n="footer.terms">Syarat &amp; Ketentuan</a></p>
 662:      'faq.q5':             'Apakah bisa dipakai tanpa internet?',
 663:      'faq.a5':             'Ya. Setelah login, aplikasi bisa digunakan secara offline. Validasi lisensi di-cache selama 24 jam — kamu tetap bisa merekam meskipun tidak ada koneksi internet.',
 664:      'footer.home':        'Beranda',

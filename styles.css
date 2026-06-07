@@ -1232,6 +1232,30 @@ body {
   font-weight: 500;
 }
 
+.license-price-amounts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.license-price-original {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+
+.license-promo-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #3b5bdb, #7c3aed);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 20px;
+  text-align: center;
+}
+
 .license-price-amount {
   font-size: 1.2rem;
   font-weight: 800;
