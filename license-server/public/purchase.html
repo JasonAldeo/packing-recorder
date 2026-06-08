@@ -132,8 +132,8 @@
       color: #fff;
       padding: 2px 8px;
       border-radius: 20px;
-      margin-left: 6px;
-      vertical-align: middle;
+      margin-top: 4px;
+      white-space: nowrap;
     }
     .price-note { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; }
 
@@ -345,7 +345,8 @@
       </div>
       <div style="text-align:right;">
         <div class="price-original" id="price-original"></div>
-        <div class="price-amount" id="price-amount">Rp 199.000 <span class="price-promo-badge" id="price-promo-badge"></span></div>
+        <div class="price-amount" id="price-amount">Rp 199.000</div>
+        <div class="price-promo-badge" id="price-promo-badge"></div>
       </div>
     </div>
 
@@ -415,7 +416,7 @@
       if (amountEl) amountEl.childNodes[0].textContent = fmt(data.effectivePrice) + ' ';
       if (data.promoActive) {
         if (originalEl) { originalEl.textContent = fmt(data.publishedPrice); originalEl.style.display = 'block'; }
-        if (badgeEl)    { badgeEl.textContent = data.promoLabelId; badgeEl.style.display = 'inline'; }
+        if (badgeEl)    { badgeEl.textContent = data.promoLabelId; badgeEl.style.display = 'inline-block'; }
       }
     })
     .catch(() => { /* silently ignore */ });

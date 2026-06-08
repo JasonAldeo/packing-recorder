@@ -572,6 +572,11 @@
       letter-spacing: 0.5px;
       padding: 2px 10px;
       border-radius: 20px;
+      margin-bottom: 2px;
+    }
+    .pricing-promo-ends {
+      font-size: 0.72rem;
+      color: var(--light);
       margin-bottom: 4px;
     }
     .pricing-price span {
@@ -1117,6 +1122,7 @@
         <div class="pricing-badge" data-i18n="plan2.badge">Paling Populer</div>
         <div class="pricing-name" data-i18n="plan2.name">Lisensi Aktif</div>
         <div id="pricing-promo-badge" class="pricing-promo-badge" style="display:none;"></div>
+        <div id="pricing-promo-ends" class="pricing-promo-ends" style="display:none;"></div>
         <div id="pricing-original" class="pricing-price-original" style="display:none;"></div>
         <div class="pricing-price" id="pricing-effective">Rp 199.000 <span data-i18n="plan2.per">/ 30 hari</span></div>
         <div class="pricing-period" data-i18n="plan2.period">Dapat diperpanjang kapan saja</div>
@@ -1333,7 +1339,7 @@
       'sysreq.scanner.title':   'Barcode Scanner',
       'sysreq.scanner.spec':    'USB 2D scanner with QR Code support',
       'sysreq.internet.title':  'Internet',
-      'sysreq.internet.spec':   'Required for login &amp; license checks. Licensed users: up to 24 h offline.',
+      'sysreq.internet.spec':   'Required for login &amp; license checks. Licensed users: up to 24 hours offline.',
       'screenshots.label':      'App Preview',
       'screenshots.title':      'See It in Action',
       'ss.scan':                'Scan &amp; Record',
@@ -1441,6 +1447,7 @@
       const effectiveEl = document.getElementById('pricing-effective');
       const originalEl  = document.getElementById('pricing-original');
       const promoBadge  = document.getElementById('pricing-promo-badge');
+      const promoEndsEl = document.getElementById('pricing-promo-ends');
 
       if (effectiveEl) effectiveEl.innerHTML = `${fmt(data.effectivePrice)} <span>${perLabel}</span>`;
 
@@ -1449,6 +1456,13 @@
         if (promoBadge)  {
           promoBadge.textContent = currentLang === 'id' ? data.promoLabelId : data.promoLabelEn;
           promoBadge.style.display = '';
+        }
+        if (promoEndsEl && data.promoEndsAt) {
+          const d = new Date(data.promoEndsAt);
+          const dateStr = d.toLocaleDateString(currentLang === 'id' ? 'id-ID' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+          const label = currentLang === 'id' ? `Promo s.d. ${dateStr}` : `Promo until ${dateStr}`;
+          promoEndsEl.textContent = label;
+          promoEndsEl.style.display = '';
         }
       }
     })
