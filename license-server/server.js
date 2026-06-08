@@ -562,10 +562,20 @@ function requireAdmin(req, res, next) {
 
 /**
  * GET /admin
- * Serves the admin panel HTML (Basic Auth protected).
+ * Serves the admin panel HTML — no server-side auth here; the page handles
+ * its own login gate and sends Basic credentials on every API call.
  */
-app.get('/admin', requireAdmin, (req, res) => {
+app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+/**
+ * POST /admin/verify
+ * Public. Validates the admin password without performing any action.
+ * Returns 200 on success, 401 on wrong password. Used by the in-page login form.
+ */
+app.post('/admin/verify', requireAdmin, (req, res) => {
+  res.json({ ok: true });
 });
 
 /**

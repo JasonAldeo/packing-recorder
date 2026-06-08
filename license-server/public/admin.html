@@ -232,6 +232,84 @@
       gap: 12px;
       margin-bottom: 16px;
     }
+
+    /* ── Login overlay ── */
+    #login-overlay {
+      position: fixed;
+      inset: 0;
+      background: #0f172a;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    #login-overlay.hidden { display: none; }
+    .login-box {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 36px 32px 28px;
+      width: 100%;
+      max-width: 380px;
+    }
+    .login-logo {
+      width: 48px; height: 48px;
+      background: linear-gradient(135deg, #3b5bdb, #7c3aed);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 20px;
+    }
+    .login-logo svg { width: 26px; height: 26px; fill: #fff; }
+    .login-title {
+      text-align: center;
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #f1f5f9;
+      margin-bottom: 4px;
+    }
+    .login-sub {
+      text-align: center;
+      font-size: 0.78rem;
+      color: #475569;
+      margin-bottom: 24px;
+    }
+    .login-input {
+      width: 100%;
+      padding: 11px 14px;
+      background: #0f172a;
+      border: 1.5px solid #334155;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      color: #e2e8f0;
+      outline: none;
+      transition: border-color 0.15s;
+      margin-bottom: 12px;
+    }
+    .login-input:focus { border-color: #3b5bdb; }
+    .login-input::placeholder { color: #475569; }
+    .login-btn {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #3b5bdb, #7c3aed);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .login-error {
+      margin-top: 10px;
+      font-size: 0.8rem;
+      color: #f87171;
+      text-align: center;
+      min-height: 18px;
+    }
     .pricing-field label {
       display: block;
       font-size: 0.72rem;
@@ -408,10 +486,89 @@
   <div class="page-footer">Packing Recorder &mdash; Aldeo Studio &mdash; Admin Panel</div>
 
 </div>
+
+<!-- ── Login overlay ── -->
+<div id="login-overlay">
+  <div class="login-box">
+    <div class="login-logo">
+      <svg viewBox="0 0 24 24"><path d="M17 3H7c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3-8H9V7h6v2z"/></svg>
+    </div>
+    <div class="login-title">Admin Panel</div>
+    <div class="login-sub">Packing Recorder — Aldeo Studio</div>
+    <input class="login-input" type="password" id="login-password" placeholder="Admin password" autocomplete="current-password" />
+    <button class="login-btn" id="login-btn" onclick="adminLogin()">Sign In</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
 <script>
   const SERVER = '';
   let currentEmail = null;
   let _currentConfig = {}; // in-memory cache so each save button can merge both cards
+
+  // ── Auth helpers ─────────────────────────────────────────────────────────────
+  function getAuthHeader() {
+    const token = sessionStorage.getItem('adminToken');
+    return token ? { 'Authorization': 'Basic ' + token } : {};
+  }
+
+  function authFetch(url, options = {}) {
+    options.headers = Object.assign({}, options.headers || {}, getAuthHeader());
+    return fetch(url, options);
+  }
+
+  async function adminLogin() {
+    const pw  = document.getElementById('login-password').value;
+    const err = document.getElementById('login-error');
+    const btn = document.getElementById('login-btn');
+    if (!pw) { err.textContent = 'Please enter the admin password.'; return; }
+
+    err.textContent = '';
+    btn.disabled = true;
+    btn.textContent = 'Signing in…';
+
+    const token = btoa(':' + pw); // Basic auth: ":password" in base64
+    try {
+      const res = await fetch(`${SERVER}/admin/verify`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Basic ' + token },
+      });
+      if (res.ok) {
+        sessionStorage.setItem('adminToken', token);
+        document.getElementById('login-overlay').classList.add('hidden');
+        initPage();
+      } else {
+        err.textContent = 'Incorrect password. Please try again.';
+        document.getElementById('login-password').value = '';
+        document.getElementById('login-password').focus();
+      }
+    } catch (e) {
+      err.textContent = 'Network error. Please try again.';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+    }
+  }
+
+  // On load: if already authenticated this session, skip login screen
+  window.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('login-password').addEventListener('keydown', e => {
+      if (e.key === 'Enter') adminLogin();
+    });
+    if (sessionStorage.getItem('adminToken')) {
+      document.getElementById('login-overlay').classList.add('hidden');
+      initPage();
+    } else {
+      document.getElementById('login-password').focus();
+    }
+  });
+
+  function initPage() {
+    document.getElementById('email-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') lookupUser();
+    });
+    loadPricing();
+  }
 
   function showFeedback(elId, type, msg) {
     const el = document.getElementById(elId);
@@ -442,7 +599,7 @@
     btn.textContent = 'Looking up…';
 
     try {
-      const res = await fetch(`${SERVER}/admin/lookup-user`, {
+      const res = await authFetch(`${SERVER}/admin/lookup-user`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -524,7 +681,7 @@
     btn.textContent = 'Granting…';
 
     try {
-      const res = await fetch(`${SERVER}/admin/grant-license`, {
+      const res = await authFetch(`${SERVER}/admin/grant-license`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: currentEmail }),
@@ -554,9 +711,7 @@
   // Allow pressing Enter in the email input to trigger lookup
   document.getElementById('email-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') lookupUser();
-  });
-
-  // ── Pricing ──────────────────────────────────────────────────────────────────
+  });  // ── Pricing ──────────────────────────────────────────────────────────────────
 
   function formatIDR(amount) {
     return 'Rp ' + Number(amount).toLocaleString('id-ID');
@@ -572,7 +727,7 @@
 
   async function loadPricing() {
     try {
-      const res = await fetch(`${SERVER}/pricing`);
+      const res = await authFetch(`${SERVER}/pricing`);
       const data = await res.json();
       _currentConfig = { ...data };
       populatePricingFields(data);
@@ -643,7 +798,7 @@
     btn.textContent = 'Saving…';
 
     try {
-      const res = await fetch(`${SERVER}/admin/set-pricing`, {
+      const res = await authFetch(`${SERVER}/admin/set-pricing`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ publishedPrice, rsp, promoLabelId, promoLabelEn, promoEndsAt }),
@@ -690,7 +845,7 @@
     btn.textContent = 'Saving…';
 
     try {
-      const res = await fetch(`${SERVER}/admin/set-pricing`, {
+      const res = await authFetch(`${SERVER}/admin/set-pricing`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ publishedPrice, rsp, promoLabelId, promoLabelEn, promoEndsAt }),
@@ -717,9 +872,6 @@
       btn.textContent = 'Save Promo';
     }
   }
-
-  // Load current pricing on page load
-  loadPricing();
 </script>
 </body>
 </html>
