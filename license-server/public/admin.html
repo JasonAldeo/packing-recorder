@@ -361,7 +361,7 @@
 
   <!-- Pricing Management -->
   <div class="card">
-    <div class="card-title">Pricing Management</div>
+    <div class="card-title">Pricing</div>
 
     <div class="pricing-grid">
       <div class="pricing-field">
@@ -372,6 +372,19 @@
         <label>RSP / Selling Price (IDR)</label>
         <input type="number" id="price-rsp" placeholder="149000" min="1" />
       </div>
+    </div>
+
+    <div class="pricing-status" id="pricing-status">Loading current pricing…</div>
+
+    <button class="btn btn-save-pricing" id="save-pricing-btn" onclick="savePricing()">Save Pricing</button>
+    <div id="pricing-feedback" class="feedback"></div>
+  </div>
+
+  <!-- Promo Banner -->
+  <div class="card">
+    <div class="card-title">Promo Banner</div>
+
+    <div class="pricing-grid">
       <div class="pricing-field">
         <label>Promo Label (Indonesian)</label>
         <input type="text" id="promo-label-id" placeholder="Promo Peluncuran" />
@@ -386,10 +399,10 @@
       </div>
     </div>
 
-    <div class="pricing-status" id="pricing-status">Loading current pricing…</div>
+    <div class="pricing-status" id="promo-status">Loading promo status…</div>
 
-    <button class="btn btn-save-pricing" id="save-pricing-btn" onclick="savePricing()">Save Pricing</button>
-    <div id="pricing-feedback" class="feedback"></div>
+    <button class="btn btn-save-pricing" id="save-promo-btn" onclick="savePromo()">Save Promo</button>
+    <div id="promo-feedback" class="feedback"></div>
   </div>
 
   <div class="page-footer">Packing Recorder &mdash; Aldeo Studio &mdash; Admin Panel</div>
@@ -398,6 +411,7 @@
 <script>
   const SERVER = '';
   let currentEmail = null;
+  let _currentConfig = {}; // in-memory cache so each save button can merge both cards
 
   function showFeedback(elId, type, msg) {
     const el = document.getElementById(elId);
@@ -560,20 +574,26 @@
     try {
       const res = await fetch(`${SERVER}/pricing`);
       const data = await res.json();
-      populatePricingForm(data);
+      _currentConfig = { ...data };
+      populatePricingFields(data);
+      populatePromoFields(data);
       renderPricingStatus(data);
+      renderPromoStatus(data);
     } catch (err) {
       document.getElementById('pricing-status').textContent = 'Failed to load pricing.';
+      document.getElementById('promo-status').textContent = 'Failed to load promo.';
     }
   }
 
-  function populatePricingForm(data) {
+  function populatePricingFields(data) {
     document.getElementById('price-published').value = data.publishedPrice || '';
     document.getElementById('price-rsp').value = data.rsp || '';
+  }
+
+  function populatePromoFields(data) {
     document.getElementById('promo-label-id').value = data.promoLabelId || '';
     document.getElementById('promo-label-en').value = data.promoLabelEn || '';
     if (data.promoEndsAt) {
-      // Convert ISO to datetime-local format (YYYY-MM-DDTHH:MM)
       const d = new Date(data.promoEndsAt);
       const pad = n => String(n).padStart(2, '0');
       document.getElementById('promo-ends-at').value =
@@ -585,28 +605,37 @@
 
   function renderPricingStatus(data) {
     const statusEl = document.getElementById('pricing-status');
+    statusEl.innerHTML = `
+      <div>Effective price charged: <span class="eff-price">${formatIDR(data.effectivePrice)}</span></div>
+      <div style="margin-top:4px">Published: ${formatIDR(data.publishedPrice)} &nbsp;|&nbsp; RSP: ${formatIDR(data.rsp)}</div>
+    `;
+  }
+
+  function renderPromoStatus(data) {
+    const statusEl = document.getElementById('promo-status');
+    if (!statusEl) return;
     const promoHtml = data.promoActive
       ? `<span class="promo-badge">${data.promoLabelEn}</span> — ends ${formatDateLocal(data.promoEndsAt)}`
       : '<span style="color:#f87171">No active promo</span>';
     statusEl.innerHTML = `
-      <div>Effective price charged: <span class="eff-price">${formatIDR(data.effectivePrice)}</span></div>
-      <div style="margin-top:4px">Published: ${formatIDR(data.publishedPrice)} &nbsp;|&nbsp; RSP: ${formatIDR(data.rsp)}</div>
-      <div style="margin-top:4px">Promo: ${promoHtml}</div>
+      <div>Status: ${promoHtml}</div>
+      <div style="margin-top:4px">Label ID: ${data.promoLabelId || '—'} &nbsp;|&nbsp; Label EN: ${data.promoLabelEn || '—'}</div>
     `;
   }
 
   async function savePricing() {
     const publishedPrice = document.getElementById('price-published').value;
     const rsp            = document.getElementById('price-rsp').value;
-    const promoLabelId   = document.getElementById('promo-label-id').value.trim();
-    const promoLabelEn   = document.getElementById('promo-label-en').value.trim();
-    const promoEndsAtRaw = document.getElementById('promo-ends-at').value;
-    const promoEndsAt    = promoEndsAtRaw ? new Date(promoEndsAtRaw).toISOString() : null;
 
     if (!publishedPrice || !rsp) {
       showFeedback('pricing-feedback', 'error', 'Published price and RSP are required.');
       return;
     }
+
+    // Merge with cached promo values
+    const promoLabelId = _currentConfig.promoLabelId || '';
+    const promoLabelEn = _currentConfig.promoLabelEn || '';
+    const promoEndsAt  = _currentConfig.promoEndsAt  || null;
 
     hideFeedback('pricing-feedback');
     const btn = document.getElementById('save-pricing-btn');
@@ -626,7 +655,9 @@
         return;
       }
 
+      _currentConfig = { ..._currentConfig, ...data };
       renderPricingStatus(data);
+      renderPromoStatus(data);
       showFeedback('pricing-feedback', 'success',
         `✓ Pricing saved. Customers are now charged ${formatIDR(data.effectivePrice)}.`
       );
@@ -635,6 +666,55 @@
     } finally {
       btn.disabled = false;
       btn.textContent = 'Save Pricing';
+    }
+  }
+
+  async function savePromo() {
+    const promoLabelId   = document.getElementById('promo-label-id').value.trim();
+    const promoLabelEn   = document.getElementById('promo-label-en').value.trim();
+    const promoEndsAtRaw = document.getElementById('promo-ends-at').value;
+    const promoEndsAt    = promoEndsAtRaw ? new Date(promoEndsAtRaw).toISOString() : null;
+
+    // Merge with cached price values
+    const publishedPrice = _currentConfig.publishedPrice || '';
+    const rsp            = _currentConfig.rsp            || '';
+
+    if (!publishedPrice || !rsp) {
+      showFeedback('promo-feedback', 'error', 'Pricing must be loaded before saving promo. Refresh the page.');
+      return;
+    }
+
+    hideFeedback('promo-feedback');
+    const btn = document.getElementById('save-promo-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    try {
+      const res = await fetch(`${SERVER}/admin/set-pricing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publishedPrice, rsp, promoLabelId, promoLabelEn, promoEndsAt }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showFeedback('promo-feedback', 'error', data.error || 'Failed to save promo.');
+        return;
+      }
+
+      _currentConfig = { ..._currentConfig, ...data };
+      renderPricingStatus(data);
+      renderPromoStatus(data);
+      showFeedback('promo-feedback', 'success',
+        data.promoActive
+          ? `✓ Promo active — customers pay ${formatIDR(data.effectivePrice)} until ${formatDateLocal(data.promoEndsAt)}.`
+          : '✓ Promo disabled.'
+      );
+    } catch (err) {
+      showFeedback('promo-feedback', 'error', 'Network error. Please try again.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Save Promo';
     }
   }
 

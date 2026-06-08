@@ -808,6 +808,61 @@
     }
     .dl-banner-close:hover { color: #fff; }
 
+    /* ── Promo banner ── */
+    .promo-banner {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: linear-gradient(135deg, #3b5bdb, #7c3aed);
+      color: #fff;
+      padding: 16px 60px 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      font-size: 0.92rem;
+      z-index: 199;
+      transform: translateY(100%);
+      transition: transform 0.35s ease;
+      box-shadow: 0 -4px 24px rgba(59,91,219,0.35);
+      flex-wrap: wrap;
+    }
+    .promo-banner.visible { transform: translateY(0); }
+    .promo-banner-label {
+      font-weight: 800;
+      font-size: 1rem;
+      letter-spacing: 0.2px;
+    }
+    .promo-banner-detail {
+      opacity: 0.88;
+      white-space: nowrap;
+    }
+    .promo-banner-link {
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      white-space: nowrap;
+      transition: background 0.15s;
+    }
+    .promo-banner-link:hover { background: rgba(255,255,255,0.35); }
+    .promo-banner-close {
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.7);
+      cursor: pointer;
+      font-size: 1.35rem;
+      line-height: 1;
+      padding: 4px 8px;
+    }
+    .promo-banner-close:hover { color: #fff; }
+
     /* ── Install FAQ collapsible ── */
     .install-faq { margin-top: 14px; font-size: 0.82rem; text-align: center; }
     .install-faq summary {
@@ -1165,6 +1220,14 @@
   </div>
 </section>
 
+<!-- ── Promo banner ── -->
+<div id="promo-banner" class="promo-banner">
+  <span class="promo-banner-label" id="promo-banner-label"></span>
+  <span class="promo-banner-detail" id="promo-banner-detail"></span>
+  <a class="promo-banner-link" id="promo-banner-link" href="#pricing"></a>
+  <button class="promo-banner-close" onclick="hidePromoBanner()" aria-label="Close">&times;</button>
+</div>
+
 <!-- ── Post-download banner ── -->
 <div id="dl-banner" class="dl-banner">
   <span data-i18n="dl.bannerMsg">&#8681; Download dimulai. Pertama kali instal di Windows? <a href="/tutorial#quickstart">Lihat panduan instalasi &rarr;</a></span>
@@ -1390,6 +1453,7 @@
 
   // ── Language switcher ───────────────────────────────────────────────────────
   let currentLang = localStorage.getItem('pr_site_lang') || 'id';
+  let _pricingData = null; // cached so setLang can re-render promo elements
 
   function setLang(lang) {
     currentLang = lang;
@@ -1405,6 +1469,26 @@
         el.innerHTML = texts[key];
       }
     });
+
+    // Re-render promo elements that were set imperatively from fetch data
+    if (_pricingData && _pricingData.promoActive) {
+      const fmt = n => 'Rp ' + Number(n).toLocaleString('id-ID');
+
+      const promoBadge  = document.getElementById('pricing-promo-badge');
+      const promoEndsEl = document.getElementById('pricing-promo-ends');
+
+      if (promoBadge && promoBadge.style.display !== 'none') {
+        promoBadge.textContent = lang === 'id' ? _pricingData.promoLabelId : _pricingData.promoLabelEn;
+      }
+      if (promoEndsEl && _pricingData.promoEndsAt && promoEndsEl.style.display !== 'none') {
+        const d = new Date(_pricingData.promoEndsAt);
+        const dateStr = d.toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+        promoEndsEl.textContent = lang === 'id' ? `Promo s.d. ${dateStr}` : `Promo until ${dateStr}`;
+      }
+
+      // Update bottom promo banner if visible
+      renderPromoBanner(lang);
+    }
   }
 
   // Apply on load
@@ -1441,6 +1525,7 @@
   fetch('/pricing')
     .then(r => r.json())
     .then(data => {
+      _pricingData = data;
       const perLabel = currentLang === 'id' ? '/ 30 hari' : '/ 30 days';
       const fmt = n => 'Rp ' + Number(n).toLocaleString('id-ID');
 
@@ -1464,6 +1549,14 @@
           promoEndsEl.textContent = label;
           promoEndsEl.style.display = '';
         }
+        // Show promo banner (bottom pill) unless dismissed this session
+        if (!sessionStorage.getItem('promoBannerDismissed')) {
+          renderPromoBanner(currentLang);
+          setTimeout(() => {
+            const b = document.getElementById('promo-banner');
+            if (b) b.classList.add('visible');
+          }, 500);
+        }
       }
     })
     .catch(() => { /* silently ignore */ });
@@ -1475,6 +1568,37 @@
   }
   function hideDownloadBanner() {
     const b = document.getElementById('dl-banner');
+    if (b) b.classList.remove('visible');
+  }
+
+  // ── Promo banner ─────────────────────────────────────────────────────────────
+  function renderPromoBanner(lang) {
+    if (!_pricingData || !_pricingData.promoActive) return;
+    const fmt = n => 'Rp ' + Number(n).toLocaleString('id-ID');
+
+    const labelEl  = document.getElementById('promo-banner-label');
+    const detailEl = document.getElementById('promo-banner-detail');
+    const linkEl   = document.getElementById('promo-banner-link');
+
+    const promoLabel = lang === 'id' ? _pricingData.promoLabelId : _pricingData.promoLabelEn;
+    const price      = fmt(_pricingData.effectivePrice);
+    const period     = lang === 'id' ? '/ 30 hari' : '/ 30 days';
+
+    let detail = `${price} ${period}`;
+    if (_pricingData.promoEndsAt) {
+      const d = new Date(_pricingData.promoEndsAt);
+      const dateStr = d.toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      detail += lang === 'id' ? `  ·  s.d. ${dateStr}` : `  ·  until ${dateStr}`;
+    }
+
+    if (labelEl)  labelEl.textContent  = `🎉  ${promoLabel}`;
+    if (detailEl) detailEl.textContent = `— ${detail}`;
+    if (linkEl)   linkEl.textContent   = lang === 'id' ? 'Lihat Harga ↓' : 'See Pricing ↓';
+  }
+
+  function hidePromoBanner() {
+    sessionStorage.setItem('promoBannerDismissed', '1');
+    const b = document.getElementById('promo-banner');
     if (b) b.classList.remove('visible');
   }
 </script>
