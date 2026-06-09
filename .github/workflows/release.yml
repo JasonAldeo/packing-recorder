@@ -26,7 +26,9 @@ jobs:
 
       - name: Set version from tag
         shell: pwsh
-        run: npm version ${{ github.ref_name }} --no-git-tag-version
+        run: |
+          $version = "${{ github.ref_name }}" -replace '^v', ''
+          npm version $version --no-git-tag-version
 
       - name: Build Windows installer (unsigned)
         run: npm run dist -- -p never
