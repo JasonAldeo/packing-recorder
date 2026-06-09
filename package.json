@@ -1,9 +1,9 @@
 {
   "name": "packing-recorder",
-  "version": "2.1.6",
+  "version": "3.3.0",
   "description": "Packing video recording system with barcode scanner support",
   "author": {
-    "name": "Jason Aldeo Leonard",
+    "name": "Aldeo Studio",
     "email": "aldeojason@gmail.com"
   },
   "main": "main.js",
@@ -14,6 +14,7 @@
   "build": {
     "appId": "com.packingrecorder.app",
     "productName": "Packing Recorder",
+    "copyright": "Copyright © 2026 Aldeo Studio",
     "directories": {
       "output": "dist"
     },
@@ -31,18 +32,23 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "icon.ico"
+      "icon": "icon.ico",
+      "publisherName": "Aldeo Studio",
+      "fileDescription": "Packing Recorder — Automatic packing video recorder",
+      "legalTrademarks": "Packing Recorder is a trademark of Aldeo Studio",
+      "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "shortcutName": "Packing Recorder"
     },
     "artifactName": "PackingRecorder-Setup.exe",
     "publish": {
       "provider": "github",
-      "owner": "JasonAldeo",
+      "owner": "AldeoStudio",
       "repo": "packing-recorder"
     }
   },
