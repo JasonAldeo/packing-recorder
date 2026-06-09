@@ -11,10 +11,11 @@ const jwt = require('jsonwebtoken');
 // ─── Config ───────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY || '';
+const MIDTRANS_CLIENT_KEY = process.env.MIDTRANS_CLIENT_KEY || '';
 const IS_PRODUCTION = process.env.MIDTRANS_ENVIRONMENT === 'production';
-const MIDTRANS_BASE_URL = IS_PRODUCTION
-  ? 'https://api.midtrans.com/v2'
-  : 'https://api.sandbox.midtrans.com/v2';
+const MIDTRANS_SNAP_URL = IS_PRODUCTION
+  ? 'https://app.midtrans.com/snap/v1/transactions'
+  : 'https://app.sandbox.midtrans.com/snap/v1/transactions';
 const PRODUCT_PRICE = 75000; // IDR
 const LICENSE_DAYS = 30;
 const PAYMENT_DISABLED = process.env.PAYMENT_DISABLED === 'true';
@@ -154,10 +155,10 @@ function generateOrderId() {
   return `PR-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 }
 
-/** Calls Midtrans Core API to create a QRIS charge. */
-async function createMidtransQRIS(orderId, email) {
+/** Calls Midtrans Snap API to create a payment token. */
+async function createSnapToken(orderId, email) {
   const auth = Buffer.from(MIDTRANS_SERVER_KEY + ':').toString('base64');
-  const response = await fetch(`${MIDTRANS_BASE_URL}/charge`, {
+  const response = await fetch(MIDTRANS_SNAP_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -165,15 +166,13 @@ async function createMidtransQRIS(orderId, email) {
       'Authorization': `Basic ${auth}`,
     },
     body: JSON.stringify({
-      payment_type: 'qris',
       transaction_details: { order_id: orderId, gross_amount: getEffectivePrice(pricingConfig) },
-      qris: { acquirer: 'gopay' },
       customer_details: { email },
     }),
   });
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(`Midtrans error ${response.status}: ${data.status_message || JSON.stringify(data)}`);
+    throw new Error(`Midtrans error ${response.status}: ${data.error_messages ? data.error_messages.join(', ') : JSON.stringify(data)}`);
   }
   return data;
 }
@@ -428,8 +427,8 @@ app.get('/me', requireAuth, async (req, res) => {
 /**
  * POST /create-order
  * JWT required.
- * Creates a Midtrans QRIS charge and stores a pending order linked to the user.
- * Returns: { orderId, qrCodeUrl, expiryTime }
+ * Creates a Midtrans Snap token and stores a pending order linked to the user.
+ * Returns: { orderId, snapToken }
  */
 app.post('/create-order', requireAuth, createOrderLimiter, async (req, res) => {
   try {
@@ -443,17 +442,12 @@ app.post('/create-order', requireAuth, createOrderLimiter, async (req, res) => {
     );
     console.log(`[create-order] DB insert OK — orderId=${orderId} userId=${userId}`);
 
-    const charge = await createMidtransQRIS(orderId, email);
-    console.log(`[create-order] Midtrans response:`, JSON.stringify(charge));
-    const qrAction = (charge.actions || []).find(a => a.name === 'generate-qr-code');
-
-    console.log(`[create-order] qrAction=${qrAction ? qrAction.url : 'none'} qr_string=${charge.qr_string ? 'present' : 'missing'}`);
+    const snap = await createSnapToken(orderId, email);
+    console.log(`[create-order] Snap token created — orderId=${orderId}`);
 
     res.json({
       orderId,
-      qrCodeUrl: qrAction ? qrAction.url : (charge.qr_code_url || null),
-      qrString:  charge.qr_string || null,
-      expiryTime: charge.expiry_time,
+      snapToken: snap.token,
     });
   } catch (err) {
     console.error('[create-order]', err.stack || err.message || err);
@@ -760,6 +754,7 @@ app.get('/pricing', (req, res) => {
     effectivePrice: getEffectivePrice(pricingConfig),
     promoActive,
     paymentDisabled: PAYMENT_DISABLED,
+    clientKey: MIDTRANS_CLIENT_KEY,
   });
 });
 

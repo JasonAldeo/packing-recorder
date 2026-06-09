@@ -180,72 +180,6 @@
     }
     .hidden { display: none !important; }
 
-    /* ── QR Payment Section ── */
-    .qr-section { text-align: center; }
-    .qr-section h3 {
-      font-size: 1rem;
-      font-weight: 700;
-      margin-bottom: 4px;
-      color: #1e293b;
-    }
-    .qr-section p.sub {
-      font-size: 0.82rem;
-      color: #64748b;
-      margin-bottom: 18px;
-    }
-
-    .qr-frame {
-      display: inline-block;
-      background: #fff;
-      border: 3px solid #e2e8f0;
-      border-radius: 16px;
-      padding: 16px;
-      margin-bottom: 14px;
-    }
-    .qr-frame canvas, .qr-frame img {
-      width: 220px !important;
-      height: 220px !important;
-      display: block;
-      border-radius: 6px;
-    }
-
-    .expiry-row {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      font-size: 0.82rem;
-      color: #64748b;
-      margin-bottom: 18px;
-    }
-    .expiry-timer { font-weight: 700; color: #f59e0b; }
-    .expiry-timer.urgent { color: #dc2626; }
-
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-size: 0.82rem;
-      font-weight: 600;
-    }
-    .status-badge.waiting {
-      background: #fef9c3;
-      color: #92400e;
-    }
-
-    .spinner {
-      width: 14px;
-      height: 14px;
-      border: 2px solid currentColor;
-      border-top-color: transparent;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      display: inline-block;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
     /* ── Success ── */
     .success-section { text-align: center; }
     .success-icon {
@@ -315,7 +249,6 @@
     }
     .footer a { color: #3b5bdb; text-decoration: none; }
   </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 <div class="page-wrap">
@@ -362,7 +295,7 @@
       </div>
     </div>
 
-    <button class="btn-primary" id="pay-btn">Bayar dengan QRIS &rarr;</button>
+    <button class="btn-primary" id="pay-btn">Bayar Sekarang &rarr;</button>
     <div id="payment-notice" class="payment-notice hidden">
       ⚠ Pembayaran sementara tidak tersedia. Mohon tunggu beberapa saat.<br>
       <small>Payment is temporarily unavailable. Please check back shortly.</small>
@@ -370,31 +303,7 @@
     <div id="form-error" class="error-msg hidden"></div>
   </div>
 
-  <!-- Step 2: QR Code Payment -->
-  <div id="step-qr" class="card hidden">
-    <div class="qr-section">
-      <h3>Scan QRIS untuk Bayar</h3>
-      <p class="sub">Buka aplikasi dompet digital kamu (GoPay, OVO, DANA, dll.), lalu scan kode di bawah.</p>
-
-      <div class="qr-frame">
-        <div id="qr-canvas"></div>
-      </div>
-
-      <div class="expiry-row">
-        <span>Kode berlaku:</span>
-        <span id="expiry-timer" class="expiry-timer">–</span>
-      </div>
-
-      <div id="payment-status" class="status-badge waiting">
-        <span class="spinner"></span>
-        Menunggu pembayaran&hellip;
-      </div>
-
-      <div id="qr-error" class="error-msg hidden" style="margin-top:14px;"></div>
-    </div>
-  </div>
-
-  <!-- Step 3: Success -->
+  <!-- Step 2: Success -->
   <div id="step-success" class="card hidden">
     <div class="success-section">
       <div class="success-icon">🎉</div>
@@ -421,7 +330,7 @@
 <script>
   const SERVER = ''; // same origin
 
-  // ── Load dynamic pricing ──────────────────────────────────────────────────
+  // ── Load dynamic pricing + client key ────────────────────────────────────
   fetch(`${SERVER}/pricing`)
     .then(r => r.json())
     .then(data => {
@@ -438,6 +347,13 @@
         if (paymentNotice) paymentNotice.classList.remove('hidden');
         if (payBtn) { payBtn.disabled = true; payBtn.style.opacity = '0.5'; payBtn.style.cursor = 'not-allowed'; }
       }
+      // Dynamically inject the Midtrans Snap SDK with the client key
+      if (data.clientKey) {
+        const snapScript = document.createElement('script');
+        snapScript.src = 'https://app.midtrans.com/snap/snap.js';
+        snapScript.setAttribute('data-client-key', data.clientKey);
+        document.head.appendChild(snapScript);
+      }
     })
     .catch(() => { /* silently ignore */ });
 
@@ -447,24 +363,16 @@
 
   const authErrorSection = document.getElementById('auth-error-section');
   const stepPurchase     = document.getElementById('step-purchase');
-  const stepQR           = document.getElementById('step-qr');
   const stepSuccess      = document.getElementById('step-success');
   const payBtn           = document.getElementById('pay-btn');
   const formError        = document.getElementById('form-error');
   const paymentNotice    = document.getElementById('payment-notice');
-  const qrCanvas         = document.getElementById('qr-canvas');
-  const expiryTimerEl    = document.getElementById('expiry-timer');
-  const paymentStatus    = document.getElementById('payment-status');
-  const qrError          = document.getElementById('qr-error');
 
-  let qrCodeInstance = null;
+  let pollInterval  = null;
+  let currentOrderId = null;
   const licenseExpiryDisplay = document.getElementById('license-expiry-display');
   const userPill         = document.getElementById('user-pill');
   const userPillName     = document.getElementById('user-pill-name');
-
-  let pollInterval  = null;
-  let expiryInterval = null;
-  let currentOrderId = null;
 
   function show(el) { el.classList.remove('hidden'); }
   function hide(el) { el.classList.add('hidden'); }
@@ -481,14 +389,12 @@
       show(authErrorSection);
       return;
     }
-
     try {
       const res = await fetch(`${SERVER}/me`, {
         headers: { 'Authorization': `Bearer ${authToken}` }
       });
       if (!res.ok) throw new Error('Auth failed');
       const data = await res.json();
-
       userPillName.textContent = data.username;
       show(userPill);
       show(stepPurchase);
@@ -521,77 +427,52 @@
 
       currentOrderId = data.orderId;
 
-      // Show the QR step first so the container is visible before rendering
-      hide(stepPurchase);
-      show(stepQR);
+      // Open Midtrans Snap popup
+      window.snap.pay(data.snapToken, {
+        onSuccess: function(result) {
+          console.log('[snap] success', result);
+          showSuccess(null); // will be updated by polling
+          startPolling();
+        },
+        onPending: function(result) {
+          console.log('[snap] pending', result);
+          // Payment initiated (e.g. bank transfer) — poll for confirmation
+          startPolling();
+          payBtn.disabled = false;
+          payBtn.textContent = 'Bayar Sekarang →';
+        },
+        onError: function(result) {
+          console.log('[snap] error', result);
+          showError(formError, 'Pembayaran gagal. Silakan coba lagi.');
+          payBtn.disabled = false;
+          payBtn.textContent = 'Bayar Sekarang →';
+        },
+        onClose: function() {
+          // User closed the popup without completing payment
+          payBtn.disabled = false;
+          payBtn.textContent = 'Bayar Sekarang →';
+        },
+      });
 
-      // Render QR code from qr_string using qrcode.js
-      qrCanvas.innerHTML = '';
-      if (data.qrString) {
-        qrCodeInstance = new QRCode(qrCanvas, {
-          text: data.qrString,
-          width: 220,
-          height: 220,
-          colorDark: '#1e293b',
-          colorLight: '#ffffff',
-          correctLevel: QRCode.CorrectLevel.M,
-        });
-      } else {
-        // Fallback: show image from URL if qr_string unavailable
-        const img = document.createElement('img');
-        img.src = data.qrCodeUrl;
-        img.alt = 'QRIS QR Code';
-        qrCanvas.appendChild(img);
-      }
-
-      startExpiryCountdown(data.expiryTime);
-      startPolling();
     } catch (err) {
       showError(formError, err.message || 'Terjadi kesalahan. Coba lagi.');
       payBtn.disabled = false;
-      payBtn.textContent = 'Bayar dengan QRIS →';
+      payBtn.textContent = 'Bayar Sekarang →';
     }
   });
 
-  // ── Expiry countdown ───────────────────────────────────────────────────────
-  function startExpiryCountdown(expiryTimeStr) {
-    const expiryMs = new Date(expiryTimeStr.replace(' ', 'T')).getTime();
-
-    function tick() {
-      const remaining = Math.max(0, expiryMs - Date.now());
-      const mins = Math.floor(remaining / 60000);
-      const secs = Math.floor((remaining % 60000) / 1000);
-      expiryTimerEl.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-      if (remaining < 120000) expiryTimerEl.classList.add('urgent');
-      if (remaining === 0) {
-        clearInterval(expiryInterval);
-        expiryTimerEl.textContent = 'Kadaluarsa';
-        stopPolling();
-        paymentStatus.innerHTML = '❌ QR kode kadaluarsa. Muat ulang halaman untuk mencoba lagi.';
-        paymentStatus.className = 'status-badge';
-        paymentStatus.style.background = '#fef2f2';
-        paymentStatus.style.color = '#dc2626';
-      }
-    }
-    tick();
-    expiryInterval = setInterval(tick, 1000);
-  }
-
   // ── Poll for payment status ────────────────────────────────────────────────
   function startPolling() {
+    if (pollInterval) return;
     pollInterval = setInterval(async () => {
       try {
         const res = await fetch(`${SERVER}/check-order/${currentOrderId}`, {
           headers: { 'Authorization': `Bearer ${authToken}` }
         });
         const data = await res.json();
-
         if (data.status === 'paid') {
           stopPolling();
           showSuccess(data.licenseExpiresAt);
-        } else if (['expire', 'cancel', 'deny'].includes(data.status)) {
-          stopPolling();
-          showError(qrError, 'Pembayaran dibatalkan atau kadaluarsa. Muat ulang halaman untuk mencoba lagi.');
         }
       } catch (_) {
         // Network glitch — keep polling
@@ -600,13 +481,12 @@
   }
 
   function stopPolling() {
-    if (pollInterval)  { clearInterval(pollInterval);  pollInterval  = null; }
-    if (expiryInterval){ clearInterval(expiryInterval); expiryInterval = null; }
+    if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
   }
 
   // ── Show success ───────────────────────────────────────────────────────────
   function showSuccess(licenseExpiresAt) {
-    hide(stepQR);
+    hide(stepPurchase);
     licenseExpiryDisplay.textContent = licenseExpiresAt
       ? formatExpiry(licenseExpiresAt)
       : '—';
