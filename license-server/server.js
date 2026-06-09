@@ -176,6 +176,7 @@ async function createSnapToken(orderId, email) {
         },
       ],
       customer_details: { email },
+      language: 'id',
     }),
   });
   const data = await response.json();
