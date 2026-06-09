@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session, Menu } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
@@ -375,6 +375,58 @@ app.whenReady().then(() => {
 
   createWindow();
   runAutoDelete();
+
+  // ─── Application menu ────────────────────────────────────────────────────────
+  const menu = Menu.buildFromTemplate([
+    {
+      label: 'File',
+      submenu: [{ role: 'quit' }],
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' },
+      ],
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' },
+      ],
+    },
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'zoom' },
+        { role: 'close' },
+      ],
+    },
+    {
+      role: 'help',
+      submenu: [
+        {
+          label: 'Visit Packing Recorder Website',
+          click: () => shell.openExternal(LICENSE_SERVER_URL),
+        },
+      ],
+    },
+  ]);
+  Menu.setApplicationMenu(menu);
 
   // ─── Auto-updater ────────────────────────────────────────────────────────────
   autoUpdater.autoDownload = true;
