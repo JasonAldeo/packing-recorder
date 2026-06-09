@@ -34,7 +34,6 @@
       "target": "nsis",
       "icon": "icon.ico",
       "publisherName": "Aldeo Studio",
-      "fileDescription": "Packing Recorder — Automatic packing video recorder",
       "legalTrademarks": "Packing Recorder is a trademark of Aldeo Studio",
       "requestedExecutionLevel": "asInvoker"
     },
