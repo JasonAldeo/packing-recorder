@@ -167,6 +167,14 @@ async function createSnapToken(orderId, email) {
     },
     body: JSON.stringify({
       transaction_details: { order_id: orderId, gross_amount: getEffectivePrice(pricingConfig) },
+      item_details: [
+        {
+          id: 'license-30d',
+          price: getEffectivePrice(pricingConfig),
+          quantity: 1,
+          name: 'Lisensi 30 Hari - Packing Recorder',
+        },
+      ],
       customer_details: { email },
     }),
   });
