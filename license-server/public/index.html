@@ -913,7 +913,7 @@
         <button class="lang-btn" id="lang-en" onclick="setLang('en')">EN</button>
       </div>
       <a href="/tutorial" class="nav-guide-link" data-i18n="nav.guide">Panduan</a>
-      <a class="btn-nav-download" onclick="showDownloadBanner()" href="https://github.com/JasonAldeo/packing-recorder/releases/download/v3.2.0/PackingRecorder-Setup.exe">
+      <a class="btn-nav-download" onclick="showDownloadBanner()" href="https://github.com/JasonAldeo/packing-recorder/releases/latest/download/PackingRecorder-Setup.exe">
         <span data-i18n="nav.download">Download</span> &darr;
       </a>
     </div>
@@ -934,7 +934,7 @@
       Rekam packing otomatis setiap proses lewat scan barcode. Cari dan putar ulang rekaman kapan saja untuk membuktikan packing yang sudah selesai.
     </p>
     <div class="hero-actions">
-      <a class="btn-primary" onclick="showDownloadBanner()" href="https://github.com/JasonAldeo/packing-recorder/releases/download/v3.2.0/PackingRecorder-Setup.exe">
+      <a class="btn-primary" onclick="showDownloadBanner()" href="https://github.com/JasonAldeo/packing-recorder/releases/latest/download/PackingRecorder-Setup.exe">
         &#8681; <span data-i18n="hero.downloadBtn">Download Gratis</span>
       </a>
       <a class="btn-secondary" href="#pricing">
@@ -1205,7 +1205,7 @@
     <div class="section-label" data-i18n="dl.label">Download</div>
     <h2 class="section-title" data-i18n="dl.title">Siap mencoba?</h2>
     <p class="section-sub" data-i18n="dl.sub">Download gratis sekarang. Tidak perlu kartu kredit — langsung coba 14 hari penuh.</p>
-    <a class="btn-primary" onclick="showDownloadBanner()" href="https://github.com/JasonAldeo/packing-recorder/releases/download/v3.2.0/PackingRecorder-Setup.exe">
+    <a class="btn-primary" onclick="showDownloadBanner()" href="https://github.com/JasonAldeo/packing-recorder/releases/latest/download/PackingRecorder-Setup.exe">
       &#8681; <span data-i18n="dl.btn">Download Packing Recorder</span>
     </a>
     <details class="install-faq">
@@ -1507,12 +1507,17 @@
   }
 
   // ── Latest version ──────────────────────────────────────────────────────────
-  const PINNED_VERSION = 'v3.2.0';
-  const label = `App Version: ${PINNED_VERSION}`;
-  ['hero-version', 'dl-version'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) { el.textContent = label; el.style.display = ''; }
-  });
+  fetch('/latest-version')
+    .then(r => r.json())
+    .then(data => {
+      if (!data.version) return;
+      const label = `App Version: ${data.version}`;
+      ['hero-version', 'dl-version'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.textContent = label; el.style.display = ''; }
+      });
+    })
+    .catch(() => { /* silently ignore if server unreachable */ });
 
   // ── Pricing ─────────────────────────────────────────────────────────────────
   fetch('/pricing')
