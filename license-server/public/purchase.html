@@ -431,7 +431,8 @@
       window.snap.pay(data.snapToken, {
         onSuccess: function(result) {
           console.log('[snap] success', result);
-          showSuccess(null); // will be updated by polling
+          // Don't show success yet — wait for webhook + polling to confirm
+          // so the license expiry date is populated correctly
           startPolling();
         },
         onPending: function(result) {
@@ -464,6 +465,9 @@
   // ── Poll for payment status ────────────────────────────────────────────────
   function startPolling() {
     if (pollInterval) return;
+    // Show a waiting message while polling
+    payBtn.disabled = true;
+    payBtn.textContent = 'Memverifikasi pembayaran…';
     pollInterval = setInterval(async () => {
       try {
         const res = await fetch(`${SERVER}/check-order/${currentOrderId}`, {
