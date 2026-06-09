@@ -70,6 +70,8 @@
     // License overlay (expired, no license)
     'overlay.title': 'Trial Period Ended',
     'overlay.sub': 'Your 14-day free trial has expired. Purchase a license to continue using Packing Recorder.',
+    'overlay.licenseExpiredTitle': 'License Expired',
+    'overlay.licenseExpiredSub': 'Your license has expired. Renew it to continue using Packing Recorder.',
     'overlay.offlineTitle': 'No Internet Connection',
     'overlay.offlineSub':   'An internet connection is required to continue. Packing Recorder needs to verify your trial status every hour.',
     'overlay.offlineLicenseTitle': 'No Internet Connection',
@@ -313,6 +315,8 @@
     // License overlay (expired, no license)
     'overlay.title': 'Masa Percobaan Berakhir',
     'overlay.sub': 'Masa percobaan 14 hari Anda telah berakhir. Beli lisensi untuk terus menggunakan Packing Recorder.',
+    'overlay.licenseExpiredTitle': 'Lisensi Telah Berakhir',
+    'overlay.licenseExpiredSub': 'Lisensi Anda telah berakhir. Perpanjang untuk terus menggunakan Packing Recorder.',
     'overlay.offlineTitle': 'Tidak Ada Koneksi Internet',
     'overlay.offlineSub':   'Koneksi internet diperlukan untuk melanjutkan. Packing Recorder perlu memverifikasi status trial Anda setiap 1 jam.',
     'overlay.offlineLicenseTitle': 'Tidak Ada Koneksi Internet',

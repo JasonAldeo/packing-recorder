@@ -1401,6 +1401,20 @@ body {
 .license-btn-recover:hover { background: #eff6ff; }
 .license-btn-recover:disabled { opacity: 0.5; cursor: not-allowed; }
 
+.license-btn-text {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 6px 0;
+  text-decoration: underline;
+  display: block;
+  margin: 8px auto 0;
+}
+.license-btn-text:hover { color: #64748b; }
+
 
 .auth-tab-row {
   display: flex;

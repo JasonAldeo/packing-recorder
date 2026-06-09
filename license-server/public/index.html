@@ -1511,9 +1511,7 @@
     .then(r => r.json())
     .then(data => {
       if (!data.version) return;
-      const label = currentLang === 'id'
-        ? `Versi saat ini: ${data.version}`
-        : `Current version: ${data.version}`;
+      const label = `App Version: ${data.version}`;
       ['hero-version', 'dl-version'].forEach(id => {
         const el = document.getElementById(id);
         if (el) { el.textContent = label; el.style.display = ''; }

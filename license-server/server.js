@@ -393,6 +393,13 @@ app.get('/me', requireAuth, async (req, res) => {
     const user = result.rows[0];
     const licenseExpiresAt = await getActiveLicense(user.id);
 
+    // Check if the user has ever had a paid license (regardless of expiry)
+    const licenseCountResult = await pool.query(
+      'SELECT COUNT(*) FROM licenses WHERE user_id = $1',
+      [user.id]
+    );
+    const hadLicense = parseInt(licenseCountResult.rows[0].count, 10) > 0;
+
     // Calculate trial status server-side from account creation date
     const daysElapsed = Math.floor((Date.now() - new Date(user.created_at)) / 86400000);
     const trialDaysLeft = Math.max(0, TRIAL_DAYS - daysElapsed);
@@ -409,6 +416,7 @@ app.get('/me', requireAuth, async (req, res) => {
       licenseExpiresAt: licenseExpiresAt ? licenseExpiresAt.toISOString() : null,
       trialDaysLeft,
       trialExpired,
+      hadLicense,
     });
   } catch (err) {
     console.error('[me]', err.message);

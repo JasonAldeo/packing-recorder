@@ -127,6 +127,7 @@ ipcMain.handle('get-license-status', async () => {
     data.licenseExpiresAt = me.licenseExpiresAt || null;
     data.trialDaysLeft  = me.trialDaysLeft;
     data.trialExpired   = me.trialExpired;
+    data.hadLicense     = me.hadLicense ?? false;
     data.trialCachedAt  = Date.now();
     data.licenseCachedAt = Date.now();
     saveLicenseData(data);
@@ -180,6 +181,7 @@ ipcMain.handle('get-license-status', async () => {
     trialExpired,
     offlineTrialExpired,
     offlineLicenseExpired,
+    hadLicense: data.hadLicense ?? false,
     username: data.username || null,
     role: data.role || 'user',
   };
