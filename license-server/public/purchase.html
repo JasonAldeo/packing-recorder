@@ -166,6 +166,18 @@
       font-size: 0.85rem;
       margin-top: 12px;
     }
+    /* ── Payment disabled notice ── */
+    .payment-notice {
+      background: #fef9c3;
+      border: 1px solid #fde68a;
+      color: #92400e;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.85rem;
+      margin-bottom: 12px;
+      text-align: center;
+      line-height: 1.5;
+    }
     .hidden { display: none !important; }
 
     /* ── QR Payment Section ── */
@@ -351,6 +363,10 @@
     </div>
 
     <button class="btn-primary" id="pay-btn">Bayar dengan QRIS &rarr;</button>
+    <div id="payment-notice" class="payment-notice hidden">
+      ⚠ Pembayaran sementara tidak tersedia. Mohon tunggu beberapa saat.<br>
+      <small>Payment is temporarily unavailable. Please check back shortly.</small>
+    </div>
     <div id="form-error" class="error-msg hidden"></div>
   </div>
 
@@ -418,6 +434,10 @@
         if (originalEl) { originalEl.textContent = fmt(data.publishedPrice); originalEl.style.display = 'block'; }
         if (badgeEl)    { badgeEl.textContent = data.promoLabelId; badgeEl.style.display = 'inline-block'; }
       }
+      if (data.paymentDisabled) {
+        if (paymentNotice) paymentNotice.classList.remove('hidden');
+        if (payBtn) { payBtn.disabled = true; payBtn.style.opacity = '0.5'; payBtn.style.cursor = 'not-allowed'; }
+      }
     })
     .catch(() => { /* silently ignore */ });
 
@@ -431,6 +451,7 @@
   const stepSuccess      = document.getElementById('step-success');
   const payBtn           = document.getElementById('pay-btn');
   const formError        = document.getElementById('form-error');
+  const paymentNotice    = document.getElementById('payment-notice');
   const qrCanvas         = document.getElementById('qr-canvas');
   const expiryTimerEl    = document.getElementById('expiry-timer');
   const paymentStatus    = document.getElementById('payment-status');

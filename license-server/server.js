@@ -17,6 +17,7 @@ const MIDTRANS_BASE_URL = IS_PRODUCTION
   : 'https://api.sandbox.midtrans.com/v2';
 const PRODUCT_PRICE = 75000; // IDR
 const LICENSE_DAYS = 30;
+const PAYMENT_DISABLED = process.env.PAYMENT_DISABLED === 'true';
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) throw new Error('[startup] JWT_SECRET env var is required. Set it in your Railway environment variables.');
 const JWT_EXPIRY = '7d'; // sliding window — renewed on each /me call
@@ -758,6 +759,7 @@ app.get('/pricing', (req, res) => {
     promoEndsAt:    pricingConfig.promoEndsAt,
     effectivePrice: getEffectivePrice(pricingConfig),
     promoActive,
+    paymentDisabled: PAYMENT_DISABLED,
   });
 });
 
