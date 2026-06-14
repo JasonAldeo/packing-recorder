@@ -474,10 +474,22 @@ ipcMain.handle('ensure-videos-dir', () => {
 // ─── App version & updates ────────────────────────────────────────────────────
 ipcMain.handle('get-app-version', () => app.getVersion());
 
-ipcMain.handle('check-for-updates', () => {
-  return autoUpdater.checkForUpdates().catch(err => {
+ipcMain.handle('check-for-updates', async () => {
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    // result is null when no update feed is reachable (dev/local build)
+    if (!result || !result.updateInfo) return { isUpdateAvailable: false };
+    const currentVersion = app.getVersion();
+    const latestVersion  = result.updateInfo.version;
+    // electron-updater already filters by semver; isUpdateAvailable is true only when
+    // latestVersion > currentVersion. We surface it explicitly so the renderer
+    // doesn't need a fragile timeout heuristic.
+    const isUpdateAvailable = result.cancellationToken != null; // non-null only when download was started
+    return { isUpdateAvailable, version: latestVersion, currentVersion };
+  } catch (err) {
     console.error('[auto-updater] manual check failed:', err.message);
-  });
+    throw err; // let renderer catch and show error state
+  }
 });
 
 // Renderer notifies main whenever recording state changes so the update dialog

@@ -2186,15 +2186,15 @@ if (checkUpdateBtn) {
     setUpdateStatus(t('settings.updateChecking'), 'info');
     try {
       const result = await window.electronAPI.checkForUpdates();
-      // If no update-available event fires within 4s, assume up to date
-      setTimeout(() => {
-        if (checkUpdateBtn.disabled) {
-          checkUpdateBtn.disabled = false;
-          if (updateStatusEl && updateStatusEl.textContent === t('settings.updateChecking')) {
-            setUpdateStatus(t('settings.updateNotAvailable'), 'success');
-          }
-        }
-      }, 4000);
+      checkUpdateBtn.disabled = false;
+      // Use the structured result returned by the IPC handler directly —
+      // avoids the old fragile 4-second timeout heuristic that caused false
+      // "already up to date" messages when the check took longer than 4 s.
+      if (result && result.isUpdateAvailable) {
+        setUpdateStatus(t('settings.updateAvailable', result.version), 'info');
+      } else {
+        setUpdateStatus(t('settings.updateNotAvailable'), 'success');
+      }
     } catch (_) {
       checkUpdateBtn.disabled = false;
       setUpdateStatus(t('settings.updateError'), 'error');
