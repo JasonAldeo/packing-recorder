@@ -678,11 +678,10 @@ ipcMain.handle('search-video', (event, shippingCode) => {
   return matches;
 });
 
-// Read video file as base64 for playback in renderer
+// Return the file path for playback — renderer uses a file:// URL directly (no data copy over IPC)
 ipcMain.handle('read-video', (event, filePath) => {
   if (!fs.existsSync(filePath)) return null;
-  const data = fs.readFileSync(filePath);
-  return data.toString('base64');
+  return filePath;
 });
 
 // List all recordings sorted by newest first

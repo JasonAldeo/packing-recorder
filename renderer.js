@@ -2305,18 +2305,16 @@ async function doSearch() {
 
 async function playVideo(filePath, filename) {
   try {
-    const base64 = await window.electronAPI.readVideo(filePath);
-    if (!base64) {
+    const resolvedPath = await window.electronAPI.readVideo(filePath);
+    if (!resolvedPath) {
       if (searchError) { searchError.textContent = t('search.cantReadVideo'); searchError.classList.remove('hidden'); }
       return;
     }
-    const binaryStr = atob(base64);
-    const bytes = new Uint8Array(binaryStr.length);
-    for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
-    const blob = new Blob([bytes], { type: 'video/webm' });
-    const url = URL.createObjectURL(blob);
+    // Revoke any previous blob URL to free memory
     if (playbackVideo.src && playbackVideo.src.startsWith('blob:')) URL.revokeObjectURL(playbackVideo.src);
-    playbackVideo.src = url;
+    // Use a file:// URL so the browser streams directly from disk — avoids loading the
+    // entire file into memory (which caused hangs / OOM errors with large recordings).
+    playbackVideo.src = 'file://' + resolvedPath.replace(/\\/g, '/');
     if (playingFilename) playingFilename.textContent = filename;
     currentPlayingPath = filePath;
     if (saveAsStatus) saveAsStatus.classList.add('hidden');
