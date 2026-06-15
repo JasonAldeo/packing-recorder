@@ -7,6 +7,12 @@ const path = require('path');
 const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { Resend } = require('resend');
+
+// ─── Email ────────────────────────────────────────────────────────────────────
+const resend = new Resend(process.env.RESEND_API_KEY || '');
+const FROM_EMAIL = 'noreply@mail.packingrecorder.com';
+const SUPPORT_EMAIL = 'aldeojason@gmail.com';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
@@ -120,6 +126,17 @@ async function initDB() {
   // Add machine_id column to existing deployments that don't have it yet
   await pool.query(`
     ALTER TABLE users ADD COLUMN IF NOT EXISTS machine_id VARCHAR(255)
+  `);
+
+  // Password reset tokens table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_resets (
+      id         SERIAL PRIMARY KEY,
+      user_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash VARCHAR(255) NOT NULL UNIQUE,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used_at    TIMESTAMPTZ
+    )
   `);
 
   // Seed admin account
@@ -239,7 +256,7 @@ app.use(express.json());
 // Preserves query strings so existing Electron app links (/purchase.html?token=)
 // continue to work. Also blocks direct unauthenticated access to admin.html.
 app.get('/admin.html', requireAdmin, (req, res) => res.redirect(301, '/admin'));
-['/tutorial.html', '/terms.html', '/purchase.html'].forEach(page => {
+['/tutorial.html', '/terms.html', '/purchase.html', '/reset-password.html'].forEach(page => {
   app.get(page, (req, res) => {
     const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
     res.redirect(301, page.replace('.html', '') + qs);
@@ -275,6 +292,14 @@ const authLimiter = rateLimit({
 const createOrderLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
+});
+
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
@@ -809,6 +834,128 @@ app.post('/admin/set-pricing', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('[admin/set-pricing]', err.message);
     res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+
+// ─── Password Reset ───────────────────────────────────────────────────────────
+
+/**
+ * POST /forgot-password
+ * Public, rate-limited. Accepts { email }, always returns 200 (no user enumeration).
+ * If the email is registered, generates a one-time reset token and sends it via email.
+ */
+app.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
+  // Always respond 200 so attackers can't enumerate registered emails
+  const ok = () => res.json({ ok: true });
+
+  try {
+    const { email } = req.body;
+    if (!email || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return ok();
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const userResult = await pool.query(
+      'SELECT id FROM users WHERE email = $1',
+      [cleanEmail]
+    );
+    if (userResult.rows.length === 0) return ok();
+
+    const userId = userResult.rows[0].id;
+
+    // Delete any existing unused tokens for this user (one active reset at a time)
+    await pool.query(
+      'DELETE FROM password_resets WHERE user_id = $1 AND used_at IS NULL',
+      [userId]
+    );
+
+    // Generate a cryptographically random token; store only its SHA-256 hash
+    const rawToken  = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    await pool.query(
+      `INSERT INTO password_resets (user_id, token_hash, expires_at)
+       VALUES ($1, $2, NOW() + INTERVAL '1 hour')`,
+      [userId, tokenHash]
+    );
+
+    const resetLink = `https://packingrecorder.com/reset-password?token=${rawToken}`;
+
+    await resend.emails.send({
+      from:    FROM_EMAIL,
+      to:      cleanEmail,
+      replyTo: SUPPORT_EMAIL,
+      subject: 'Reset your Packing Recorder password',
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">
+          <h2 style="margin:0 0 8px;font-size:20px;color:#1a1a1a;">Reset your password</h2>
+          <p style="margin:0 0 24px;color:#444;font-size:15px;line-height:1.5;">
+            We received a request to reset the password for your Packing Recorder account.
+            Click the button below to choose a new password. This link expires in <strong>1 hour</strong>.
+          </p>
+          <a href="${resetLink}"
+             style="display:inline-block;padding:12px 28px;background:#2563eb;color:#fff;
+                    text-decoration:none;border-radius:6px;font-size:15px;font-weight:600;">
+            Reset Password
+          </a>
+          <p style="margin:24px 0 0;color:#888;font-size:13px;line-height:1.5;">
+            If you didn't request this, you can safely ignore this email — your password won't change.<br><br>
+            Need help? Reply to this email or contact
+            <a href="mailto:${SUPPORT_EMAIL}" style="color:#2563eb;">${SUPPORT_EMAIL}</a>.
+          </p>
+        </div>
+      `,
+    });
+
+    console.log(`[forgot-password] Reset link sent to ${cleanEmail}`);
+  } catch (err) {
+    // Log server-side but never expose details to the caller
+    console.error('[forgot-password]', err.message);
+  }
+
+  return ok();
+});
+
+/**
+ * POST /reset-password
+ * Public. Accepts { token, newPassword }.
+ * Validates the token, hashes the new password, updates the user record, marks the token used.
+ */
+app.post('/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || typeof token !== 'string' || token.length === 0) {
+      return res.status(400).json({ error: 'Reset link is invalid or has expired.' });
+    }
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(token.trim()).digest('hex');
+
+    const result = await pool.query(
+      `SELECT id, user_id FROM password_resets
+       WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW()`,
+      [tokenHash]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(400).json({ error: 'Reset link is invalid or has expired.' });
+    }
+
+    const { id: resetId, user_id: userId } = result.rows[0];
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, userId]);
+    await pool.query('UPDATE password_resets SET used_at = NOW() WHERE id = $1', [resetId]);
+
+    console.log(`[reset-password] Password reset successfully for user ${userId}`);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[reset-password]', err.message);
+    res.status(500).json({ error: 'Server error. Please try again.' });
   }
 });
 

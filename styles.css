@@ -1471,6 +1471,38 @@ body {
 
 .license-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* ── Forgot password ──────────────────────────────────────────────────────── */
+.forgot-link-row {
+  text-align: right;
+  margin: -4px 0 10px;
+}
+
+.auth-link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.82rem;
+  color: #3b5bdb;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.auth-link-btn:hover { color: #2246b8; }
+
+.forgot-desc {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+
+#forgot-back-btn {
+  display: block;
+  margin-top: 10px;
+  font-size: 0.82rem;
+}
+
 /* ── Station Grid ─────────────────────────────────────────────────────────── */
 .stations-grid {
   display: grid;

@@ -82,7 +82,20 @@
           <div class="auth-field">
             <input type="password" id="login-password" class="auth-input" data-i18n-placeholder="overlay.passwordPlaceholder" placeholder="Password" autocomplete="current-password" />
           </div>
+          <div class="forgot-link-row">
+            <button id="forgot-link" class="auth-link-btn" data-i18n="overlay.forgotLink">Forgot password?</button>
+          </div>
           <button id="login-btn" class="license-btn-primary" data-i18n="overlay.loginBtn">Login</button>
+
+          <!-- Forgot password sub-form (hidden by default) -->
+          <div id="forgot-form" class="hidden">
+            <p class="forgot-desc" data-i18n="overlay.forgotDesc">Enter your email and we'll send you a reset link.</p>
+            <div class="auth-field">
+              <input type="email" id="forgot-email" class="auth-input" data-i18n-placeholder="overlay.emailPlaceholder" placeholder="Email" autocomplete="email" />
+            </div>
+            <button id="forgot-submit-btn" class="license-btn-primary" data-i18n="overlay.forgotSubmitBtn">Send Reset Link</button>
+            <button id="forgot-back-btn" class="auth-link-btn" data-i18n="overlay.forgotBackBtn">&#8592; Back to login</button>
+          </div>
         </div>
 
         <!-- Register form -->

@@ -86,6 +86,14 @@
     'overlay.recoveredOk': (n) => `License restored! ${n} payment${n === 1 ? '' : 's'} applied.`,
     'overlay.recoveredNone': 'No pending payments found. Contact aldeojason@gmail.com if you believe this is an error.',
 
+    // Forgot password flow
+    'overlay.forgotLink':      'Forgot password?',
+    'overlay.forgotDesc':      'Enter your email and we\'ll send you a reset link.',
+    'overlay.forgotSubmitBtn': 'Send Reset Link',
+    'overlay.forgotBackBtn':   '\u2190 Back to login',
+    'overlay.forgotSending':   'Sending\u2026',
+    'overlay.forgotSent':      'Check your email for a reset link.',
+
     // Test mode panel
     'test.warning': '\u26A0 TEST MODE \u2014 No camera detected. Using simulated stream.',
     'test.placeholder': 'Type a shipping code\u2026',
@@ -331,6 +339,14 @@
     'overlay.recovering': 'Memeriksa…',
     'overlay.recoveredOk': (n) => `Lisensi berhasil dipulihkan! ${n} pembayaran diterapkan.`,
     'overlay.recoveredNone': 'Tidak ada pembayaran yang ditemukan. Hubungi aldeojason@gmail.com jika Anda merasa ini keliru.',
+
+    // Forgot password flow
+    'overlay.forgotLink':      'Lupa kata sandi?',
+    'overlay.forgotDesc':      'Masukkan email Anda, kami akan kirim link reset.',
+    'overlay.forgotSubmitBtn': 'Kirim Link Reset',
+    'overlay.forgotBackBtn':   '\u2190 Kembali ke login',
+    'overlay.forgotSending':   'Mengirim\u2026',
+    'overlay.forgotSent':      'Cek email Anda untuk link reset kata sandi.',
 
     // Test mode panel
     'test.warning': '\u26A0 MODE UJI \u2014 Kamera tidak terdeteksi. Menggunakan aliran simulasi.',

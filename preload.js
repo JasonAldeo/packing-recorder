@@ -53,6 +53,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   register:              (opts)                     => ipcRenderer.invoke('register', opts),
   login:                 (opts)                     => ipcRenderer.invoke('login', opts),
   logout:                ()                         => ipcRenderer.invoke('logout'),
+  forgotPassword:        (email)                    => ipcRenderer.invoke('forgot-password', email),
   openPurchasePage:      ()                         => ipcRenderer.invoke('open-purchase-page'),
   recoverLicense:        ()                         => ipcRenderer.invoke('recover-license'),
   openExternalUrl:       (url)                      => ipcRenderer.invoke('open-external-url', url),

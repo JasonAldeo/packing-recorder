@@ -1388,12 +1388,76 @@ const tabRegisterBtn = document.getElementById('tab-register-btn');
 const loginForm      = document.getElementById('login-form');
 const registerForm   = document.getElementById('register-form');
 
+// Forgot-password elements (inside #login-form)
+const forgotLink      = document.getElementById('forgot-link');
+const forgotForm      = document.getElementById('forgot-form');
+const forgotSubmitBtn = document.getElementById('forgot-submit-btn');
+const forgotBackBtn   = document.getElementById('forgot-back-btn');
+const loginEmailInput = document.getElementById('login-email');
+const loginPassInput  = document.getElementById('login-password');
+const loginBtn2Ref    = document.getElementById('login-btn'); // alias to avoid conflict with loginBtn below
+
+/** Shows the forgot-password sub-form, hides normal login fields. */
+function showForgotForm() {
+  if (loginEmailInput) loginEmailInput.classList.add('hidden');
+  if (loginPassInput)  loginPassInput.classList.add('hidden');
+  if (forgotLink)      forgotLink.classList.add('hidden');
+  if (loginBtn2Ref)    loginBtn2Ref.classList.add('hidden');
+  if (forgotForm)      forgotForm.classList.remove('hidden');
+  setAuthFeedback('', '');
+  const fe = document.getElementById('forgot-email');
+  if (fe) fe.value = '';
+  if (fe) fe.focus();
+}
+
+/** Restores normal login fields, hides forgot-password sub-form. */
+function showLoginFields() {
+  if (loginEmailInput) loginEmailInput.classList.remove('hidden');
+  if (loginPassInput)  loginPassInput.classList.remove('hidden');
+  if (forgotLink)      forgotLink.classList.remove('hidden');
+  if (loginBtn2Ref)    loginBtn2Ref.classList.remove('hidden');
+  if (forgotForm)      forgotForm.classList.add('hidden');
+  setAuthFeedback('', '');
+}
+
+if (forgotLink)    forgotLink.addEventListener('click', showForgotForm);
+if (forgotBackBtn) forgotBackBtn.addEventListener('click', showLoginFields);
+
+if (forgotSubmitBtn) {
+  forgotSubmitBtn.addEventListener('click', doForgotPassword);
+}
+const forgotEmailInput = document.getElementById('forgot-email');
+if (forgotEmailInput) {
+  forgotEmailInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doForgotPassword(); });
+}
+
+async function doForgotPassword() {
+  const email = (document.getElementById('forgot-email').value || '').trim();
+  if (!email) { setAuthFeedback('error', t('auth.emptyFields')); return; }
+  setAuthFeedback('', '');
+  forgotSubmitBtn.disabled = true;
+  forgotSubmitBtn.textContent = t('overlay.forgotSending');
+  const result = await window.electronAPI.forgotPassword(email);
+  forgotSubmitBtn.disabled = false;
+  forgotSubmitBtn.textContent = t('overlay.forgotSubmitBtn');
+  if (result.success) {
+    // Show success message; hide the input + button so the user just sees the confirmation
+    const fe = document.getElementById('forgot-email');
+    if (fe) fe.classList.add('hidden');
+    forgotSubmitBtn.classList.add('hidden');
+    setAuthFeedback('success', t('overlay.forgotSent'));
+  } else {
+    setAuthFeedback('error', result.error || t('auth.loginFailed'));
+  }
+}
+
 if (tabLoginBtn) {
   tabLoginBtn.addEventListener('click', () => {
     tabLoginBtn.classList.add('active');
     tabRegisterBtn.classList.remove('active');
     loginForm.classList.remove('hidden');
     registerForm.classList.add('hidden');
+    showLoginFields();
     setAuthFeedback('', '');
   });
 }
@@ -1403,6 +1467,7 @@ if (tabRegisterBtn) {
     tabLoginBtn.classList.remove('active');
     registerForm.classList.remove('hidden');
     loginForm.classList.add('hidden');
+    showLoginFields();
     setAuthFeedback('', '');
   });
 }

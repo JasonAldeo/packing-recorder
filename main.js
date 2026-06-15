@@ -244,9 +244,19 @@ ipcMain.handle('login', async (_, { email, password }) => {
   }
 });
 
+// IPC: send a forgot-password request (no auth required)
+ipcMain.handle('forgot-password', async (_, email) => {
+  try {
+    const resp = await serverRequest('POST', '/forgot-password', { email });
+    if (resp.status === 200) return { success: true };
+    return { success: false, error: resp.body.error || 'Request failed.' };
+  } catch (_err) {
+    return { success: false, error: 'Could not connect to server. Check your internet connection.' };
+  }
+});
+
 // IPC: log out (clears stored token)
-ipcMain.handle('logout', () => {
-  const data = getLicenseData();
+ipcMain.handle('logout', () => {  const data = getLicenseData();
   delete data.token;
   delete data.username;
   delete data.role;
