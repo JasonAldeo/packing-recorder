@@ -450,12 +450,15 @@ app.whenReady().then(() => {
     console.error('[auto-updater] error:', err.message);
   });
 
-  // Check for updates silently on startup (delay 3s to let window finish loading)
-  setTimeout(() => {
-    autoUpdater.checkForUpdates().catch(err => {
-      console.error('[auto-updater] check failed:', err.message);
-    });
-  }, 3000);
+  // Check for updates silently on startup (delay 3s to let window finish loading).
+  // Skipped when running as a Microsoft Store MSIX — the Store manages updates there.
+  if (!process.windowsStore) {
+    setTimeout(() => {
+      autoUpdater.checkForUpdates().catch(err => {
+        console.error('[auto-updater] check failed:', err.message);
+      });
+    }, 3000);
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -475,6 +478,8 @@ ipcMain.handle('ensure-videos-dir', () => {
 ipcMain.handle('get-app-version', () => app.getVersion());
 
 ipcMain.handle('check-for-updates', async () => {
+  // When running as a Store-installed MSIX, the Microsoft Store manages updates.
+  if (process.windowsStore) return { isUpdateAvailable: false, storeManaged: true };
   try {
     const result = await autoUpdater.checkForUpdates();
     // result is null when no update feed is reachable (dev/local build)

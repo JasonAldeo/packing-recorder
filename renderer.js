@@ -2179,6 +2179,13 @@ if (appVersionDisplay) {
   });
 }
 
+// When running as a Microsoft Store MSIX, the Store manages updates — hide the
+// manual check button and show a static info message instead.
+if (window.electronAPI.isWindowsStore && window.electronAPI.isWindowsStore()) {
+  if (checkUpdateBtn) checkUpdateBtn.style.display = 'none';
+  setUpdateStatus(t('settings.updateManagedByStore'), 'info');
+}
+
 // Manual "Check for Updates" button
 if (checkUpdateBtn) {
   checkUpdateBtn.addEventListener('click', async () => {

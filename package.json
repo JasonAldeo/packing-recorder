@@ -31,7 +31,10 @@
       "node_modules/ffmpeg-static/**"
     ],
     "win": {
-      "target": "nsis",
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "appx", "arch": ["x64"] }
+      ],
       "icon": "icon.ico",
       "publisherName": "Aldeo Studio",
       "legalTrademarks": "Packing Recorder is a trademark of Aldeo Studio",
@@ -42,9 +45,19 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Packing Recorder"
+      "shortcutName": "Packing Recorder",
+      "artifactName": "PackingRecorder-Setup.exe"
     },
-    "artifactName": "PackingRecorder-Setup.exe",
+    "appx": {
+      "identityName": "AldeoStudio.PackingRecorder",
+      "publisher": "CN=55D0894F-FD1D-486F-A946-BBDEC4A8FA23",
+      "publisherDisplayName": "Aldeo Studio",
+      "applicationId": "PackingRecorder",
+      "displayName": "Packing Recorder",
+      "backgroundColor": "#1a2035",
+      "showNameOnTiles": true,
+      "languages": ["en-US", "id-ID"]
+    },
     "publish": {
       "provider": "github",
       "owner": "AldeoStudio",
