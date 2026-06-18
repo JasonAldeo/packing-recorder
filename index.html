@@ -392,6 +392,20 @@
 
           <div class="setting-divider"></div>
 
+          <!-- Record Audio -->
+          <div class="setting-row">
+            <div class="setting-label">
+              <span class="setting-title" data-i18n="settings.recordAudioTitle">Record Audio</span>
+              <span class="setting-hint" data-i18n="settings.recordAudioHint">Capture microphone audio in recordings. Requires microphone permission.</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="record-audio-toggle" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="setting-divider"></div>
+
           <!-- Voice Announcements -->
           <div class="setting-row">
             <div class="setting-label">
@@ -467,6 +481,19 @@
     </div>
 
   </div><!-- /tab-content -->
+
+  <!-- ── Recording-Active Warning Modal ── -->
+  <div id="recording-warn-modal" class="help-modal hidden">
+    <div class="help-modal-backdrop"></div>
+    <div class="help-modal-card warn-modal-card">
+      <div class="warn-modal-icon">&#9888;</div>
+      <h2 class="warn-modal-title" data-i18n="warn.recordingActiveTitle">Recording in Progress</h2>
+      <p class="warn-modal-body" data-i18n="warn.recordingActiveBody">Stop all recordings before opening Settings.</p>
+      <div class="warn-modal-actions">
+        <button id="recording-warn-ok-btn" class="btn-primary" data-i18n="warn.ok">OK</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ── Help Modal ── -->
   <div id="help-modal" class="help-modal hidden">

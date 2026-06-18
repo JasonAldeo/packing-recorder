@@ -2201,3 +2201,63 @@ body {
   cursor: pointer;
 }
 .help-external-link:hover { text-decoration: underline; }
+
+/* ── Recording-Active Warning Modal ── */
+.warn-modal-card {
+  width: 340px;
+  padding: 32px 28px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+.warn-modal-icon {
+  font-size: 2.4rem;
+  line-height: 1;
+  color: #e67700;
+}
+.warn-modal-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+.warn-modal-body {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #475569;
+  line-height: 1.5;
+}
+.warn-modal-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: center;
+}
+.warn-modal-actions .btn-primary {
+  min-width: 100px;
+  padding: 10px 28px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #3b5bdb, #7c3aed);
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 700;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(59, 91, 219, 0.35);
+  transition: opacity 0.18s, transform 0.12s, box-shadow 0.18s;
+}
+.warn-modal-actions .btn-primary:hover {
+  opacity: 0.88;
+  box-shadow: 0 6px 18px rgba(59, 91, 219, 0.45);
+}
+.warn-modal-actions .btn-primary:active {
+  transform: scale(0.97);
+  box-shadow: 0 2px 8px rgba(59, 91, 219, 0.3);
+}
+.warn-modal-actions .btn-primary:focus-visible {
+  outline: 3px solid #7c3aed;
+  outline-offset: 3px;
+}

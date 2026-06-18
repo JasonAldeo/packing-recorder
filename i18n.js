@@ -220,6 +220,10 @@
     'dashboard.windowOpen': 'Window Open',
     'dashboard.hint': 'Click \u201COpen Window\u201D to open a station in its own window. Each station records independently.',
 
+    // Record audio setting
+    'settings.recordAudioTitle': 'Record Audio',
+    'settings.recordAudioHint': 'Capture microphone audio in recordings. Requires microphone permission.',
+
     // Voice announcements settings
     'settings.voiceTitle': 'Voice Announcements',
     'settings.voiceHint': 'Speaks station status aloud. Useful for operators away from the screen.',
@@ -234,6 +238,11 @@
     'voice.recording':  (label) => `${label}, recording`,
     'voice.saved':      (label) => `${label}, saved`,
     'voice.cancelled':  (label) => `${label}, cancelled`,
+
+    // Recording-active warning modal
+    'warn.recordingActiveTitle': 'Recording in Progress',
+    'warn.recordingActiveBody':  'Stop all recordings before opening Settings.',
+    'warn.ok':                   'OK',
 
     // App version & updates
     'settings.appVersionTitle': 'App Version',
@@ -474,6 +483,10 @@
     'dashboard.windowOpen': 'Jendela Terbuka',
     'dashboard.hint': 'Klik \u201CBuka Jendela\u201D untuk membuka stasiun di jendela tersendiri. Setiap stasiun merekam secara independen.',
 
+    // Record audio setting
+    'settings.recordAudioTitle': 'Rekam Audio',
+    'settings.recordAudioHint': 'Rekam audio mikrofon dalam video. Memerlukan izin mikrofon.',
+
     // Voice announcements settings
     'settings.voiceTitle': 'Pengumuman Suara',
     'settings.voiceHint': 'Mengucapkan status stasiun dengan suara. Berguna untuk operator yang jauh dari layar.',
@@ -488,6 +501,11 @@
     'voice.recording':  (label) => `${label}, merekam`,
     'voice.saved':      (label) => `${label}, tersimpan`,
     'voice.cancelled':  (label) => `${label}, dibatalkan`,
+
+    // Recording-active warning modal
+    'warn.recordingActiveTitle': 'Sedang Merekam',
+    'warn.recordingActiveBody':  'Hentikan semua rekaman sebelum membuka Pengaturan.',
+    'warn.ok':                   'OK',
 
     // App version & updates
     'settings.appVersionTitle': 'Versi Aplikasi',

@@ -73,6 +73,7 @@ const voiceLocaleSelect    = document.getElementById('voice-locale-select');
 const voiceOptions         = document.getElementById('voice-options');
 const voiceSpeedRange      = document.getElementById('voice-speed-range');
 const voiceSpeedLabel      = document.getElementById('voice-speed-label');
+const recordAudioToggle    = document.getElementById('record-audio-toggle');
 const localeSelect         = document.getElementById('locale-select');
 
 // Multi-station DOM
@@ -121,6 +122,7 @@ const cameraWarningEl      = document.getElementById('camera-warning');
 // ─── Main window init ─────────────────────────────────────────────────────────
 async function initMainWindow() {
   initTabs();
+  initRecordingWarnModal();
   await loadSavedDir();
   await initStations();
   await loadRecordingsList();
@@ -466,7 +468,7 @@ async function initStationCamera(sid) {
       video: st.cameraDeviceId
         ? { deviceId: { exact: st.cameraDeviceId } }
         : true,
-      audio: false
+      audio: !!appSettings.recordAudio
     };
     st.stream = await getUserMediaWithTimeout(constraints);
     if (videoEl) videoEl.srcObject = st.stream;
@@ -474,7 +476,7 @@ async function initStationCamera(sid) {
   } catch (err) {
     // Fallback: try without exact deviceId
     try {
-      st.stream = await getUserMediaWithTimeout({ video: true, audio: false });
+      st.stream = await getUserMediaWithTimeout({ video: true, audio: !!appSettings.recordAudio });
       if (videoEl) videoEl.srcObject = st.stream;
       if (cameraError) cameraError.classList.add('hidden');
     } catch (err2) {
@@ -1947,6 +1949,31 @@ function setBuyFeedback(type, msg) {
 }
 
 // ─── Tab Navigation ───────────────────────────────────────────────────────────
+function isAnyRecording() {
+  for (const [, st] of stations) {
+    if (st.state === 'recording') return true;
+  }
+  return false;
+}
+
+function showRecordingWarnModal() {
+  const modal = document.getElementById('recording-warn-modal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function initRecordingWarnModal() {
+  const modal = document.getElementById('recording-warn-modal');
+  if (!modal) return;
+  const okBtn   = document.getElementById('recording-warn-ok-btn');
+  const backdrop = modal.querySelector('.help-modal-backdrop');
+  const close = () => modal.classList.add('hidden');
+  if (okBtn)    okBtn.addEventListener('click', close);
+  if (backdrop) backdrop.addEventListener('click', close);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+  });
+}
+
 function initTabs() {
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => switchTab(btn.dataset.tab));
@@ -1954,6 +1981,10 @@ function initTabs() {
 }
 
 function switchTab(tabId) {
+  if (tabId === 'settings' && isAnyRecording()) {
+    showRecordingWarnModal();
+    return;
+  }
   document.querySelectorAll('.tab-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.tab === tabId)
   );
@@ -1980,6 +2011,9 @@ async function loadSavedDir() {
   if (voiceSpeedRange)  { voiceSpeedRange.value      = voiceSpeed; }
   if (voiceSpeedLabel)    voiceSpeedLabel.textContent = voiceSpeed.toFixed(1) + '×';
   if (voiceOptions)       voiceOptions.classList.toggle('hidden', !voiceEnabled);
+
+  // Record audio setting
+  if (recordAudioToggle) recordAudioToggle.checked = !!settings.recordAudio;
 
   // Multi-station settings
   const multiStation = settings.multiStation || false;
@@ -2110,14 +2144,14 @@ if (saveStationsBtn) {
 
 if (printStationQrBtn) {
   printStationQrBtn.addEventListener('click', async () => {
-    const settings = await window.electronAPI.getSettings();
-    const stationCount = parseInt(settings.stationCount, 10) || 1;
-    const stationsCfg = settings.stations || [];
+    // Read live DOM values so Print QR reflects unsaved changes without needing Save first
+    const stationCount = parseInt(stationCountInput ? stationCountInput.value : 1, 10) || 1;
     const stationsData = [];
     for (let i = 1; i <= stationCount; i++) {
       const sid = `station${i}`;
-      const cfg = stationsCfg.find(s => s.id === sid) || {};
-      stationsData.push({ id: sid, label: cfg.label || `Station ${i}`, num: i });
+      const labelInput = document.getElementById(`cfg-label-${sid}`);
+      const label = (labelInput && labelInput.value.trim()) || `Station ${i}`;
+      stationsData.push({ id: sid, label, num: i });
     }
     await window.electronAPI.openPrintStations(stationsData);
   });
@@ -2136,6 +2170,22 @@ if (voiceEnabledToggle) {
     await window.electronAPI.saveSettings({ voiceEnabled: enabled });
     appSettings.voiceEnabled = enabled;
     if (voiceOptions) voiceOptions.classList.toggle('hidden', !enabled);
+  });
+}
+
+if (recordAudioToggle) {
+  recordAudioToggle.addEventListener('change', async () => {
+    const enabled = recordAudioToggle.checked;
+    await window.electronAPI.saveSettings({ recordAudio: enabled });
+    appSettings.recordAudio = enabled;
+    // Re-init cameras to apply the new audio constraint immediately
+    for (const [sid, st] of stations) {
+      if (st.stream) {
+        st.stream.getTracks().forEach(tr => tr.stop());
+        st.stream = null;
+      }
+      await initStationCamera(sid);
+    }
   });
 }
 
