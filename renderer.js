@@ -73,6 +73,9 @@ const voiceLocaleSelect    = document.getElementById('voice-locale-select');
 const voiceOptions         = document.getElementById('voice-options');
 const voiceSpeedRange      = document.getElementById('voice-speed-range');
 const voiceSpeedLabel      = document.getElementById('voice-speed-label');
+const voiceVolumeRange     = document.getElementById('voice-volume-range');
+const voiceVolumeLabel     = document.getElementById('voice-volume-label');
+const voiceTestBtn         = document.getElementById('voice-test-btn');
 const recordAudioToggle    = document.getElementById('record-audio-toggle');
 const localeSelect         = document.getElementById('locale-select');
 
@@ -471,13 +474,19 @@ async function initStationCamera(sid) {
       audio: !!appSettings.recordAudio
     };
     st.stream = await getUserMediaWithTimeout(constraints);
-    if (videoEl) videoEl.srcObject = st.stream;
+    if (videoEl) {
+      videoEl.srcObject = st.stream;
+      videoEl.muted = !appSettings.recordAudio;
+    }
     if (cameraError) cameraError.classList.add('hidden');
   } catch (err) {
     // Fallback: try without exact deviceId
     try {
       st.stream = await getUserMediaWithTimeout({ video: true, audio: !!appSettings.recordAudio });
-      if (videoEl) videoEl.srcObject = st.stream;
+      if (videoEl) {
+        videoEl.srcObject = st.stream;
+        videoEl.muted = !appSettings.recordAudio;
+      }
       if (cameraError) cameraError.classList.add('hidden');
     } catch (err2) {
       if (cameraError) {
@@ -697,12 +706,15 @@ function speak(voiceKey, sid) {
   if (!appSettings.voiceEnabled) return;
   const locale = appSettings.voiceLocale || 'id';
   const stateKey = voiceKey.replace('voice.', ''); // 'armed' | 'recording' | 'saved' | 'cancelled'
-  const num = parseInt(sid.replace('station', ''), 10);
-  const path = `voices/${locale}/station${num}-${stateKey}.mp3`;
+  const multiStation = appSettings.multiStation || false;
+  const path = multiStation
+    ? `voices/${locale}/station${parseInt(sid.replace('station', ''), 10)}-${stateKey}.mp3`
+    : `voices/${locale}/generic-${stateKey}.mp3`;
 
   if (_currentVoiceAudio) { _currentVoiceAudio.pause(); _currentVoiceAudio = null; }
   const audio = new Audio(path);
   audio.playbackRate = parseFloat(appSettings.voiceSpeed) || 1.0;
+  audio.volume = appSettings.voiceVolume != null ? parseFloat(appSettings.voiceVolume) : 1.0;
   _currentVoiceAudio = audio;
   audio.play().catch(() => {}); // silently ignore missing file errors
 }
@@ -715,6 +727,7 @@ function speakSequence(items) {
   if (!appSettings.voiceEnabled || !items.length) return;
   const locale = appSettings.voiceLocale || 'id';
   const speed  = parseFloat(appSettings.voiceSpeed) || 1.0;
+  const volume = appSettings.voiceVolume != null ? parseFloat(appSettings.voiceVolume) : 1.0;
 
   if (_currentVoiceAudio) { _currentVoiceAudio.pause(); _currentVoiceAudio = null; }
 
@@ -726,6 +739,7 @@ function speakSequence(items) {
     const path = `voices/${locale}/station${num}-${stateKey}.mp3`;
     const audio = new Audio(path);
     audio.playbackRate = speed;
+    audio.volume = volume;
     _currentVoiceAudio = audio;
     audio.onended = () => playNext(index + 1);
     audio.play().catch(() => playNext(index + 1)); // skip missing files
@@ -1082,6 +1096,11 @@ async function startRecording(sid, code) {
   const recordStream = (st.overlayCanvas && st.overlayCanvas.captureStream)
     ? st.overlayCanvas.captureStream(30)
     : st.stream;
+
+  // If audio was requested, add the audio track from the camera stream
+  if (appSettings.recordAudio && st.stream) {
+    st.stream.getAudioTracks().forEach(track => recordStream.addTrack(track));
+  }
 
   try {
     st.mediaRecorder = new MediaRecorder(recordStream, options);
@@ -2006,10 +2025,13 @@ async function loadSavedDir() {
   const voiceEnabled = !!settings.voiceEnabled;
   const voiceLocale  = settings.voiceLocale || 'id';
   const voiceSpeed   = parseFloat(settings.voiceSpeed) || 1.0;
+  const voiceVolume  = settings.voiceVolume != null ? parseFloat(settings.voiceVolume) : 1.0;
   if (voiceEnabledToggle) voiceEnabledToggle.checked = voiceEnabled;
   if (voiceLocaleSelect)  voiceLocaleSelect.value    = voiceLocale;
   if (voiceSpeedRange)  { voiceSpeedRange.value      = voiceSpeed; }
   if (voiceSpeedLabel)    voiceSpeedLabel.textContent = voiceSpeed.toFixed(1) + '×';
+  if (voiceVolumeRange) { voiceVolumeRange.value     = voiceVolume; }
+  if (voiceVolumeLabel)   voiceVolumeLabel.textContent = Math.round(voiceVolume * 100) + '%';
   if (voiceOptions)       voiceOptions.classList.toggle('hidden', !voiceEnabled);
 
   // Record audio setting
@@ -2206,6 +2228,37 @@ if (voiceSpeedRange) {
     const speed = parseFloat(voiceSpeedRange.value);
     await window.electronAPI.saveSettings({ voiceSpeed: speed });
     appSettings.voiceSpeed = speed;
+  });
+}
+
+if (voiceVolumeRange) {
+  voiceVolumeRange.addEventListener('input', () => {
+    const vol = parseFloat(voiceVolumeRange.value);
+    if (voiceVolumeLabel) voiceVolumeLabel.textContent = Math.round(vol * 100) + '%';
+  });
+  voiceVolumeRange.addEventListener('change', async () => {
+    const vol = parseFloat(voiceVolumeRange.value);
+    await window.electronAPI.saveSettings({ voiceVolume: vol });
+    appSettings.voiceVolume = vol;
+  });
+}
+
+if (voiceTestBtn) {
+  voiceTestBtn.addEventListener('click', () => {
+    // Read live DOM values so the test reflects unsaved changes immediately
+    const locale  = (voiceLocaleSelect  ? voiceLocaleSelect.value  : null) || appSettings.voiceLocale || 'id';
+    const speed   = parseFloat(voiceSpeedRange  ? voiceSpeedRange.value  : appSettings.voiceSpeed)  || 1.0;
+    const volume  = parseFloat(voiceVolumeRange ? voiceVolumeRange.value : appSettings.voiceVolume);
+    const multiStation = appSettings.multiStation || false;
+    const path = multiStation
+      ? `voices/${locale}/station1-recording.mp3`
+      : `voices/${locale}/generic-recording.mp3`;
+    if (_currentVoiceAudio) { _currentVoiceAudio.pause(); _currentVoiceAudio = null; }
+    const audio = new Audio(path);
+    audio.playbackRate = speed;
+    audio.volume = isNaN(volume) ? 1.0 : volume;
+    _currentVoiceAudio = audio;
+    audio.play().catch(() => {});
   });
 }
 

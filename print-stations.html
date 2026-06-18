@@ -6,10 +6,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Print Station QR Codes – Packing Recorder</title>
   <style>
+    @font-face {
+      font-family: 'Inter';
+      font-style: normal;
+      font-weight: 400;
+      src: url('fonts/inter-400.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'Inter';
+      font-style: normal;
+      font-weight: 600;
+      src: url('fonts/inter-600.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'Inter';
+      font-style: normal;
+      font-weight: 700;
+      src: url('fonts/inter-700.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'Inter';
+      font-style: normal;
+      font-weight: 800;
+      src: url('fonts/inter-800.woff2') format('woff2');
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Inter', Arial, Helvetica, sans-serif;
       background: #f8fafc;
       color: #1e293b;
     }
@@ -100,35 +125,9 @@
       border-radius: 6px;
     }
 
-    .screen-only {
-      text-align: center;
-      padding: 20px;
-      font-size: 0.88rem;
-      color: #64748b;
-    }
-
-    .print-btn {
-      display: block;
-      margin: 0 auto 32px;
-      padding: 12px 32px;
-      background: linear-gradient(135deg, #3b5bdb, #7c3aed);
-      color: #fff;
-      border: none;
-      border-radius: 12px;
-      font-size: 1rem;
-      font-weight: 700;
-      font-family: inherit;
-      cursor: pointer;
-      transition: opacity 0.15s;
-    }
-    .print-btn:hover { opacity: 0.88; }
-
     /* ── Print styles ── */
     @media print {
       body { background: #fff; }
-
-      .screen-only,
-      .print-btn { display: none !important; }
 
       .qr-page {
         margin: 0;
@@ -150,11 +149,6 @@
   </style>
 </head>
 <body>
-
-<div class="screen-only">
-  <p>Preview of station QR codes. Click <strong>Print</strong> to print all pages.</p>
-</div>
-<button class="print-btn screen-only" onclick="window.print()">&#128438; Print All QR Codes</button>
 
 <div id="qr-container"></div>
 
@@ -307,6 +301,9 @@
     const dataUrl = await window.electronAPI.generateManualQR();
     manualImg.src = dataUrl;
   } catch (_) {}
+
+  // All QR data URLs are set — signal main process to generate PDF
+  window.electronAPI.printToPdf();
 })();
 </script>
 </body>

@@ -231,6 +231,11 @@
     'settings.voiceLocale': 'Voice language',
     'settings.voiceSpeed': 'Voice speed',
     'settings.voiceSpeedHint': '1.0 is normal speed. 1.5\u00d7 is recommended.',
+    'settings.voiceVolume': 'Voice volume',
+    'settings.voiceVolumeHint': '100% is full volume.',
+    'settings.voiceTestTitle': 'Test Sound',
+    'settings.voiceTestHint':  'Play a sample announcement at the current language and speed.',
+    'settings.voiceTestBtn':   '\u25b6 Play Test',
 
     // Voice announcement phrases (used independently of UI locale)
     'voice.stationNum': (n) => ['One','Two','Three','Four','Five','Six'][n - 1] ?? String(n),
@@ -494,6 +499,11 @@
     'settings.voiceLocale': 'Bahasa suara',
     'settings.voiceSpeed': 'Kecepatan suara',
     'settings.voiceSpeedHint': '1.0 adalah kecepatan normal. 1.5\u00d7 direkomendasikan.',
+    'settings.voiceVolume': 'Volume suara',
+    'settings.voiceVolumeHint': '100% adalah volume penuh.',
+    'settings.voiceTestTitle': 'Tes Suara',
+    'settings.voiceTestHint':  'Putar contoh pengumuman dengan bahasa dan kecepatan saat ini.',
+    'settings.voiceTestBtn':   '\u25b6 Putar Tes',
 
     // Voice announcement phrases (used independently of UI locale)
     'voice.stationNum': (n) => ['Satu','Dua','Tiga','Empat','Lima','Enam'][n - 1] ?? String(n),

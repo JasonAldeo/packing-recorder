@@ -28,6 +28,7 @@
       "styles.css",
       "videos/",
       "voices/**",
+      "fonts/**",
       "node_modules/ffmpeg-static/**"
     ],
     "win": {

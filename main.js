@@ -848,10 +848,11 @@ ipcMain.handle('generate-station-qr', async (event, stationId) => {
 
 // Open the station QR print page
 ipcMain.handle('open-print-stations', (event, stationsData) => {
+  // Hidden window renders print-stations.html, generates QR codes, then exports to PDF
   const win = new BrowserWindow({
     width: 800,
     height: 900,
-    title: 'Print Station QR Codes',
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -861,6 +862,41 @@ ipcMain.handle('open-print-stations', (event, stationsData) => {
     }
   });
   win.loadFile('print-stations.html', { query: { data: JSON.stringify(stationsData) } });
+
+  // Renderer sends 'print-to-pdf' once all QR data URLs are set
+  const onPrintToPdf = async (e) => {
+    if (e.sender !== win.webContents || win.isDestroyed()) return;
+    try {
+      const pdfData = await win.webContents.printToPDF({
+        printBackground: true,
+        pageSize: 'A4',
+        margins: { marginType: 'default' }
+      });
+      const tmpPath = path.join(app.getPath('temp'), `qr-print-${Date.now()}.pdf`);
+      fs.writeFileSync(tmpPath, pdfData);
+
+      // Open PDF in Chromium's built-in PDF viewer — user prints from there
+      const pdfWin = new BrowserWindow({
+        width: 860,
+        height: 1000,
+        title: 'Print Preview – Station QR Codes',
+        webPreferences: {
+          plugins: true,
+          contextIsolation: true,
+          nodeIntegration: false,
+        }
+      });
+      pdfWin.loadURL(`file://${tmpPath}`);
+      pdfWin.on('closed', () => { try { fs.unlinkSync(tmpPath); } catch (_) {} });
+    } catch (err) {
+      console.error('[print-to-pdf] failed:', err.message);
+    } finally {
+      // Hidden window no longer needed
+      if (!win.isDestroyed()) win.destroy();
+    }
+  };
+  ipcMain.on('print-to-pdf', onPrintToPdf);
+  win.on('closed', () => ipcMain.removeListener('print-to-pdf', onPrintToPdf));
 });
 
 // Open folder picker dialog and persist choice

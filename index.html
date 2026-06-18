@@ -437,6 +437,23 @@
                 <span id="voice-speed-label">1.0×</span>
             </div>
           </div>
+            <div class="setting-row setting-row-sub">
+              <div class="setting-label">
+                <span class="setting-title" data-i18n="settings.voiceVolume">Voice volume</span>
+                <span class="setting-hint" data-i18n="settings.voiceVolumeHint">100% is full volume.</span>
+              </div>
+              <div class="voice-speed-wrap">
+                <input type="range" id="voice-volume-range" min="0" max="1" step="0.05" value="1" />
+                <span id="voice-volume-label">100%</span>
+              </div>
+            </div>
+            <div class="setting-row setting-row-sub">
+              <div class="setting-label">
+                <span class="setting-title" data-i18n="settings.voiceTestTitle">Test Sound</span>
+                <span class="setting-hint" data-i18n="settings.voiceTestHint">Play a sample announcement at the current language and speed.</span>
+              </div>
+              <button id="voice-test-btn" class="btn-outline" data-i18n="settings.voiceTestBtn">&#9654; Play Test</button>
+            </div>
           </div>
 
           <!-- Test Mode (admin only — shown by renderer.js) -->

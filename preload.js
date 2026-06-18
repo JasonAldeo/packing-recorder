@@ -25,6 +25,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   generateManualQR:      ()                         => ipcRenderer.invoke('generate-manual-qr'),
   generateStationQR:     (stationId)                => ipcRenderer.invoke('generate-station-qr', stationId),
   openPrintStations:     (stationsData)             => ipcRenderer.invoke('open-print-stations', stationsData),
+  printToPdf:            ()                          => ipcRenderer.send('print-to-pdf'),
 
   // ─── Multi-window ──────────────────────────────────────────────────────────
   openStationWindow:     (stationId)                => ipcRenderer.invoke('open-station-window', stationId),

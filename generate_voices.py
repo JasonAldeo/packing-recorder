@@ -1,15 +1,21 @@
 """
 generate_voices.py
 ------------------
-Generates all 48 bundled voice announcement MP3 files for Packing Recorder.
+Generates all bundled voice announcement MP3 files for Packing Recorder.
 
 Usage:
     pip install edge-tts
     python generate_voices.py
 
 Output:
-    voices/id/station1-armed.mp3  ... (24 Indonesian files)
-    voices/en/station1-armed.mp3  ... (24 English files)
+    voices/id/station1-armed.mp3       ... (24 Indonesian station files)
+    voices/en/station1-armed.mp3       ... (24 English station files)
+    voices/id/generic-recording.mp3    ... (3 Indonesian generic files)
+    voices/en/generic-recording.mp3    ... (3 English generic files)
+
+Generic files are used in single-station mode where the station number
+is implicit. States: recording, saved, cancelled (no 'armed' — single-
+station mode has no armed/waiting state).
 """
 
 import asyncio
@@ -35,6 +41,19 @@ STATES_EN = {
     'cancelled':  'cancelled',
 }
 
+# Generic (single-station) — no 'armed', single-station has no waiting state
+GENERIC_STATES_ID = {
+    'recording': 'merekam',
+    'saved':     'tersimpan',
+    'cancelled': 'dibatalkan',
+}
+
+GENERIC_STATES_EN = {
+    'recording': 'recording',
+    'saved':     'saved',
+    'cancelled': 'cancelled',
+}
+
 VOICE_ID = 'id-ID-GadisNeural'
 VOICE_EN = 'en-US-JennyNeural'
 
@@ -43,12 +62,12 @@ VOICE_EN = 'en-US-JennyNeural'
 async def generate(text, voice, output_path):
     communicate = edge_tts.Communicate(text, voice)
     await communicate.save(output_path)
-    print(f'  ✓  {output_path}  →  "{text}"')
+    print(f'  OK  {output_path}  ->  "{text}"')
 
 async def main():
     tasks = []
 
-    # Indonesian
+    # Indonesian — per-station
     os.makedirs('voices/id', exist_ok=True)
     for i, station_word in enumerate(STATIONS_ID, start=1):
         for state_key, state_word in STATES_ID.items():
@@ -56,13 +75,23 @@ async def main():
             path = f'voices/id/station{i}-{state_key}.mp3'
             tasks.append(generate(text, VOICE_ID, path))
 
-    # English
+    # English — per-station
     os.makedirs('voices/en', exist_ok=True)
     for i, station_word in enumerate(STATIONS_EN, start=1):
         for state_key, state_word in STATES_EN.items():
             text = f'{station_word}, {state_word}'
             path = f'voices/en/station{i}-{state_key}.mp3'
             tasks.append(generate(text, VOICE_EN, path))
+
+    # Indonesian — generic (single-station mode)
+    for state_key, state_word in GENERIC_STATES_ID.items():
+        path = f'voices/id/generic-{state_key}.mp3'
+        tasks.append(generate(state_word, VOICE_ID, path))
+
+    # English — generic (single-station mode)
+    for state_key, state_word in GENERIC_STATES_EN.items():
+        path = f'voices/en/generic-{state_key}.mp3'
+        tasks.append(generate(state_word, VOICE_EN, path))
 
     print(f'Generating {len(tasks)} audio files...\n')
     # Run in batches of 8 to avoid overwhelming the API

@@ -1872,8 +1872,9 @@ body {
   cursor: pointer;
 }
 
-#voice-speed-label {
-  min-width: 36px;
+#voice-speed-label,
+#voice-volume-label {
+  min-width: 40px;
   font-size: 0.85rem;
   color: #475569;
   font-weight: 600;
