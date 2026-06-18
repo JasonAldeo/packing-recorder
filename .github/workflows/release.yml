@@ -30,8 +30,18 @@ jobs:
           $version = "${{ github.ref_name }}" -replace '^v', ''
           npm version $version --no-git-tag-version
 
-      - name: Build Windows installer (unsigned)
+      - name: Build Windows installer + MSIX (unsigned)
         run: npm run dist -- -p never
+
+      - name: Locate build artifacts
+        id: artifacts
+        shell: pwsh
+        run: |
+          $exe  = "dist/PackingRecorder-Setup.exe"
+          $appx = Get-ChildItem dist -Filter "*.appx" | Select-Object -First 1 -ExpandProperty FullName
+          echo "exe=$exe"          >> $env:GITHUB_OUTPUT
+          echo "appx=$appx"        >> $env:GITHUB_OUTPUT
+          echo "Found appx: $appx"
 
       - name: Upload unsigned installer for signing
         id: upload-unsigned
@@ -53,14 +63,18 @@ jobs:
           wait-for-completion: true
           output-artifact-directory: dist/signed
 
-      - name: Create GitHub Release with signed installer
+      - name: Create GitHub Release with installer and MSIX
+        shell: pwsh
         run: |
           $installer = if (Test-Path "dist/signed/PackingRecorder-Setup.exe") {
             "dist/signed/PackingRecorder-Setup.exe"
           } else {
             "dist/PackingRecorder-Setup.exe"
           }
-          gh release create ${{ github.ref_name }} $installer dist/latest.yml `
+          $appx = "${{ steps.artifacts.outputs.appx }}"
+          $files = @($installer, "dist/latest.yml")
+          if ($appx -and (Test-Path $appx)) { $files += $appx }
+          gh release create ${{ github.ref_name }} @files `
             --title "${{ github.ref_name }}" `
             --generate-notes
         env:
