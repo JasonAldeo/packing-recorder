@@ -476,7 +476,7 @@ async function initStationCamera(sid) {
     st.stream = await getUserMediaWithTimeout(constraints);
     if (videoEl) {
       videoEl.srcObject = st.stream;
-      videoEl.muted = !appSettings.recordAudio;
+      videoEl.muted = true; // always mute preview — audio goes to recording only, not speakers
     }
     if (cameraError) cameraError.classList.add('hidden');
   } catch (err) {
@@ -485,7 +485,7 @@ async function initStationCamera(sid) {
       st.stream = await getUserMediaWithTimeout({ video: true, audio: !!appSettings.recordAudio });
       if (videoEl) {
         videoEl.srcObject = st.stream;
-        videoEl.muted = !appSettings.recordAudio;
+        videoEl.muted = true; // always mute preview
       }
       if (cameraError) cameraError.classList.add('hidden');
     } catch (err2) {
