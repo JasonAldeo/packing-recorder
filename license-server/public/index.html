@@ -872,6 +872,41 @@
       .section { padding: 60px 0; }
     }
 
+    /* ── Multi-station stats ── */
+    .ms-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      width: 100%;
+      max-width: 720px;
+    }
+    .ms-stat-card {
+      background: rgba(255,255,255,0.04);
+      border: 1.5px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 24px 16px 20px;
+      text-align: center;
+    }
+    .ms-stat-num {
+      font-size: clamp(2rem, 5vw, 2.8rem);
+      font-weight: 900;
+      letter-spacing: -1px;
+      line-height: 1;
+      background: linear-gradient(135deg, #818cf8, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+    .ms-stat-label {
+      font-size: 0.8rem;
+      color: #64748b;
+      line-height: 1.45;
+    }
+    @media (max-width: 500px) {
+      .ms-stats { grid-template-columns: 1fr; max-width: 280px; }
+    }
+
     /* ── Multi-station demo ── */
     .multistation-section {
       background: linear-gradient(160deg, #0f172a 0%, #1e1b4b 60%, #0f172a 100%);
@@ -900,6 +935,13 @@
       font-size: 0.82rem;
       color: #94a3b8;
       font-family: 'Courier New', monospace;
+      height: 42px;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .ms-scan-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .ms-scanner-dot {
       width: 8px; height: 8px;
@@ -932,6 +974,7 @@
       gap: 10px;
       transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
       min-height: 148px;
+      height: 160px;
       position: relative;
       overflow: hidden;
     }
@@ -957,6 +1000,9 @@
       background: rgba(100,116,139,0.2);
       color: #64748b;
       transition: background 0.3s, color 0.3s;
+      min-width: 72px;
+      text-align: center;
+      white-space: nowrap;
     }
     .ms-indicator {
       width: 36px; height: 36px;
@@ -972,7 +1018,9 @@
       font-family: 'Courier New', monospace;
       color: #475569;
       text-align: center;
-      min-height: 1em;
+      height: 1.1em;
+      min-height: 1.1em;
+      overflow: hidden;
       letter-spacing: 0.04em;
       transition: color 0.3s;
     }
@@ -983,7 +1031,8 @@
       text-align: center;
       color: #475569;
       letter-spacing: 0.04em;
-      min-height: 1em;
+      height: 1.1em;
+      min-height: 1.1em;
     }
 
     /* idle */
@@ -1414,6 +1463,22 @@
     <p class="section-sub" style="margin:0 auto 0;" data-i18n="ms.sub">Setiap stasiun berjalan independen — scan di satu stasiun tidak mempengaruhi stasiun lain.</p>
 
     <div class="ms-demo-wrap">
+
+      <!-- Stat counters -->
+      <div class="ms-stats" id="ms-stats">
+        <div class="ms-stat-card">
+          <div class="ms-stat-num"><span id="ms-stat1-num">0</span></div>
+          <div class="ms-stat-label" data-i18n="ms.stat1.label">stasiun sekaligus</div>
+        </div>
+        <div class="ms-stat-card">
+          <div class="ms-stat-num"><span id="ms-stat2-num">0</span></div>
+          <div class="ms-stat-label" data-i18n="ms.stat2.label">aplikasi, tanpa hardware tambahan</div>
+        </div>
+        <div class="ms-stat-card">
+          <div class="ms-stat-num"><span id="ms-stat3-num">0</span>×</div>
+          <div class="ms-stat-label" data-i18n="ms.stat3.label">kapasitas vs stasiun tunggal</div>
+        </div>
+      </div>
       <div class="ms-scanner-bar">
         <div class="ms-scanner-dot"></div>
         <span data-i18n="ms.scannerLabel">Barcode scanner aktif</span>
@@ -1699,6 +1764,9 @@
       'feat7.desc':             'Hapus otomatis rekaman yang sudah melewati batas hari yang ditentukan. Disk tetap lega tanpa perlu membersihkan secara manual.',
       'feat8.title':            'Pengumuman Suara',
       'feat8.desc':             'Mengucapkan status stasiun saat rekaman dimulai, berhenti, atau dibatalkan. Berguna untuk operator yang jauh dari layar.',
+      'ms.stat1.label':        'stasiun sekaligus',
+      'ms.stat2.label':        'aplikasi, tanpa hardware tambahan',
+      'ms.stat3.label':        'kapasitas vs stasiun tunggal',
       'ms.label':              'Multi-Stasiun',
       'ms.title':              'Rekam 6 stasiun sekaligus',
       'ms.sub':                'Setiap stasiun berjalan independen — scan di satu stasiun tidak mempengaruhi stasiun lain.',
@@ -1808,6 +1876,9 @@
       'feat7.desc':             'Automatically delete recordings older than a set number of days. Keeps disk usage under control without manual cleanup.',
       'feat8.title':            'Voice Announcements',
       'feat8.desc':             'Speaks station status aloud when recording starts, stops, or is cancelled. Useful for operators away from the screen.',
+      'ms.stat1.label':        'stations at once',
+      'ms.stat2.label':        'app, no extra hardware',
+      'ms.stat3.label':        'throughput vs single station',
       'ms.label':              'Multi-Station',
       'ms.title':              'Record 6 stations at once',
       'ms.sub':                'Each station runs independently — scanning at one station has no effect on the others.',
@@ -2038,6 +2109,41 @@
     const b = document.getElementById('promo-banner');
     if (b) b.classList.remove('visible');
   }
+
+  // ── Multi-station stat counters ─────────────────────────────────────────────
+  (function () {
+    const STATS = [
+      { elId: 'ms-stat1-num', target: 6,  duration: 1200 },
+      { elId: 'ms-stat2-num', target: 1,  duration:  600 },
+      { elId: 'ms-stat3-num', target: 6,  duration: 1200 },
+    ];
+
+    function countUp(el, target, duration) {
+      const start = performance.now();
+      function tick(now) {
+        const progress = Math.min((now - start) / duration, 1);
+        // ease-out cubic
+        const eased = 1 - Math.pow(1 - progress, 3);
+        el.textContent = Math.round(eased * target);
+        if (progress < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
+
+    const statsEl = document.getElementById('ms-stats');
+    if (!statsEl) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries[0].isIntersecting) return;
+      observer.unobserve(statsEl);
+      STATS.forEach(({ elId, target, duration }) => {
+        const el = document.getElementById(elId);
+        if (el) countUp(el, target, duration);
+      });
+    }, { threshold: 0.4 });
+
+    observer.observe(statsEl);
+  })();
 
   // ── Multi-station animation ──────────────────────────────────────────────────
   (function () {
