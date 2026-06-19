@@ -504,7 +504,6 @@ ipcMain.handle('check-for-updates', async () => {
     // confusing error messages when the GitHub release feed is unreachable.
     return { isUpdateAvailable: false };
   }
-  }
 });
 
 // Renderer notifies main whenever recording state changes so the update dialog
