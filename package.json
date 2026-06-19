@@ -61,7 +61,7 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "AldeoStudio",
+      "owner": "JasonAldeo",
       "repo": "packing-recorder"
     }
   },

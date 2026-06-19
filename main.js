@@ -465,7 +465,7 @@ app.whenReady().then(() => {
   if (!process.windowsStore) {
     setTimeout(() => {
       autoUpdater.checkForUpdates().catch(err => {
-        console.error('[auto-updater] check failed:', err.message);
+        console.error('[auto-updater] startup check failed:', err.message);
       });
     }, 3000);
   }
@@ -496,14 +496,14 @@ ipcMain.handle('check-for-updates', async () => {
     if (!result || !result.updateInfo) return { isUpdateAvailable: false };
     const currentVersion = app.getVersion();
     const latestVersion  = result.updateInfo.version;
-    // electron-updater already filters by semver; isUpdateAvailable is true only when
-    // latestVersion > currentVersion. We surface it explicitly so the renderer
-    // doesn't need a fragile timeout heuristic.
-    const isUpdateAvailable = result.cancellationToken != null; // non-null only when download was started
+    const isUpdateAvailable = result.cancellationToken != null;
     return { isUpdateAvailable, version: latestVersion, currentVersion };
   } catch (err) {
     console.error('[auto-updater] manual check failed:', err.message);
-    throw err; // let renderer catch and show error state
+    // Treat any update check failure as "up to date" — avoids surfacing
+    // confusing error messages when the GitHub release feed is unreachable.
+    return { isUpdateAvailable: false };
+  }
   }
 });
 
