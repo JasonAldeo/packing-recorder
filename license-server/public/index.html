@@ -3,22 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Packing Recorder — Record Every Packing Process | Rekam Setiap Packing</title>
-  <meta name="description" content="Rekam packing otomatis dengan scan barcode — temukan video dengan satu klik. Automatically record every packing process via barcode scanner. Search and replay recordings anytime. Windows app." />
+  <title>Packing Recorder — Rekam Packing Otomatis via Scan Barcode | Windows</title>
+  <meta name="description" content="Rekam otomatis setiap proses packing saat scan barcode resi pengiriman. Cari dan putar ulang video bukti packing kapan saja. Cocok untuk gudang e-commerce. Gratis 14 hari, Windows 10/11." />
   <meta name="keywords" content="rekam packing otomatis, scan barcode rekam video, temukan video dengan satu klik, packing recorder, packing recording software, barcode packing, warehouse recording, packing video recorder, record packing, packaging recorder, shipping recorder, rekam packing, rekam packaging, rekam resi, bukti rekam, bukti packing, rekam pengiriman, software rekam packing, aplikasi rekam packing, rekam barcode, video packing, bukti video packing" />
   <link rel="canonical" href="https://packingrecorder.com" />
 
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://packingrecorder.com" />
-  <meta property="og:title" content="Packing Recorder — Record Every Packing Process" />
-  <meta property="og:description" content="Automatically record every packing process via barcode scanner. Search and replay recordings anytime. Available for Windows." />
+  <meta property="og:title" content="Packing Recorder — Rekam Packing Otomatis via Scan Barcode" />
+  <meta property="og:description" content="Rekam otomatis setiap proses packing saat scan barcode resi pengiriman. Cari dan putar ulang video bukti packing kapan saja. Cocok untuk gudang e-commerce. Gratis 14 hari, Windows 10/11." />
   <meta property="og:image" content="https://packingrecorder.com/screenshots/Scan_Page.png" />
   <meta property="og:image:width" content="1280" />
   <meta property="og:image:height" content="720" />
   <meta property="og:site_name" content="Packing Recorder" />
-  <meta property="og:locale" content="en_US" />
-  <meta property="og:locale:alternate" content="id_ID" />
+  <meta property="og:locale" content="id_ID" />
+  <meta property="og:locale:alternate" content="en_US" />
+
+  <!-- hreflang -->
+  <link rel="alternate" hreflang="id" href="https://packingrecorder.com" />
+  <link rel="alternate" hreflang="en" href="https://packingrecorder.com" />
+  <link rel="alternate" hreflang="x-default" href="https://packingrecorder.com" />
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image" />
@@ -33,28 +38,93 @@
     "@type": "SoftwareApplication",
     "name": "Packing Recorder",
     "url": "https://packingrecorder.com",
-    "description": "Rekam packing otomatis dengan scan barcode — temukan video dengan satu klik. Automatically record every packing process via barcode scanner. Search and replay recordings anytime. Available for Windows.",
+    "description": "Rekam packing otomatis dengan scan barcode resi pengiriman. Temukan dan putar ulang video bukti packing kapan saja. Cocok untuk gudang e-commerce dan toko online.",
     "applicationCategory": "BusinessApplication",
-    "operatingSystem": "Windows",
+    "operatingSystem": "Windows 10, Windows 11",
+    "downloadUrl": "https://github.com/JasonAldeo/packing-recorder/releases/latest/download/PackingRecorder-Setup.exe",
     "offers": {
       "@type": "Offer",
       "price": "0",
       "priceCurrency": "IDR",
-      "description": "Free trial available. Active license required for full access."
+      "description": "Gratis 14 hari. Lisensi aktif mulai Rp 199.000 / 30 hari."
     },
     "publisher": {
       "@type": "Organization",
-      "name": "Packing Recorder",
+      "name": "Aldeo Studio",
       "url": "https://packingrecorder.com"
     },
-    "screenshot": "https://packingrecorder.com/screenshots/Scan_Page.png",
+    "screenshot": [
+      "https://packingrecorder.com/screenshots/Scan_Page.png",
+      "https://packingrecorder.com/screenshots/Multi_Stations_Mode.png",
+      "https://packingrecorder.com/screenshots/Recordings_Page.png",
+      "https://packingrecorder.com/screenshots/Search_Page.png"
+    ],
     "featureList": [
-      "Automatic barcode-triggered recording",
-      "Search and replay recordings",
-      "MP4 export",
-      "Multi-station support",
-      "Offline recordings",
-      "Voice announcements"
+      "Rekam otomatis via scan barcode resi pengiriman",
+      "Cari dan putar ulang rekaman berdasarkan kode pengiriman",
+      "Ekspor video ke MP4 sebagai bukti packing",
+      "Multi-stasiun hingga 6 kamera sekaligus",
+      "Rekaman tersimpan offline di komputer",
+      "Hapus otomatis rekaman lama",
+      "Pengumuman suara saat rekaman dimulai dan berhenti"
+    ]
+  }
+  </script>
+
+  <!-- FAQ structured data — targets "People also ask" in Google -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Gimana caranya scan barcode produk?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Gunakan barcode scanner USB 2D yang terhubung ke komputer Windows. Arahkan scanner ke barcode resi pengiriman — kode otomatis terbaca oleh aplikasi seperti Packing Recorder, yang langsung memulai rekaman video tanpa perlu menekan tombol apapun."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Apa itu scan inventory?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Scan inventory adalah proses membaca barcode atau QR code pada produk atau kemasan untuk mencatat, memverifikasi, atau mendokumentasikan barang secara otomatis. Dalam konteks pengiriman e-commerce, scan inventory digunakan untuk merekam proses packing setiap pesanan sebagai bukti digital."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Apa itu scanning gudang?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Scanning gudang adalah penggunaan barcode scanner di area gudang untuk mengidentifikasi, melacak, dan mendokumentasikan barang secara real-time. Packing Recorder memanfaatkan scanning gudang untuk memulai rekaman video otomatis setiap kali barcode resi di-scan, sehingga setiap proses packing terekam sebagai bukti."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Bagaimana cara kerja barcode scanner?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Barcode scanner membaca pola garis atau titik pada barcode menggunakan cahaya laser atau kamera, lalu mengonversinya menjadi teks atau angka yang dikirim ke komputer seperti input keyboard. Packing Recorder mendeteksi input barcode scanner ini secara otomatis dan memulai rekaman video packing tanpa perlu menekan tombol apapun."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Aplikasi apa yang bisa merekam proses packing otomatis?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Packing Recorder adalah aplikasi Windows yang merekam proses packing secara otomatis setiap kali barcode resi pengiriman di-scan. Rekaman tersimpan di komputer dan bisa dicari berdasarkan kode pengiriman kapan saja sebagai bukti packing."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Bagaimana cara membuat bukti rekam packing untuk ekspedisi?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Dengan Packing Recorder, setiap scan barcode resi otomatis memulai rekaman video. Setelah packing selesai, scan barcode yang sama untuk menghentikan rekaman. Video bisa diekspor ke format MP4 dan dikirim ke marketplace atau pihak ekspedisi sebagai bukti packing yang sah."
+        }
+      }
     ]
   }
   </script>
@@ -954,7 +1024,7 @@
       <span data-i18n="hero.eyebrow">Windows 64-bit &middot; Free 14-day trial</span>
     </div>
     <h1 class="hero-title" data-i18n="hero.title">
-      Rekam setiap packing,<br /><span>lega dari segala masalah</span>
+      Rekam packing otomatis<br /><span>dengan scan barcode resi</span>
     </h1>
     <p class="hero-sub" data-i18n="hero.sub">
       Rekam packing otomatis setiap proses lewat scan barcode. Cari dan putar ulang rekaman kapan saja untuk membuktikan packing yang sudah selesai.
@@ -989,42 +1059,42 @@
 
     <div class="features-grid">
       <div class="feature-card">
-        <div class="feature-icon"><img src="/icons/barcode-scan-icon.svg" alt=""></div>
+        <div class="feature-icon"><img src="/icons/barcode-scan-icon.svg" alt="Scan barcode otomatis"></div>
         <div class="feature-title" data-i18n="feat1.title">Rekam Otomatis via Barcode</div>
         <div class="feature-desc" data-i18n="feat1.desc">Scan barcode resi pengiriman — rekaman langsung dimulai. Tidak perlu pencet tombol apapun.</div>
       </div>
       <div class="feature-card">
-        <div class="feature-icon"><img src="/icons/search-icon.svg" alt=""></div>
+        <div class="feature-icon"><img src="/icons/search-icon.svg" alt="Cari rekaman"></div>
         <div class="feature-title" data-i18n="feat2.title">Cari &amp; Putar Ulang</div>
         <div class="feature-desc" data-i18n="feat2.desc">Cari rekaman berdasarkan kode pengiriman dan putar ulang langsung di dalam aplikasi kapan saja.</div>
       </div>
       <div class="feature-card">
-        <div class="feature-icon"><img src="/icons/mp4-icon.svg" alt=""></div>
+        <div class="feature-icon"><img src="/icons/mp4-icon.svg" alt="Ekspor MP4"></div>
         <div class="feature-title" data-i18n="feat3.title">Ekspor ke MP4</div>
         <div class="feature-desc" data-i18n="feat3.desc">Simpan rekaman sebagai file MP4 untuk dikirim ke marketplace atau pihak ekspedisi sebagai bukti.</div>
       </div>
       <div class="feature-card">
-        <div class="feature-icon"><img src="/icons/multi-stations-icon.svg" alt=""></div>
+        <div class="feature-icon"><img src="/icons/multi-stations-icon.svg" alt="Multi stasiun packing"></div>
         <div class="feature-title" data-i18n="feat4.title">Multi-Stasiun</div>
         <div class="feature-desc" data-i18n="feat4.desc">Rekam di hingga 6 stasiun packing sekaligus dalam satu aplikasi. Setiap stasiun berjalan independen.</div>
       </div>
       <div class="feature-card">
-        <div class="feature-icon"><img src="/icons/offline-cloud-icon.svg" alt=""></div>
+        <div class="feature-icon"><img src="/icons/offline-cloud-icon.svg" alt="Rekaman tersimpan offline"></div>
         <div class="feature-title" data-i18n="feat5.title">Rekaman Tersimpan Offline</div>
         <div class="feature-desc" data-i18n="feat5.desc">Rekaman tersimpan langsung di komputer kamu — tidak dikirim ke cloud. Koneksi internet dibutuhkan setiap 1 jam saat masa trial.</div>
       </div>
       <div class="feature-card">
-        <div class="feature-icon"><img src="/icons/license-icon.svg" alt=""></div>
+        <div class="feature-icon"><img src="/icons/license-icon.svg" alt="Lisensi berbasis akun"></div>
         <div class="feature-title" data-i18n="feat6.title">Lisensi Berbasis Akun</div>
         <div class="feature-desc" data-i18n="feat6.desc">Lisensi terhubung ke akunmu, bukan ke komputer. Ganti komputer kapan saja tanpa kehilangan lisensi.</div>
       </div>
       <div class="feature-card">
-        <div class="feature-icon"><img src="/icons/auto-delete-icon.svg" alt=""></div>
+        <div class="feature-icon"><img src="/icons/auto-delete-icon.svg" alt="Hapus otomatis rekaman lama"></div>
         <div class="feature-title" data-i18n="feat7.title">Hapus Otomatis Rekaman Lama</div>
         <div class="feature-desc" data-i18n="feat7.desc">Hapus otomatis rekaman yang sudah melewati batas hari yang ditentukan. Disk tetap lega tanpa perlu membersihkan secara manual.</div>
       </div>
       <div class="feature-card">
-        <div class="feature-icon"><img src="/icons/voice-icon.svg" alt=""></div>
+        <div class="feature-icon"><img src="/icons/voice-icon.svg" alt="Pengumuman suara"></div>
         <div class="feature-title" data-i18n="feat8.title">Pengumuman Suara</div>
         <div class="feature-desc" data-i18n="feat8.desc">Mengucapkan status stasiun saat rekaman dimulai, berhenti, atau dibatalkan. Berguna untuk operator yang jauh dari layar.</div>
       </div>
@@ -1078,7 +1148,7 @@
       </div>
 
       <div class="sysreq-card">
-        <div class="sysreq-icon"><img src="/icons/ram-icon.svg" alt=""></div>
+        <div class="sysreq-icon"><img src="/icons/ram-icon.svg" alt="RAM"></div>
         <div class="sysreq-text">
           <div class="sysreq-title" data-i18n="sysreq.ram.title">RAM</div>
           <div class="sysreq-spec" data-i18n="sysreq.ram.spec">4 GB (8 GB untuk multi-stasiun)</div>
@@ -1086,7 +1156,7 @@
       </div>
 
       <div class="sysreq-card">
-        <div class="sysreq-icon"><img src="/icons/harddisk-icon.svg" alt=""></div>
+        <div class="sysreq-icon"><img src="/icons/harddisk-icon.svg" alt="Penyimpanan disk"></div>
         <div class="sysreq-text">
           <div class="sysreq-title" data-i18n="sysreq.storage.title">Penyimpanan</div>
           <div class="sysreq-spec" data-i18n="sysreq.storage.spec">~1 GB per jam rekaman</div>
@@ -1094,7 +1164,7 @@
       </div>
 
       <div class="sysreq-card">
-        <div class="sysreq-icon"><img src="/icons/webcam-icon.svg" alt=""></div>
+        <div class="sysreq-icon"><img src="/icons/webcam-icon.svg" alt="Kamera USB"></div>
         <div class="sysreq-text">
           <div class="sysreq-title" data-i18n="sysreq.webcam.title">Kamera</div>
           <div class="sysreq-spec" data-i18n="sysreq.webcam.spec">Kamera USB apa pun</div>
@@ -1102,7 +1172,7 @@
       </div>
 
       <div class="sysreq-card">
-        <div class="sysreq-icon"><img src="/icons/barcode-icon.svg" alt=""></div>
+        <div class="sysreq-icon"><img src="/icons/barcode-icon.svg" alt="Barcode scanner USB"></div>
         <div class="sysreq-text">
           <div class="sysreq-title" data-i18n="sysreq.scanner.title">Barcode Scanner</div>
           <div class="sysreq-spec" data-i18n="sysreq.scanner.spec">USB 2D scanner (mendukung QR Code)</div>
@@ -1110,7 +1180,7 @@
       </div>
 
       <div class="sysreq-card">
-        <div class="sysreq-icon"><img src="/icons/wifi-icon.svg" alt=""></div>
+        <div class="sysreq-icon"><img src="/icons/wifi-icon.svg" alt="Koneksi internet"></div>
         <div class="sysreq-text">
           <div class="sysreq-title" data-i18n="sysreq.internet.title">Internet</div>
           <div class="sysreq-spec" data-i18n="sysreq.internet.spec">Diperlukan untuk login &amp; validasi lisensi. Pengguna berlisensi: offline hingga 24 jam.</div>
@@ -1293,7 +1363,7 @@
       'nav.download':           'Download',
       'nav.guide':              'Panduan',
       'hero.eyebrow':           'Windows 64-bit \u00b7 Coba gratis 14 hari',
-      'hero.title':             'Rekam setiap packing,\u003Cbr/\u003E\u003Cspan\u003Elega dari segala masalah\u003C/span\u003E',
+      'hero.title':             'Rekam packing otomatis\u003Cbr/\u003E\u003Cspan\u003Edengan scan barcode resi\u003C/span\u003E',
       'hero.sub':               'Rekam packing otomatis setiap proses lewat scan barcode. Cari dan putar ulang rekaman kapan saja untuk membuktikan packing yang sudah selesai.',
       'hero.downloadBtn':       'Download Gratis',
       'hero.storeBtn':          'Dapatkan di Microsoft Store',
