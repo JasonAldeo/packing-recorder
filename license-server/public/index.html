@@ -872,6 +872,283 @@
       .section { padding: 60px 0; }
     }
 
+    /* ── Multi-station demo ── */
+    .multistation-section {
+      background: linear-gradient(160deg, #0f172a 0%, #1e1b4b 60%, #0f172a 100%);
+      padding: 90px 0;
+      overflow: hidden;
+    }
+    .multistation-section .section-label { color: #818cf8; }
+    .multistation-section .section-title { color: #fff; }
+    .multistation-section .section-sub   { color: #94a3b8; }
+
+    .ms-demo-wrap {
+      margin-top: 52px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+    .ms-scanner-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 9px 18px;
+      font-size: 0.82rem;
+      color: #94a3b8;
+      font-family: 'Courier New', monospace;
+    }
+    .ms-scanner-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 6px #22c55e;
+      animation: ms-blink 1.4s ease-in-out infinite;
+    }
+    @keyframes ms-blink {
+      0%,100% { opacity: 1; } 50% { opacity: 0.3; }
+    }
+    .ms-scan-text { color: #e2e8f0; font-weight: 600; letter-spacing: 0.05em; }
+
+    .ms-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      width: 100%;
+      max-width: 720px;
+    }
+
+    /* ── Station card ── */
+    .ms-card {
+      border-radius: 14px;
+      border: 1.5px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+      padding: 18px 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: border-color 0.3s, background 0.3s, box-shadow 0.3s;
+      min-height: 148px;
+      position: relative;
+      overflow: hidden;
+    }
+    .ms-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .ms-station-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #64748b;
+    }
+    .ms-badge {
+      font-size: 0.65rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 3px 9px;
+      border-radius: 20px;
+      background: rgba(100,116,139,0.2);
+      color: #64748b;
+      transition: background 0.3s, color 0.3s;
+    }
+    .ms-indicator {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: rgba(100,116,139,0.15);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto;
+      transition: background 0.3s, box-shadow 0.3s;
+      font-size: 1.1rem;
+    }
+    .ms-code {
+      font-size: 0.72rem;
+      font-family: 'Courier New', monospace;
+      color: #475569;
+      text-align: center;
+      min-height: 1em;
+      letter-spacing: 0.04em;
+      transition: color 0.3s;
+    }
+    .ms-timer {
+      font-size: 0.78rem;
+      font-weight: 700;
+      font-family: 'Courier New', monospace;
+      text-align: center;
+      color: #475569;
+      letter-spacing: 0.04em;
+      min-height: 1em;
+    }
+
+    /* idle */
+    .ms-card.ms-idle {
+      border-color: rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+    }
+
+    /* armed */
+    .ms-card.ms-armed {
+      border-color: rgba(234,179,8,0.5);
+      background: rgba(234,179,8,0.06);
+      box-shadow: 0 0 24px rgba(234,179,8,0.12);
+    }
+    .ms-card.ms-armed .ms-station-label { color: #fbbf24; }
+    .ms-card.ms-armed .ms-badge {
+      background: rgba(234,179,8,0.2);
+      color: #fbbf24;
+    }
+    .ms-card.ms-armed .ms-indicator {
+      background: rgba(234,179,8,0.15);
+      box-shadow: 0 0 0 0 rgba(234,179,8,0.5);
+      animation: ms-armed-pulse 1s ease-out infinite;
+    }
+    .ms-card.ms-armed .ms-code { color: #fbbf24; }
+    .ms-card.ms-armed .ms-timer { color: #fbbf24; }
+    @keyframes ms-armed-pulse {
+      0%   { box-shadow: 0 0 0 0   rgba(234,179,8,0.55); }
+      70%  { box-shadow: 0 0 0 12px rgba(234,179,8,0);   }
+      100% { box-shadow: 0 0 0 0   rgba(234,179,8,0);    }
+    }
+
+    /* recording */
+    .ms-card.ms-recording {
+      border-color: rgba(239,68,68,0.55);
+      background: rgba(239,68,68,0.07);
+      box-shadow: 0 0 28px rgba(239,68,68,0.15);
+    }
+    .ms-card.ms-recording .ms-station-label { color: #f87171; }
+    .ms-card.ms-recording .ms-badge {
+      background: rgba(239,68,68,0.2);
+      color: #f87171;
+    }
+    .ms-card.ms-recording .ms-indicator {
+      background: rgba(239,68,68,0.2);
+      animation: ms-rec-pulse 1.2s ease-in-out infinite;
+    }
+    .ms-card.ms-recording .ms-code { color: #f87171; }
+    .ms-card.ms-recording .ms-timer { color: #f87171; }
+    @keyframes ms-rec-pulse {
+      0%,100% { box-shadow: 0 0 0 0   rgba(239,68,68,0.6); }
+      50%     { box-shadow: 0 0 0 10px rgba(239,68,68,0);  }
+    }
+
+    /* done */
+    .ms-card.ms-done {
+      border-color: rgba(34,197,94,0.5);
+      background: rgba(34,197,94,0.07);
+      box-shadow: 0 0 24px rgba(34,197,94,0.12);
+    }
+    .ms-card.ms-done .ms-station-label { color: #4ade80; }
+    .ms-card.ms-done .ms-badge {
+      background: rgba(34,197,94,0.2);
+      color: #4ade80;
+    }
+    .ms-card.ms-done .ms-indicator { background: rgba(34,197,94,0.18); }
+    .ms-card.ms-done .ms-code { color: #4ade80; }
+    .ms-card.ms-done .ms-timer { color: #4ade80; }
+
+    .ms-legend {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 4px;
+    }
+    .ms-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+    .ms-legend-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+    .ms-legend-dot.idle      { background: #475569; }
+    .ms-legend-dot.armed     { background: #fbbf24; }
+    .ms-legend-dot.recording { background: #f87171; }
+    .ms-legend-dot.done      { background: #4ade80; }
+
+    @media (max-width: 600px) {
+      .ms-grid { grid-template-columns: repeat(2, 1fr); max-width: 420px; }
+    }
+    @media (max-width: 380px) {
+      .ms-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    }
+
+    /* ── QR station chips ── */
+    .ms-qr-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      max-width: 720px;
+      width: 100%;
+    }
+    .ms-qr-chip {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 13px;
+      border-radius: 10px;
+      border: 1.5px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.04);
+      color: #64748b;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      cursor: default;
+      user-select: none;
+      transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+    .ms-qr-chip svg {
+      width: 14px; height: 14px;
+      flex-shrink: 0;
+      opacity: 0.5;
+      transition: opacity 0.15s;
+    }
+    /* scanning flash state */
+    .ms-qr-chip.ms-chip-scanning {
+      border-color: rgba(129,140,248,0.7);
+      background: rgba(129,140,248,0.12);
+      color: #a5b4fc;
+      box-shadow: 0 0 16px rgba(129,140,248,0.25);
+    }
+    .ms-qr-chip.ms-chip-scanning svg { opacity: 1; }
+    /* sweep beam */
+    .ms-qr-chip::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -60%;
+      width: 40%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+      transform: skewX(-15deg);
+      opacity: 0;
+      transition: none;
+    }
+    .ms-qr-chip.ms-chip-scanning::after {
+      animation: ms-sweep 0.45s ease-out forwards;
+    }
+    @keyframes ms-sweep {
+      0%   { left: -60%; opacity: 1; }
+      100% { left: 120%; opacity: 0; }
+    }
+    /* label below QR row */
+    .ms-qr-label {
+      font-size: 0.72rem;
+      color: #475569;
+      margin-top: -4px;
+    }
+
     /* ── Post-download banner ── */
     .dl-banner {
       position: fixed;
@@ -1124,6 +1401,40 @@
         <div class="step-number">3</div>
         <div class="step-title" data-i18n="step3.title">Cari &amp; Putar Kapan Saja</div>
         <div class="step-desc" data-i18n="step3.desc">Ketik kode pengiriman di tab Cari untuk menemukan dan memutar ulang rekaman — butuh hitungan detik.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Multi-station animated demo ── -->
+<section class="section multistation-section">
+  <div class="container" style="text-align:center;">
+    <div class="section-label" data-i18n="ms.label">Multi-Stasiun</div>
+    <h2 class="section-title" data-i18n="ms.title">Rekam 6 stasiun sekaligus</h2>
+    <p class="section-sub" style="margin:0 auto 0;" data-i18n="ms.sub">Setiap stasiun berjalan independen — scan di satu stasiun tidak mempengaruhi stasiun lain.</p>
+
+    <div class="ms-demo-wrap">
+      <div class="ms-scanner-bar">
+        <div class="ms-scanner-dot"></div>
+        <span data-i18n="ms.scannerLabel">Barcode scanner aktif</span>
+        &nbsp;&mdash;&nbsp;
+        <span class="ms-scan-text" id="ms-last-scan">&nbsp;</span>
+      </div>
+      <div class="ms-grid" id="ms-grid">
+        <!-- cards injected by JS -->
+      </div>
+
+      <!-- QR station chips -->
+      <p class="ms-qr-label" data-i18n="ms.qrLabel">Scan QR stasiun untuk mulai merekam dan menghentikan rekaman</p>
+      <div class="ms-qr-row" id="ms-qr-row">
+        <!-- chips injected by JS -->
+      </div>
+
+      <div class="ms-legend">
+        <div class="ms-legend-item"><div class="ms-legend-dot idle"></div> <span data-i18n="ms.legend.idle">Idle</span></div>
+        <div class="ms-legend-item"><div class="ms-legend-dot armed"></div> <span data-i18n="ms.legend.armed">Menunggu</span></div>
+        <div class="ms-legend-item"><div class="ms-legend-dot recording"></div> <span data-i18n="ms.legend.recording">Merekam</span></div>
+        <div class="ms-legend-item"><div class="ms-legend-dot done"></div> <span data-i18n="ms.legend.done">Selesai</span></div>
       </div>
     </div>
   </div>
@@ -1388,6 +1699,15 @@
       'feat7.desc':             'Hapus otomatis rekaman yang sudah melewati batas hari yang ditentukan. Disk tetap lega tanpa perlu membersihkan secara manual.',
       'feat8.title':            'Pengumuman Suara',
       'feat8.desc':             'Mengucapkan status stasiun saat rekaman dimulai, berhenti, atau dibatalkan. Berguna untuk operator yang jauh dari layar.',
+      'ms.label':              'Multi-Stasiun',
+      'ms.title':              'Rekam 6 stasiun sekaligus',
+      'ms.sub':                'Setiap stasiun berjalan independen — scan di satu stasiun tidak mempengaruhi stasiun lain.',
+      'ms.scannerLabel':       'Barcode scanner aktif',
+      'ms.qrLabel':            'Scan QR stasiun untuk mulai merekam dan menghentikan rekaman',
+      'ms.legend.idle':        'Idle',
+      'ms.legend.armed':       'Menunggu',
+      'ms.legend.recording':   'Merekam',
+      'ms.legend.done':        'Selesai',
       'how.label':              'Cara Kerja',
       'how.title':              'Semudah tiga langkah',
       'how.sub':                'Tidak ada pengaturan rumit. Pasang, scan, dan rekaman berjalan sendiri.',
@@ -1488,6 +1808,15 @@
       'feat7.desc':             'Automatically delete recordings older than a set number of days. Keeps disk usage under control without manual cleanup.',
       'feat8.title':            'Voice Announcements',
       'feat8.desc':             'Speaks station status aloud when recording starts, stops, or is cancelled. Useful for operators away from the screen.',
+      'ms.label':              'Multi-Station',
+      'ms.title':              'Record 6 stations at once',
+      'ms.sub':                'Each station runs independently — scanning at one station has no effect on the others.',
+      'ms.scannerLabel':       'Barcode scanner active',
+      'ms.qrLabel':            'Scan a station QR code to start recording and stop recording',
+      'ms.legend.idle':        'Idle',
+      'ms.legend.armed':       'Waiting',
+      'ms.legend.recording':   'Recording',
+      'ms.legend.done':        'Done',
       'how.label':              'How It Works',
       'how.title':              'Three simple steps',
       'how.sub':                'No complicated setup. Install, scan, and recordings happen automatically.',
@@ -1709,6 +2038,227 @@
     const b = document.getElementById('promo-banner');
     if (b) b.classList.remove('visible');
   }
+
+  // ── Multi-station animation ──────────────────────────────────────────────────
+  (function () {
+    const STATION_COUNT = 6;
+    const FAKE_CODES = [
+      'JX8821049012', 'SP1239900443', 'JT7761203984', 'SI9002341128',
+      'JX4490012333', 'SP8812390021', 'JT3341209900', 'SI0021349087',
+      'JX6612304411', 'SP3390021844',
+    ];
+    const ICONS = { idle: '○', armed: '◎', recording: '⬤', done: '✓' };
+
+    // Station state objects — mirrors the real app's state machine:
+    // idle → (STATION:X scan) → armed → (shipping barcode scan) → recording → (STATION:X scan) → idle
+    const stations = Array.from({ length: STATION_COUNT }, (_, i) => ({
+      id: i + 1,
+      state: 'idle',        // idle | armed | recording | done | cancelled
+      code: '',             // shipping code
+      elapsed: 0,           // seconds while recording
+      armedCountdown: 0,    // seconds left in arm window (15s in real app, shortened for demo)
+    }));
+
+    const grid       = document.getElementById('ms-grid');
+    const qrRow      = document.getElementById('ms-qr-row');
+    const lastScanEl = document.getElementById('ms-last-scan');
+    if (!grid) return;
+
+    // QR icon SVG (inline)
+    const QR_SVG = `<svg viewBox="0 0 24 24" fill="currentColor">
+      <path d="M3 3h7v7H3V3zm1 1v5h5V4H4zm1 1h3v3H5V5zm9-2h7v7h-7V3zm1 1v5h5V4h-5zm1 1h3v3h-3V5zM3 14h7v7H3v-7zm1 1v5h5v-5H4zm1 1h3v3H5v-3zm8-1h2v2h-2v-2zm2 2h2v2h-2v-2zm-2 2h2v2h-2v-2zm4-4h2v2h-2v-2zm-2 4h2v2h-2v-2zm2 2h2v2h-2v-2zm2-6h2v2h-2v-2z"/>
+    </svg>`;
+
+    // Build DOM cards
+    stations.forEach(s => {
+      const card = document.createElement('div');
+      card.className = 'ms-card ms-idle';
+      card.id = `ms-card-${s.id}`;
+      card.innerHTML = `
+        <div class="ms-card-header">
+          <span class="ms-station-label">Station ${s.id}</span>
+          <span class="ms-badge" id="ms-badge-${s.id}">IDLE</span>
+        </div>
+        <div class="ms-indicator" id="ms-ind-${s.id}">${ICONS.idle}</div>
+        <div class="ms-code" id="ms-code-${s.id}">—</div>
+        <div class="ms-timer" id="ms-timer-${s.id}"></div>
+      `;
+      grid.appendChild(card);
+    });
+
+    // Build QR chips
+    if (qrRow) {
+      stations.forEach(s => {
+        const chip = document.createElement('div');
+        chip.className = 'ms-qr-chip';
+        chip.id = `ms-chip-${s.id}`;
+        chip.innerHTML = `${QR_SVG}<span>Station ${s.id}</span>`;
+        qrRow.appendChild(chip);
+      });
+    }
+
+    // Flash a QR chip (scanner beam effect), then call cb
+    function flashChip(stationId, cb) {
+      const chip = document.getElementById(`ms-chip-${stationId}`);
+      if (!chip) { cb(); return; }
+      chip.classList.add('ms-chip-scanning');
+      setTimeout(() => {
+        chip.classList.remove('ms-chip-scanning');
+        cb();
+      }, 480);
+    }
+
+    function fmtTime(sec) {
+      const m = String(Math.floor(sec / 60)).padStart(2, '0');
+      const s = String(sec % 60).padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    function randomCode() {
+      return FAKE_CODES[Math.floor(Math.random() * FAKE_CODES.length)];
+    }
+
+    function renderStation(s) {
+      const card    = document.getElementById(`ms-card-${s.id}`);
+      const badge   = document.getElementById(`ms-badge-${s.id}`);
+      const ind     = document.getElementById(`ms-ind-${s.id}`);
+      const codeEl  = document.getElementById(`ms-code-${s.id}`);
+      const timerEl = document.getElementById(`ms-timer-${s.id}`);
+      if (!card) return;
+
+      const txt = TEXTS[currentLang] || TEXTS.id;
+      card.className = `ms-card ms-${s.state}`;
+
+      if (s.state === 'idle') {
+        badge.textContent   = (txt['ms.legend.idle']      || 'IDLE').toUpperCase();
+        ind.textContent     = ICONS.idle;
+        codeEl.textContent  = '—';
+        timerEl.textContent = '';
+      } else if (s.state === 'armed') {
+        badge.textContent   = (txt['ms.legend.armed']     || 'WAITING').toUpperCase();
+        ind.textContent     = ICONS.armed;
+        codeEl.textContent  = '—';           // shipping code not known yet
+        timerEl.textContent = `${s.armedCountdown}s`;
+      } else if (s.state === 'recording') {
+        badge.textContent   = (txt['ms.legend.recording'] || 'REC').toUpperCase();
+        ind.textContent     = ICONS.recording;
+        codeEl.textContent  = s.code;
+        timerEl.textContent = fmtTime(s.elapsed);
+      } else if (s.state === 'done') {
+        badge.textContent   = (txt['ms.legend.done']      || 'DONE').toUpperCase();
+        ind.textContent     = ICONS.done;
+        codeEl.textContent  = s.code;
+        timerEl.textContent = fmtTime(s.elapsed);
+      }
+    }
+
+    // ── State transition helpers (mirrors real app logic) ────────────────────
+
+    // STATION:X scanned while station is idle → arm it.
+    // If another station is currently armed, cancel it first (displaced).
+    function armStation(s) {
+      stations.forEach(other => {
+        if (other !== s && other.state === 'armed') {
+          other.state = 'idle';
+          other.code  = '';
+          renderStation(other);
+        }
+      });
+      s.state           = 'armed';
+      s.armedCountdown  = 5; // shortened for demo (real app default: 15s)
+      if (lastScanEl) lastScanEl.textContent = `STATION:${s.id}`;
+      renderStation(s);
+    }
+
+    // Shipping barcode scanned while station is armed → start recording.
+    function startRecording(s) {
+      s.state   = 'recording';
+      s.elapsed = 0;
+      s.code    = randomCode();
+      if (lastScanEl) lastScanEl.textContent = s.code;
+      renderStation(s);
+    }
+
+    // STATION:X scanned while station is recording → stop and save.
+    function stopRecording(s) {
+      if (lastScanEl) lastScanEl.textContent = `STATION:${s.id}`;
+      s.state = 'done';
+      renderStation(s);
+      // "done" flash for 1800ms then back to idle (mirrors saveStationRecording)
+      setTimeout(() => {
+        s.state = 'idle';
+        s.code  = '';
+        renderStation(s);
+      }, 1800);
+    }
+
+    // Tick every second — drive armed countdown and recording timer
+    setInterval(() => {
+      stations.forEach(s => {
+        if (s.state === 'armed') {
+          s.armedCountdown--;
+          if (s.armedCountdown <= 0) {
+            // Timeout: silent return to idle (no cancelled flash — matches real app)
+            s.state = 'idle';
+            s.code  = '';
+          }
+          renderStation(s);
+        } else if (s.state === 'recording') {
+          s.elapsed++;
+          renderStation(s);
+        }
+      });
+    }, 1000);
+
+    // ── Sequential scheduler ─────────────────────────────────────────────────
+    // Only one station is ever armed at a time (enforced by armStation above).
+    // Flow per cycle:
+    //   1. Flash STATION:X chip → arm station
+    //   2. ~1s later: scan shipping barcode → start recording
+    //   3. arm next station (so multiple stations record concurrently)
+    //   4. After 5–10s: flash STATION:X chip again → stop recording
+
+    function pickIdleStation() {
+      const idle = stations.filter(s => s.state === 'idle');
+      if (!idle.length) return null;
+      return idle[Math.floor(Math.random() * idle.length)];
+    }
+
+    function scheduleNextArm() {
+      const pause = 1500 + Math.random() * 1500;
+      setTimeout(() => {
+        const s = pickIdleStation();
+        if (!s) { scheduleNextArm(); return; }
+
+        // Step 1: flash STATION:X chip → arm
+        flashChip(s.id, () => {
+          armStation(s);
+
+          // Step 2: ~1s later scan shipping barcode → start recording
+          const barcodeDelay = 900 + Math.random() * 600;
+          setTimeout(() => {
+            if (s.state !== 'armed') { scheduleNextArm(); return; }
+            startRecording(s);
+
+            // Step 3: schedule next station arm now (concurrent recording)
+            scheduleNextArm();
+
+            // Step 4: after 5–10s, flash STATION:X chip again → stop recording
+            const recDuration = 5000 + Math.random() * 5000;
+            setTimeout(() => {
+              if (s.state !== 'recording') return;
+              flashChip(s.id, () => {
+                if (s.state !== 'recording') return;
+                stopRecording(s);
+              });
+            }, recDuration);
+          }, barcodeDelay);
+        });
+      }, pause);
+    }
+
+    scheduleNextArm();
+  })();
 </script>
 </body>
 </html>
