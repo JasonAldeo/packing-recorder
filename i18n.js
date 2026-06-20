@@ -58,6 +58,7 @@
 
     // Auth overlay
     'overlay.authSub': 'Sign in to your account to continue.',
+    'overlay.loadingText': 'Setting up your account…',
     'overlay.tabLogin': 'Login',
     'overlay.tabRegister': 'Register',
     'overlay.loginBtn': 'Login',
@@ -326,6 +327,7 @@
 
     // Auth overlay
     'overlay.authSub': 'Masuk ke akun Anda untuk melanjutkan.',
+    'overlay.loadingText': 'Menyiapkan akun Anda…',
     'overlay.tabLogin': 'Masuk',
     'overlay.tabRegister': 'Daftar',
     'overlay.loginBtn': 'Masuk',

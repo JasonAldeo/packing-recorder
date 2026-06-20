@@ -1570,16 +1570,20 @@ function onAuthSuccess(result) {
     if (trialBadge) trialBadge.classList.add('hidden');
   } else {
     // Licensed status unknown / no license
-    // If overlay is still showing, switch from auth form to buy section
+    // Show loading spinner while we fetch trial state asynchronously
     if (authSection) authSection.classList.add('hidden');
+    const overlayLoadingSection = document.getElementById('overlay-loading-section');
+    if (overlayLoadingSection) overlayLoadingSection.classList.remove('hidden');
     // Check trial state inline (we need to await, so use a separate async call)
     _handlePostLoginTrialState();
   }
 }
 
 async function _handlePostLoginTrialState() {
+  const overlayLoadingSection = document.getElementById('overlay-loading-section');
   // Re-fetch status to get trial info (we already have it in getLicenseStatus)
   const status = await window.electronAPI.getLicenseStatus();
+  if (overlayLoadingSection) overlayLoadingSection.classList.add('hidden');
   if (status.licensed) {
     // License appeared (race condition / just activated) — call onAuthSuccess properly
     const days = status.licenseDaysLeft;

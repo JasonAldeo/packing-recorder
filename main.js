@@ -5,6 +5,7 @@ const fs = require('fs');
 const https = require('https');
 const http = require('http');
 const { execFile } = require('child_process');
+const crypto = require('crypto');
 const QRCode = require('qrcode');
 const ffmpegPath = require('ffmpeg-static');
 
@@ -258,6 +259,7 @@ ipcMain.handle('register', async (_, { username, email, password }) => {
     saveLicenseData(data);
     return { success: true, username: me.username, role: me.role, licenseExpiresAt: me.licenseExpiresAt };
   } catch (err) {
+    console.error('[register] error:', err.message);
     return { success: false, error: 'Could not connect to server. Check your internet connection.' };
   }
 });
