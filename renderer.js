@@ -1839,7 +1839,15 @@ function startLicensePoller() {
   _licensePollerTimer = setInterval(async () => {
     const status = await window.electronAPI.getLicenseStatus();
 
-    if (!status.loggedIn) return;
+    if (!status.loggedIn) {
+      if (status.suspended) {
+        stopLicensePoller();
+        if (trialBadge) trialBadge.classList.add('hidden');
+        if (licenseBadge) licenseBadge.classList.add('hidden');
+        showBuyOverlay('suspended');
+      }
+      return;
+    }
 
     if (status.licensed) {
       // License active (purchased or reconnected after offline block) — stop polling
