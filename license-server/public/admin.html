@@ -18,7 +18,7 @@
     }
 
     .page-wrap {
-      max-width: 620px;
+      max-width: 860px;
       margin: 0 auto;
     }
 
@@ -370,6 +370,79 @@
       color: #1e293b;
       margin-top: 32px;
     }
+
+    /* ── Ban / abuse management ── */
+    .btn-ban {
+      background: #7f1d1d;
+      color: #fca5a5;
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      border-radius: 6px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .btn-ban:hover:not(:disabled) { opacity: 0.82; }
+    .btn-unban {
+      background: #1c3a2a;
+      color: #4ade80;
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      border-radius: 6px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .btn-unban:hover:not(:disabled) { opacity: 0.82; }
+    .btn-danger {
+      background: #7f1d1d;
+      color: #fca5a5;
+      width: 100%;
+      padding: 12px;
+      margin-top: 12px;
+      font-size: 0.88rem;
+    }
+    .btn-danger:hover:not(:disabled) { opacity: 0.88; }
+
+    /* ── Recent registrations table ── */
+    .reg-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.78rem;
+    }
+    .reg-table th {
+      text-align: left;
+      padding: 6px 8px;
+      color: #475569;
+      font-weight: 600;
+      border-bottom: 1px solid #334155;
+      white-space: nowrap;
+    }
+    .reg-table td {
+      padding: 6px 8px;
+      color: #94a3b8;
+      border-bottom: 1px solid #1a2540;
+      vertical-align: middle;
+    }
+    .reg-table tr:last-child td { border-bottom: none; }
+    .reg-table tr:hover td { background: #1a2540; }
+    .mono { font-family: monospace; font-size: 0.72rem; color: #cbd5e1; }
+    .mono-sm { font-family: monospace; font-size: 0.68rem; color: #64748b; }
+    .td-actions { display: flex; gap: 6px; }
+
+    /* ── Ban list ── */
+    .ban-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid #1a2540;
+    }
+    .ban-row:last-child { border-bottom: none; }
+    .ban-value { flex: 1; font-family: monospace; font-size: 0.8rem; color: #fca5a5; word-break: break-all; }
+    .ban-reason { font-size: 0.72rem; color: #64748b; margin-top: 2px; }
+    .no-bans { color: #475569; font-size: 0.82rem; font-style: italic; padding: 8px 0; }
+
+    /* ── Machine ID / IP display in user result ── */
+    .meta-value.mono-meta { font-family: monospace; font-size: 0.75rem; word-break: break-all; }
   </style>
 </head>
 <body>
@@ -422,6 +495,14 @@
         <div class="meta-label">License Status</div>
         <div class="meta-value" id="res-license">—</div>
       </div>
+      <div class="meta-item" style="grid-column: 1 / -1;">
+        <div class="meta-label">Machine ID</div>
+        <div class="meta-value mono-meta" id="res-machine-id">—</div>
+      </div>
+      <div class="meta-item" style="grid-column: 1 / -1;">
+        <div class="meta-label">Registration IP</div>
+        <div class="meta-value mono-meta" id="res-reg-ip">—</div>
+      </div>
     </div>
 
     <div class="orders-section">
@@ -435,6 +516,14 @@
       ＋ Grant 30 Days to This User
     </button>
     <div id="grant-feedback" class="feedback"></div>
+
+    <button class="btn btn-danger" id="ban-machine-btn" onclick="banCurrentMachine()" style="display:none;">
+      Ban This Machine ID
+    </button>
+    <button class="btn btn-danger" id="ban-ip-btn" onclick="banCurrentIp()" style="display:none; margin-top:8px;">
+      Ban This Registration IP
+    </button>
+    <div id="ban-user-feedback" class="feedback"></div>
   </div>
 
   <!-- Pricing Management -->
@@ -484,6 +573,44 @@
   </div>
 
   <div class="page-footer">Packing Recorder &mdash; Aldeo Studio &mdash; Admin Panel</div>
+
+  <!-- Recent Registrations -->
+  <div class="card" style="max-width:100%;">
+    <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>Recent Registrations</span>
+      <button class="btn btn-primary" style="font-size:0.78rem;padding:6px 14px;" onclick="loadRecentRegistrations()">Refresh</button>
+    </div>
+    <div id="recent-regs-container"><span style="color:#475569;font-size:0.85rem;">Loading…</span></div>
+  </div>
+
+  <!-- Bans -->
+  <div class="card">
+    <div class="card-title">Ban Machine ID</div>
+    <div class="input-row">
+      <input type="text" id="ban-machine-input" placeholder="SHA-256 machine fingerprint" autocomplete="off" />
+      <input type="text" id="ban-machine-reason" placeholder="Reason (optional)" autocomplete="off" style="max-width:200px;" />
+      <button class="btn btn-primary" onclick="banMachine()">Ban</button>
+    </div>
+    <div id="ban-machine-feedback" class="feedback"></div>
+    <div style="margin-top:16px;">
+      <div class="orders-label">Currently Banned Machine IDs</div>
+      <div id="banned-machines-list"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Ban IP Address</div>
+    <div class="input-row">
+      <input type="text" id="ban-ip-input" placeholder="e.g. 192.168.1.1" autocomplete="off" />
+      <input type="text" id="ban-ip-reason" placeholder="Reason (optional)" autocomplete="off" style="max-width:200px;" />
+      <button class="btn btn-primary" onclick="banIp()">Ban</button>
+    </div>
+    <div id="ban-ip-feedback" class="feedback"></div>
+    <div style="margin-top:16px;">
+      <div class="orders-label">Currently Banned IPs</div>
+      <div id="banned-ips-list"></div>
+    </div>
+  </div>
 
 </div>
 
@@ -568,6 +695,8 @@
       if (e.key === 'Enter') lookupUser();
     });
     loadPricing();
+    loadRecentRegistrations();
+    loadBans();
   }
 
   function showFeedback(elId, type, msg) {
@@ -619,6 +748,18 @@
       document.getElementById('res-email').textContent = data.email;
       document.getElementById('res-role').textContent = data.role;
       document.getElementById('res-created').textContent = formatDate(data.createdAt);
+
+      // Machine ID & Registration IP
+      const machineIdEl = document.getElementById('res-machine-id');
+      machineIdEl.textContent = data.machineId || '—';
+      const regIpEl = document.getElementById('res-reg-ip');
+      regIpEl.textContent = data.registeredIp || '—';
+
+      // Show ban buttons only if values exist
+      const banMachineBtn = document.getElementById('ban-machine-btn');
+      const banIpBtn = document.getElementById('ban-ip-btn');
+      banMachineBtn.style.display = data.machineId ? '' : 'none';
+      banIpBtn.style.display = data.registeredIp ? '' : 'none';
 
       const licenseEl = document.getElementById('res-license');
       if (data.licenseExpiresAt) {
@@ -871,6 +1012,191 @@
       btn.disabled = false;
       btn.textContent = 'Save Promo';
     }
+  }
+
+  // ── Recent Registrations ──────────────────────────────────────────────────────
+
+  async function loadRecentRegistrations() {
+    const container = document.getElementById('recent-regs-container');
+    container.innerHTML = '<span style="color:#475569;font-size:0.85rem;">Loading…</span>';
+    try {
+      const res = await authFetch(`${SERVER}/admin/recent-registrations?limit=50`);
+      const data = await res.json();
+      if (!res.ok) { container.innerHTML = `<span style="color:#f87171">${data.error || 'Failed to load.'}</span>`; return; }
+      if (!data.users || data.users.length === 0) {
+        container.innerHTML = '<div class="no-orders">No registrations yet.</div>';
+        return;
+      }
+      let html = `<div style="overflow-x:auto;"><table class="reg-table">
+        <thead><tr>
+          <th>Registered</th>
+          <th>Username</th>
+          <th>Email</th>
+          <th>Machine ID</th>
+          <th>IP</th>
+          <th>Actions</th>
+        </tr></thead><tbody>`;
+      for (const u of data.users) {
+        const machineShort = u.machine_id ? u.machine_id.slice(0, 16) + '…' : '—';
+        const machineTitle = u.machine_id || '';
+        html += `<tr>
+          <td style="white-space:nowrap;">${formatDate(u.created_at)}</td>
+          <td>${escHtml(u.username)}</td>
+          <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(u.email)}</td>
+          <td><span class="mono-sm" title="${escHtml(machineTitle)}">${u.machine_id ? machineShort : '—'}</span></td>
+          <td><span class="mono">${escHtml(u.registered_ip || '—')}</span></td>
+          <td><div class="td-actions">
+            ${u.machine_id ? `<button class="btn btn-ban" onclick="quickBanMachine('${escHtml(u.machine_id)}')">Ban Machine</button>` : ''}
+            ${u.registered_ip ? `<button class="btn btn-ban" onclick="quickBanIp('${escHtml(u.registered_ip)}')">Ban IP</button>` : ''}
+          </div></td>
+        </tr>`;
+      }
+      html += '</tbody></table></div>';
+      container.innerHTML = html;
+    } catch (err) {
+      container.innerHTML = '<span style="color:#f87171">Network error.</span>';
+    }
+  }
+
+  // ── Bans ─────────────────────────────────────────────────────────────────────
+
+  async function loadBans() {
+    try {
+      const res = await authFetch(`${SERVER}/admin/bans`);
+      const data = await res.json();
+      if (!res.ok) return;
+      renderMachineBans(data.machineBans || []);
+      renderIpBans(data.ipBans || []);
+    } catch (_) {}
+  }
+
+  function renderMachineBans(bans) {
+    const el = document.getElementById('banned-machines-list');
+    if (bans.length === 0) { el.innerHTML = '<div class="no-bans">No machine IDs banned.</div>'; return; }
+    el.innerHTML = bans.map(b => `
+      <div class="ban-row">
+        <div style="flex:1;">
+          <div class="ban-value">${escHtml(b.machine_id)}</div>
+          ${b.reason ? `<div class="ban-reason">${escHtml(b.reason)}</div>` : ''}
+          <div class="ban-reason">Banned ${formatDate(b.banned_at)}</div>
+        </div>
+        <button class="btn btn-unban" onclick="unbanMachine('${escHtml(b.machine_id)}')">Unban</button>
+      </div>`).join('');
+  }
+
+  function renderIpBans(bans) {
+    const el = document.getElementById('banned-ips-list');
+    if (bans.length === 0) { el.innerHTML = '<div class="no-bans">No IPs banned.</div>'; return; }
+    el.innerHTML = bans.map(b => `
+      <div class="ban-row">
+        <div style="flex:1;">
+          <div class="ban-value">${escHtml(b.ip)}</div>
+          ${b.reason ? `<div class="ban-reason">${escHtml(b.reason)}</div>` : ''}
+          <div class="ban-reason">Banned ${formatDate(b.banned_at)}</div>
+        </div>
+        <button class="btn btn-unban" onclick="unbanIp('${escHtml(b.ip)}')">Unban</button>
+      </div>`).join('');
+  }
+
+  async function banMachine() {
+    const machineId = document.getElementById('ban-machine-input').value.trim();
+    const reason    = document.getElementById('ban-machine-reason').value.trim();
+    if (!machineId) { showFeedback('ban-machine-feedback', 'error', 'Machine ID is required.'); return; }
+    hideFeedback('ban-machine-feedback');
+    try {
+      const res = await authFetch(`${SERVER}/admin/ban-machine`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ machineId, reason }),
+      });
+      const data = await res.json();
+      if (!res.ok) { showFeedback('ban-machine-feedback', 'error', data.error || 'Failed.'); return; }
+      showFeedback('ban-machine-feedback', 'success', `✓ Machine ID banned.`);
+      document.getElementById('ban-machine-input').value = '';
+      document.getElementById('ban-machine-reason').value = '';
+      loadBans();
+    } catch { showFeedback('ban-machine-feedback', 'error', 'Network error.'); }
+  }
+
+  async function unbanMachine(machineId) {
+    if (!confirm(`Unban machine ID?\n${machineId}`)) return;
+    try {
+      const res = await authFetch(`${SERVER}/admin/unban-machine`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ machineId }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || 'Failed to unban.'); return; }
+      loadBans();
+    } catch { alert('Network error.'); }
+  }
+
+  async function banIp() {
+    const ip     = document.getElementById('ban-ip-input').value.trim();
+    const reason = document.getElementById('ban-ip-reason').value.trim();
+    if (!ip) { showFeedback('ban-ip-feedback', 'error', 'IP address is required.'); return; }
+    hideFeedback('ban-ip-feedback');
+    try {
+      const res = await authFetch(`${SERVER}/admin/ban-ip`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip, reason }),
+      });
+      const data = await res.json();
+      if (!res.ok) { showFeedback('ban-ip-feedback', 'error', data.error || 'Failed.'); return; }
+      showFeedback('ban-ip-feedback', 'success', `✓ IP banned.`);
+      document.getElementById('ban-ip-input').value = '';
+      document.getElementById('ban-ip-reason').value = '';
+      loadBans();
+    } catch { showFeedback('ban-ip-feedback', 'error', 'Network error.'); }
+  }
+
+  async function unbanIp(ip) {
+    if (!confirm(`Unban IP?\n${ip}`)) return;
+    try {
+      const res = await authFetch(`${SERVER}/admin/unban-ip`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || 'Failed to unban.'); return; }
+      loadBans();
+    } catch { alert('Network error.'); }
+  }
+
+  // Quick ban from the recent registrations table
+  async function quickBanMachine(machineId) {
+    const reason = prompt(`Ban reason for machine:\n${machineId}\n(optional, press OK to skip)`);
+    if (reason === null) return; // cancelled
+    document.getElementById('ban-machine-input').value = machineId;
+    document.getElementById('ban-machine-reason').value = reason || '';
+    await banMachine();
+    loadRecentRegistrations();
+  }
+
+  async function quickBanIp(ip) {
+    const reason = prompt(`Ban reason for IP:\n${ip}\n(optional, press OK to skip)`);
+    if (reason === null) return;
+    document.getElementById('ban-ip-input').value = ip;
+    document.getElementById('ban-ip-reason').value = reason || '';
+    await banIp();
+    loadRecentRegistrations();
+  }
+
+  // Ban from user detail card
+  async function banCurrentMachine() {
+    const machineId = document.getElementById('res-machine-id').textContent.trim();
+    if (!machineId || machineId === '—') return;
+    await quickBanMachine(machineId);
+  }
+
+  async function banCurrentIp() {
+    const ip = document.getElementById('res-reg-ip').textContent.trim();
+    if (!ip || ip === '—') return;
+    await quickBanIp(ip);
+  }
+
+  // HTML escape helper to prevent XSS in table rendering
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 </script>
 </body>

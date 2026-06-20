@@ -187,19 +187,57 @@ ipcMain.handle('get-license-status', async () => {
   };
 });
 
-/** Reads the Windows MachineGuid from the registry. Resolves to a string or null. */
-function getMachineId() {
+/**
+ * Reads a single value via execFile and resolves to a trimmed string or null.
+ * @param {string} cmd - executable name
+ * @param {string[]} args - arguments
+ * @param {RegExp} pattern - regex with one capture group to extract the value
+ */
+function readHardwareValue(cmd, args, pattern) {
   return new Promise((resolve) => {
-    execFile(
-      'reg',
-      ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid'],
-      { windowsHide: true },
-      (err, stdout) => {
-        if (err) { resolve(null); return; }
-        const match = stdout.match(/MachineGuid\s+REG_SZ\s+(\S+)/i);
-        resolve(match ? match[1].trim() : null);
-      }
-    );
+    execFile(cmd, args, { windowsHide: true }, (err, stdout) => {
+      if (err) { resolve(null); return; }
+      const match = stdout.match(pattern);
+      const value = match ? match[1].trim() : null;
+      resolve(value && value.length > 0 ? value : null);
+    });
+  });
+}
+
+/**
+ * Builds a multi-factor machine fingerprint by combining three independent
+ * hardware/OS identifiers and hashing them with SHA-256.
+ *
+ * Sources (all three run in parallel):
+ *   1. Windows MachineGuid  — HKLM\SOFTWARE\Microsoft\Cryptography
+ *   2. CPU Processor ID     — wmic cpu get processorid
+ *   3. System drive serial  — wmic logicaldisk where name="C:" get volumeserialnumber
+ *
+ * A user would need to spoof ALL THREE simultaneously to bypass the lock.
+ * Returns null only if every source fails (e.g. non-Windows environment).
+ */
+function getMachineId() {
+  const machineGuidP = readHardwareValue(
+    'reg',
+    ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid'],
+    /MachineGuid\s+REG_SZ\s+(\S+)/i
+  );
+  const cpuIdP = readHardwareValue(
+    'wmic',
+    ['cpu', 'get', 'processorid', '/format:value'],
+    /ProcessorId=(\S+)/i
+  );
+  const driveSerialP = readHardwareValue(
+    'wmic',
+    ['logicaldisk', 'where', 'name="C:"', 'get', 'volumeserialnumber', '/format:value'],
+    /VolumeSerialNumber=(\S+)/i
+  );
+
+  return Promise.all([machineGuidP, cpuIdP, driveSerialP]).then(([guid, cpu, drive]) => {
+    const parts = [guid, cpu, drive].filter(Boolean);
+    if (parts.length === 0) return null;
+    const combined = parts.join('|');
+    return crypto.createHash('sha256').update(combined).digest('hex');
   });
 }
 

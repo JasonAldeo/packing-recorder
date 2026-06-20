@@ -128,6 +128,31 @@ async function initDB() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS machine_id VARCHAR(255)
   `);
 
+  // Add registered_ip column to existing deployments that don't have it yet
+  await pool.query(`
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS registered_ip VARCHAR(45)
+  `);
+
+  // Banned machine IDs — checked at registration time
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS banned_machine_ids (
+      id         SERIAL PRIMARY KEY,
+      machine_id VARCHAR(255) UNIQUE NOT NULL,
+      reason     TEXT,
+      banned_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  // Banned IP addresses — checked at registration time
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS banned_ips (
+      id        SERIAL PRIMARY KEY,
+      ip        VARCHAR(45) UNIQUE NOT NULL,
+      reason    TEXT,
+      banned_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
   // Password reset tokens table
   await pool.query(`
     CREATE TABLE IF NOT EXISTS password_resets (
@@ -289,6 +314,15 @@ const authLimiter = rateLimit({
   message: { error: 'Too many requests, please try again later.' },
 });
 
+// Strict limiter for registration — max 3 attempts per IP per 24 hours
+const registerLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many registration attempts from this network. Please try again tomorrow.' },
+});
+
 const createOrderLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -312,7 +346,7 @@ const forgotPasswordLimiter = rateLimit({
  * Body: { username, email, password, machineId }
  * Returns: { token, username, email, role, licenseExpiresAt }
  */
-app.post('/register', authLimiter, async (req, res) => {
+app.post('/register', registerLimiter, async (req, res) => {
   try {
     const { username, email, password, machineId } = req.body;
 
@@ -330,21 +364,57 @@ app.post('/register', authLimiter, async (req, res) => {
     const cleanEmail = email.trim().toLowerCase();
     const cleanMachineId = (machineId && typeof machineId === 'string') ? machineId.trim() : null;
 
-    // Check if this machine has already used a free trial
-    if (cleanMachineId) {
-      const machineCheck = await pool.query(
-        'SELECT id FROM users WHERE machine_id = $1 LIMIT 1',
-        [cleanMachineId]
+    // Reject registrations with no machine ID — prevents null-bypass attacks
+    if (!cleanMachineId) {
+      return res.status(400).json({ error: 'Unable to identify your device. Please ensure you are running an official Packing Recorder installer.' });
+    }
+
+    const registrationIp = req.ip || null;
+
+    // Check machine ID ban
+    const machineBan = await pool.query(
+      'SELECT id FROM banned_machine_ids WHERE machine_id = $1',
+      [cleanMachineId]
+    );
+    if (machineBan.rows.length > 0) {
+      return res.status(403).json({ error: 'Registration is not available from this device.' });
+    }
+
+    // Check IP ban
+    if (registrationIp) {
+      const ipBan = await pool.query(
+        'SELECT id FROM banned_ips WHERE ip = $1',
+        [registrationIp]
       );
-      if (machineCheck.rows.length > 0) {
-        return res.status(409).json({ error: 'A free trial has already been used on this device. Please log in to your existing account or purchase a license.' });
+      if (ipBan.rows.length > 0) {
+        return res.status(403).json({ error: 'Registration is not available from this network.' });
+      }
+    }
+
+    // Check if this machine has already used a free trial
+    const machineCheck = await pool.query(
+      'SELECT id FROM users WHERE machine_id = $1 LIMIT 1',
+      [cleanMachineId]
+    );
+    if (machineCheck.rows.length > 0) {
+      return res.status(409).json({ error: 'A free trial has already been used on this device. Please log in to your existing account or purchase a license.' });
+    }
+
+    // Check if another account was registered from the same IP in the last 24 hours
+    if (registrationIp) {
+      const recentIpCheck = await pool.query(
+        `SELECT id FROM users WHERE registered_ip = $1 AND created_at > NOW() - INTERVAL '24 hours' LIMIT 1`,
+        [registrationIp]
+      );
+      if (recentIpCheck.rows.length > 0) {
+        return res.status(409).json({ error: 'An account was recently created from your network. Please wait 24 hours or log in to your existing account.' });
       }
     }
 
     const hash = await bcrypt.hash(password, 12);
     const result = await pool.query(
-      'INSERT INTO users (username, email, password_hash, machine_id) VALUES ($1, $2, $3, $4) RETURNING id, username, email, role',
-      [cleanUsername, cleanEmail, hash, cleanMachineId]
+      'INSERT INTO users (username, email, password_hash, machine_id, registered_ip) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, email, role',
+      [cleanUsername, cleanEmail, hash, cleanMachineId, registrationIp]
     );
     const user = result.rows[0];
     const token = signToken(user);
@@ -626,7 +696,7 @@ app.post('/admin/lookup-user', requireAdmin, async (req, res) => {
     if (!email) return res.status(400).json({ error: 'Email is required.' });
 
     const userResult = await pool.query(
-      'SELECT id, username, email, role, created_at FROM users WHERE email = $1',
+      'SELECT id, username, email, role, created_at, machine_id, registered_ip FROM users WHERE email = $1',
       [email.trim().toLowerCase()]
     );
     if (userResult.rows.length === 0) {
@@ -647,6 +717,8 @@ app.post('/admin/lookup-user', requireAdmin, async (req, res) => {
       email: user.email,
       role: user.role,
       createdAt: user.created_at,
+      machineId: user.machine_id || null,
+      registeredIp: user.registered_ip || null,
       licenseExpiresAt: licenseExpiresAt ? licenseExpiresAt.toISOString() : null,
       orders: ordersResult.rows,
     });
@@ -685,6 +757,132 @@ app.post('/admin/grant-license', requireAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error('[admin/grant-license]', err.message);
+    res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+/**
+ * GET /admin/recent-registrations?limit=50
+ * Returns the most recent N user registrations with machine_id, registered_ip, etc.
+ */
+app.get('/admin/recent-registrations', requireAdmin, async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+    const result = await pool.query(
+      `SELECT id, username, email, role, created_at, machine_id, registered_ip
+         FROM users ORDER BY created_at DESC LIMIT $1`,
+      [limit]
+    );
+    res.json({ users: result.rows });
+  } catch (err) {
+    console.error('[admin/recent-registrations]', err.message);
+    res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+/**
+ * POST /admin/ban-machine
+ * Body: { machineId, reason }
+ * Inserts the machine ID into the ban list.
+ */
+app.post('/admin/ban-machine', requireAdmin, async (req, res) => {
+  try {
+    const { machineId, reason } = req.body;
+    if (!machineId || typeof machineId !== 'string' || !machineId.trim()) {
+      return res.status(400).json({ error: 'machineId is required.' });
+    }
+    await pool.query(
+      'INSERT INTO banned_machine_ids (machine_id, reason) VALUES ($1, $2) ON CONFLICT (machine_id) DO UPDATE SET reason = EXCLUDED.reason, banned_at = NOW()',
+      [machineId.trim(), (reason || '').trim() || null]
+    );
+    console.log(`[admin] Banned machine ID: ${machineId.trim()}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[admin/ban-machine]', err.message);
+    res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+/**
+ * POST /admin/unban-machine
+ * Body: { machineId }
+ * Removes the machine ID from the ban list.
+ */
+app.post('/admin/unban-machine', requireAdmin, async (req, res) => {
+  try {
+    const { machineId } = req.body;
+    if (!machineId) return res.status(400).json({ error: 'machineId is required.' });
+    const result = await pool.query(
+      'DELETE FROM banned_machine_ids WHERE machine_id = $1 RETURNING id',
+      [machineId.trim()]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Machine ID not found in ban list.' });
+    console.log(`[admin] Unbanned machine ID: ${machineId.trim()}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[admin/unban-machine]', err.message);
+    res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+/**
+ * POST /admin/ban-ip
+ * Body: { ip, reason }
+ * Inserts the IP into the ban list.
+ */
+app.post('/admin/ban-ip', requireAdmin, async (req, res) => {
+  try {
+    const { ip, reason } = req.body;
+    if (!ip || typeof ip !== 'string' || !ip.trim()) {
+      return res.status(400).json({ error: 'ip is required.' });
+    }
+    await pool.query(
+      'INSERT INTO banned_ips (ip, reason) VALUES ($1, $2) ON CONFLICT (ip) DO UPDATE SET reason = EXCLUDED.reason, banned_at = NOW()',
+      [ip.trim(), (reason || '').trim() || null]
+    );
+    console.log(`[admin] Banned IP: ${ip.trim()}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[admin/ban-ip]', err.message);
+    res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+/**
+ * POST /admin/unban-ip
+ * Body: { ip }
+ * Removes the IP from the ban list.
+ */
+app.post('/admin/unban-ip', requireAdmin, async (req, res) => {
+  try {
+    const { ip } = req.body;
+    if (!ip) return res.status(400).json({ error: 'ip is required.' });
+    const result = await pool.query(
+      'DELETE FROM banned_ips WHERE ip = $1 RETURNING id',
+      [ip.trim()]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'IP not found in ban list.' });
+    console.log(`[admin] Unbanned IP: ${ip.trim()}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[admin/unban-ip]', err.message);
+    res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+/**
+ * GET /admin/bans
+ * Returns all current machine ID and IP bans.
+ */
+app.get('/admin/bans', requireAdmin, async (req, res) => {
+  try {
+    const [machines, ips] = await Promise.all([
+      pool.query('SELECT machine_id, reason, banned_at FROM banned_machine_ids ORDER BY banned_at DESC'),
+      pool.query('SELECT ip, reason, banned_at FROM banned_ips ORDER BY banned_at DESC'),
+    ]);
+    res.json({ machineBans: machines.rows, ipBans: ips.rows });
+  } catch (err) {
+    console.error('[admin/bans]', err.message);
     res.status(500).json({ error: 'Server error.' });
   }
 });
