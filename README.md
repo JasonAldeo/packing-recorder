@@ -77,7 +77,7 @@ Browse all recordings sorted by newest first, filtered optionally by date. Suppo
 
 ## License
 
-This app requires a valid license key after the 7-day trial expires. Purchase via the in-app **Buy License (QRIS)** button.
+This app requires a valid license key after the 7-day trial expires. Purchase via the in-app **Buy License** button.
 
 ## Project Structure
 
