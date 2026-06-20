@@ -153,6 +153,16 @@ async function initDB() {
     )
   `);
 
+  // Banned email addresses — checked at registration and login time
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS banned_emails (
+      id        SERIAL PRIMARY KEY,
+      email     VARCHAR(255) UNIQUE NOT NULL,
+      reason    TEXT,
+      banned_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
   // Password reset tokens table
   await pool.query(`
     CREATE TABLE IF NOT EXISTS password_resets (
@@ -270,6 +280,15 @@ async function stackLicense(userId) {
     );
   }
   return newExpiry;
+}
+
+/** Returns true if the given email is in the banned_emails table. */
+async function checkEmailBan(email) {
+  const result = await pool.query(
+    'SELECT id FROM banned_emails WHERE email = $1 LIMIT 1',
+    [email.trim().toLowerCase()]
+  );
+  return result.rows.length > 0;
 }
 
 // ─── Express Setup ────────────────────────────────────────────────────────────
@@ -391,6 +410,11 @@ app.post('/register', registerLimiter, async (req, res) => {
       }
     }
 
+    // Check email ban
+    if (await checkEmailBan(cleanEmail)) {
+      return res.status(403).json({ error: 'Registration is not available for this email address.' });
+    }
+
     // Check if this machine has already used a free trial
     const machineCheck = await pool.query(
       'SELECT id FROM users WHERE machine_id = $1 LIMIT 1',
@@ -456,6 +480,12 @@ app.post('/login', authLimiter, async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
     const user = result.rows[0];
+
+    // Check email ban after confirming the user exists (avoids enumeration on non-existent emails)
+    if (await checkEmailBan(user.email)) {
+      return res.status(403).json({ error: 'This account has been suspended. Please contact support.' });
+    }
+
     const match = await bcrypt.compare(password, user.password_hash);
     if (!match) {
       return res.status(401).json({ error: 'Invalid email or password.' });
@@ -495,6 +525,12 @@ app.get('/me', requireAuth, async (req, res) => {
       return res.status(401).json({ error: 'User not found.' });
     }
     const user = result.rows[0];
+
+    // Check email ban — return 403 (distinct from 401) so the client shows a suspended state
+    if (await checkEmailBan(user.email)) {
+      return res.status(403).json({ error: 'suspended' });
+    }
+
     const licenseExpiresAt = await getActiveLicense(user.id);
 
     // Check if the user has ever had a paid license (regardless of expiry)
@@ -711,6 +747,8 @@ app.post('/admin/lookup-user', requireAdmin, async (req, res) => {
       [user.id]
     );
 
+    const isBanned = await checkEmailBan(user.email);
+
     res.json({
       id: user.id,
       username: user.username,
@@ -719,6 +757,7 @@ app.post('/admin/lookup-user', requireAdmin, async (req, res) => {
       createdAt: user.created_at,
       machineId: user.machine_id || null,
       registeredIp: user.registered_ip || null,
+      isBanned,
       licenseExpiresAt: licenseExpiresAt ? licenseExpiresAt.toISOString() : null,
       orders: ordersResult.rows,
     });
@@ -872,17 +911,64 @@ app.post('/admin/unban-ip', requireAdmin, async (req, res) => {
 
 /**
  * GET /admin/bans
- * Returns all current machine ID and IP bans.
+ * Returns all current machine ID, IP, and email bans.
  */
 app.get('/admin/bans', requireAdmin, async (req, res) => {
   try {
-    const [machines, ips] = await Promise.all([
+    const [machines, ips, emails] = await Promise.all([
       pool.query('SELECT machine_id, reason, banned_at FROM banned_machine_ids ORDER BY banned_at DESC'),
       pool.query('SELECT ip, reason, banned_at FROM banned_ips ORDER BY banned_at DESC'),
+      pool.query('SELECT email, reason, banned_at FROM banned_emails ORDER BY banned_at DESC'),
     ]);
-    res.json({ machineBans: machines.rows, ipBans: ips.rows });
+    res.json({ machineBans: machines.rows, ipBans: ips.rows, emailBans: emails.rows });
   } catch (err) {
     console.error('[admin/bans]', err.message);
+    res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+/**
+ * POST /admin/ban-email
+ * Body: { email, reason }
+ * Inserts the email into the ban list.
+ */
+app.post('/admin/ban-email', requireAdmin, async (req, res) => {
+  try {
+    const { email, reason } = req.body;
+    if (!email || typeof email !== 'string' || !email.trim()) {
+      return res.status(400).json({ error: 'email is required.' });
+    }
+    const cleanEmail = email.trim().toLowerCase();
+    await pool.query(
+      'INSERT INTO banned_emails (email, reason) VALUES ($1, $2) ON CONFLICT (email) DO UPDATE SET reason = EXCLUDED.reason, banned_at = NOW()',
+      [cleanEmail, (reason || '').trim() || null]
+    );
+    console.log(`[admin] Banned email: ${cleanEmail}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[admin/ban-email]', err.message);
+    res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+/**
+ * POST /admin/unban-email
+ * Body: { email }
+ * Removes the email from the ban list.
+ */
+app.post('/admin/unban-email', requireAdmin, async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'email is required.' });
+    const result = await pool.query(
+      'DELETE FROM banned_emails WHERE email = $1 RETURNING id',
+      [email.trim().toLowerCase()]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Email not found in ban list.' });
+    console.log(`[admin] Unbanned email: ${email.trim().toLowerCase()}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[admin/unban-email]', err.message);
     res.status(500).json({ error: 'Server error.' });
   }
 });

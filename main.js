@@ -99,7 +99,7 @@ ipcMain.handle('get-license-status', async () => {
   try {
     const resp = await serverRequest('GET', '/me', null, data.token);
     if (resp.status === 401) {
-      // Token expired — log out
+      // Token expired — log out silently
       delete data.token;
       delete data.username;
       delete data.role;
@@ -115,6 +115,28 @@ ipcMain.handle('get-license-status', async () => {
         licensed: false,
         trialDaysLeft: trial.daysLeft,
         trialExpired: trial.expired,
+        offlineTrialExpired: false,
+        username: null,
+        role: null,
+      };
+    }
+    if (resp.status === 403) {
+      // Account suspended — clear token locally so user must log in again after unban
+      delete data.token;
+      delete data.username;
+      delete data.role;
+      delete data.licenseExpiresAt;
+      delete data.trialDaysLeft;
+      delete data.trialExpired;
+      delete data.trialCachedAt;
+      delete data.licenseCachedAt;
+      saveLicenseData(data);
+      return {
+        loggedIn: false,
+        suspended: true,
+        licensed: false,
+        trialDaysLeft: 0,
+        trialExpired: false,
         offlineTrialExpired: false,
         username: null,
         role: null,

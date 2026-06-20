@@ -1774,6 +1774,11 @@ async function initLicense() {
   const status = await window.electronAPI.getLicenseStatus();
 
   if (!status.loggedIn) {
+    if (status.suspended) {
+      // Account banned — show suspended overlay (no auth form, no buy form)
+      showBuyOverlay('suspended');
+      return;
+    }
     // Show login/register overlay
     if (authSection) authSection.classList.remove('hidden');
     if (buySection) buySection.classList.add('hidden');
@@ -1898,7 +1903,15 @@ function showBuyOverlay(mode) {
   if (buySection)  buySection.classList.remove('hidden');
   if (licenseOverlay) licenseOverlay.classList.remove('hidden');
 
-  if (mode === 'offlineTrial') {
+  if (mode === 'suspended') {
+    if (overlayIcon)   overlayIcon.textContent  = '🚫';
+    if (overlayTitle)  overlayTitle.setAttribute('data-i18n', 'overlay.suspendedTitle');
+    if (overlayTitle)  overlayTitle.textContent = t('overlay.suspendedTitle');
+    if (overlaySub)    overlaySub.setAttribute('data-i18n', 'overlay.suspendedSub');
+    if (overlaySub)    overlaySub.textContent   = t('overlay.suspendedSub');
+    if (buyControls)   buyControls.classList.add('hidden');
+    if (overlayLogout) overlayLogout.classList.remove('hidden');
+  } else if (mode === 'offlineTrial') {
     if (overlayIcon)   overlayIcon.textContent  = '📡';
     if (overlayTitle)  overlayTitle.textContent = t('overlay.offlineTitle');
     if (overlaySub)    overlaySub.textContent   = t('overlay.offlineSub');

@@ -403,11 +403,23 @@
     .btn-danger:hover:not(:disabled) { opacity: 0.88; }
 
     /* ── Recent registrations table ── */
+    .card-wide {
+      max-width: 1200px;
+      margin-left: auto;
+      margin-right: auto;
+    }
     .reg-table {
       width: 100%;
       border-collapse: collapse;
       font-size: 0.78rem;
+      table-layout: fixed;
     }
+    .reg-table col.col-date    { width: 120px; }
+    .reg-table col.col-user    { width: 110px; }
+    .reg-table col.col-email   { width: 200px; }
+    .reg-table col.col-machine { width: 130px; }
+    .reg-table col.col-ip      { width: 110px; }
+    .reg-table col.col-actions { width: auto; }
     .reg-table th {
       text-align: left;
       padding: 6px 8px;
@@ -415,18 +427,23 @@
       font-weight: 600;
       border-bottom: 1px solid #334155;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .reg-table td {
       padding: 6px 8px;
       color: #94a3b8;
       border-bottom: 1px solid #1a2540;
       vertical-align: middle;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .reg-table tr:last-child td { border-bottom: none; }
     .reg-table tr:hover td { background: #1a2540; }
     .mono { font-family: monospace; font-size: 0.72rem; color: #cbd5e1; }
     .mono-sm { font-family: monospace; font-size: 0.68rem; color: #64748b; }
-    .td-actions { display: flex; gap: 6px; }
+    .td-actions { display: flex; flex-wrap: wrap; gap: 4px; }
 
     /* ── Ban list ── */
     .ban-row {
@@ -443,6 +460,19 @@
 
     /* ── Machine ID / IP display in user result ── */
     .meta-value.mono-meta { font-family: monospace; font-size: 0.75rem; word-break: break-all; }
+    .suspended-badge {
+      display: inline-block;
+      background: #7f1d1d;
+      color: #fca5a5;
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
   </style>
 </head>
 <body>
@@ -481,7 +511,7 @@
       </div>
       <div class="meta-item">
         <div class="meta-label">Email</div>
-        <div class="meta-value" id="res-email">—</div>
+        <div class="meta-value" id="res-email">—<span id="res-suspended-badge" class="suspended-badge" style="display:none;">Suspended</span></div>
       </div>
       <div class="meta-item">
         <div class="meta-label">Role</div>
@@ -522,6 +552,9 @@
     </button>
     <button class="btn btn-danger" id="ban-ip-btn" onclick="banCurrentIp()" style="display:none; margin-top:8px;">
       Ban This Registration IP
+    </button>
+    <button class="btn btn-danger" id="ban-email-btn" onclick="banCurrentEmail()" style="display:none; margin-top:8px;">
+      Ban This Email Address
     </button>
     <div id="ban-user-feedback" class="feedback"></div>
   </div>
@@ -575,7 +608,7 @@
   <div class="page-footer">Packing Recorder &mdash; Aldeo Studio &mdash; Admin Panel</div>
 
   <!-- Recent Registrations -->
-  <div class="card" style="max-width:100%;">
+  <div class="card card-wide" style="max-width:100%;">
     <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
       <span>Recent Registrations</span>
       <button class="btn btn-primary" style="font-size:0.78rem;padding:6px 14px;" onclick="loadRecentRegistrations()">Refresh</button>
@@ -609,6 +642,20 @@
     <div style="margin-top:16px;">
       <div class="orders-label">Currently Banned IPs</div>
       <div id="banned-ips-list"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Ban Email Address</div>
+    <div class="input-row">
+      <input type="email" id="ban-email-input" placeholder="user@example.com" autocomplete="off" />
+      <input type="text" id="ban-email-reason" placeholder="Reason (optional)" autocomplete="off" style="max-width:200px;" />
+      <button class="btn btn-primary" onclick="banEmail()">Ban</button>
+    </div>
+    <div id="ban-email-feedback" class="feedback"></div>
+    <div style="margin-top:16px;">
+      <div class="orders-label">Currently Banned Emails</div>
+      <div id="banned-emails-list"></div>
     </div>
   </div>
 
@@ -749,17 +796,25 @@
       document.getElementById('res-role').textContent = data.role;
       document.getElementById('res-created').textContent = formatDate(data.createdAt);
 
+      // Suspended badge
+      const suspendedBadge = document.getElementById('res-suspended-badge');
+      suspendedBadge.style.display = data.isBanned ? '' : 'none';
+
       // Machine ID & Registration IP
       const machineIdEl = document.getElementById('res-machine-id');
       machineIdEl.textContent = data.machineId || '—';
       const regIpEl = document.getElementById('res-reg-ip');
       regIpEl.textContent = data.registeredIp || '—';
 
-      // Show ban buttons only if values exist
+      // Show ban buttons
       const banMachineBtn = document.getElementById('ban-machine-btn');
       const banIpBtn = document.getElementById('ban-ip-btn');
+      const banEmailBtn = document.getElementById('ban-email-btn');
       banMachineBtn.style.display = data.machineId ? '' : 'none';
       banIpBtn.style.display = data.registeredIp ? '' : 'none';
+      banEmailBtn.style.display = data.email ? '' : 'none';
+      banEmailBtn.textContent = data.isBanned ? 'Unban This Email Address' : 'Ban This Email Address';
+      banEmailBtn.onclick = data.isBanned ? unbanCurrentEmail : banCurrentEmail;
 
       const licenseEl = document.getElementById('res-license');
       if (data.licenseExpiresAt) {
@@ -1027,7 +1082,11 @@
         container.innerHTML = '<div class="no-orders">No registrations yet.</div>';
         return;
       }
-      let html = `<div style="overflow-x:auto;"><table class="reg-table">
+      let html = `<table class="reg-table">
+        <colgroup>
+          <col class="col-date" /><col class="col-user" /><col class="col-email" />
+          <col class="col-machine" /><col class="col-ip" /><col class="col-actions" />
+        </colgroup>
         <thead><tr>
           <th>Registered</th>
           <th>Username</th>
@@ -1037,21 +1096,23 @@
           <th>Actions</th>
         </tr></thead><tbody>`;
       for (const u of data.users) {
-        const machineShort = u.machine_id ? u.machine_id.slice(0, 16) + '…' : '—';
+        const machineShort = u.machine_id ? u.machine_id.slice(0, 14) + '…' : '—';
         const machineTitle = u.machine_id || '';
+        const dateShort = u.created_at ? new Date(u.created_at).toLocaleString('en-GB', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '—';
         html += `<tr>
-          <td style="white-space:nowrap;">${formatDate(u.created_at)}</td>
-          <td>${escHtml(u.username)}</td>
-          <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(u.email)}</td>
+          <td title="${escHtml(formatDate(u.created_at))}">${escHtml(dateShort)}</td>
+          <td title="${escHtml(u.username)}">${escHtml(u.username)}</td>
+          <td title="${escHtml(u.email)}">${escHtml(u.email)}</td>
           <td><span class="mono-sm" title="${escHtml(machineTitle)}">${u.machine_id ? machineShort : '—'}</span></td>
-          <td><span class="mono">${escHtml(u.registered_ip || '—')}</span></td>
+          <td><span class="mono" title="${escHtml(u.registered_ip || '')}">${escHtml(u.registered_ip || '—')}</span></td>
           <td><div class="td-actions">
-            ${u.machine_id ? `<button class="btn btn-ban" onclick="quickBanMachine('${escHtml(u.machine_id)}')">Ban Machine</button>` : ''}
-            ${u.registered_ip ? `<button class="btn btn-ban" onclick="quickBanIp('${escHtml(u.registered_ip)}')">Ban IP</button>` : ''}
+            ${u.machine_id ? `<button class="btn btn-ban" onclick="quickBanMachine('${escHtml(u.machine_id)}')">Machine</button>` : ''}
+            ${u.registered_ip ? `<button class="btn btn-ban" onclick="quickBanIp('${escHtml(u.registered_ip)}')">IP</button>` : ''}
+            ${u.email ? `<button class="btn btn-ban" onclick="quickBanEmail('${escHtml(u.email)}')">Email</button>` : ''}
           </div></td>
         </tr>`;
       }
-      html += '</tbody></table></div>';
+      html += '</tbody></table>';
       container.innerHTML = html;
     } catch (err) {
       container.innerHTML = '<span style="color:#f87171">Network error.</span>';
@@ -1067,6 +1128,7 @@
       if (!res.ok) return;
       renderMachineBans(data.machineBans || []);
       renderIpBans(data.ipBans || []);
+      renderEmailBans(data.emailBans || []);
     } catch (_) {}
   }
 
@@ -1192,6 +1254,77 @@
     const ip = document.getElementById('res-reg-ip').textContent.trim();
     if (!ip || ip === '—') return;
     await quickBanIp(ip);
+  }
+
+  // ── Email ban functions ───────────────────────────────────────────────────────
+
+  function renderEmailBans(bans) {
+    const el = document.getElementById('banned-emails-list');
+    if (bans.length === 0) { el.innerHTML = '<div class="no-bans">No emails banned.</div>'; return; }
+    el.innerHTML = bans.map(b => `
+      <div class="ban-row">
+        <div style="flex:1;">
+          <div class="ban-value">${escHtml(b.email)}</div>
+          ${b.reason ? `<div class="ban-reason">${escHtml(b.reason)}</div>` : ''}
+          <div class="ban-reason">Banned ${formatDate(b.banned_at)}</div>
+        </div>
+        <button class="btn btn-unban" onclick="unbanEmail('${escHtml(b.email)}')">Unban</button>
+      </div>`).join('');
+  }
+
+  async function banEmail() {
+    const email  = document.getElementById('ban-email-input').value.trim();
+    const reason = document.getElementById('ban-email-reason').value.trim();
+    if (!email) { showFeedback('ban-email-feedback', 'error', 'Email address is required.'); return; }
+    hideFeedback('ban-email-feedback');
+    try {
+      const res = await authFetch(`${SERVER}/admin/ban-email`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, reason }),
+      });
+      const data = await res.json();
+      if (!res.ok) { showFeedback('ban-email-feedback', 'error', data.error || 'Failed.'); return; }
+      showFeedback('ban-email-feedback', 'success', `✓ Email banned.`);
+      document.getElementById('ban-email-input').value = '';
+      document.getElementById('ban-email-reason').value = '';
+      loadBans();
+    } catch { showFeedback('ban-email-feedback', 'error', 'Network error.'); }
+  }
+
+  async function unbanEmail(email) {
+    if (!confirm(`Unban email?\n${email}`)) return;
+    try {
+      const res = await authFetch(`${SERVER}/admin/unban-email`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || 'Failed to unban.'); return; }
+      loadBans();
+    } catch { alert('Network error.'); }
+  }
+
+  async function quickBanEmail(email) {
+    const reason = prompt(`Ban reason for email:\n${email}\n(optional, press OK to skip)`);
+    if (reason === null) return;
+    document.getElementById('ban-email-input').value = email;
+    document.getElementById('ban-email-reason').value = reason || '';
+    await banEmail();
+    loadRecentRegistrations();
+  }
+
+  async function banCurrentEmail() {
+    const email = document.getElementById('res-email').textContent.trim();
+    if (!email || email === '—') return;
+    await quickBanEmail(email);
+    setTimeout(() => lookupUser(), 500);
+  }
+
+  async function unbanCurrentEmail() {
+    const email = document.getElementById('res-email').textContent.trim();
+    if (!email || email === '—') return;
+    await unbanEmail(email);
+    setTimeout(() => lookupUser(), 500);
   }
 
   // HTML escape helper to prevent XSS in table rendering
