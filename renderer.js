@@ -519,6 +519,28 @@ async function initStationCamera(sid) {
   }
 }
 
+// ─── Camera re-init helper ────────────────────────────────────────────────────
+// Properly releases old streams before re-acquiring. Called from settings change
+// handlers (audio toggles, camera selection, resolution). Skips stations without
+// a video element (dashboard mode).
+async function reinitStationCameras() {
+  for (const [sid, st] of stations) {
+    if (!st.elements || !st.elements.video) continue;
+    // Release old stream from video element first
+    st.elements.video.srcObject = null;
+    if (st.stream) {
+      st.stream.getTracks().forEach(tr => {
+        tr.stop();
+        st.stream.removeTrack(tr);
+      });
+      st.stream = null;
+    }
+    // Brief delay so the camera driver can release resources before re-acquiring
+    await new Promise(r => setTimeout(r, 80));
+    await initStationCamera(sid);
+  }
+}
+
 // ─── Test station buttons ─────────────────────────────────────────────────────
 function renderTestStationButtons(stationCount, multiStation) {
   if (!testStationRow || !testStationBtns) return;
@@ -602,20 +624,42 @@ const COMMON_RESOLUTIONS = [
 ];
 
 async function queryCameraResolutions(deviceId) {
+  // First try getCapabilities() — fast path works on most cameras
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { deviceId: { exact: deviceId } }
+    const probeStream = await navigator.mediaDevices.getUserMedia({
+      video: { deviceId: { exact: deviceId }, width: { ideal: 3840 }, height: { ideal: 2160 } }
     });
-    const track = stream.getVideoTracks()[0];
+    const track = probeStream.getVideoTracks()[0];
     const caps = track.getCapabilities();
     track.stop();
     if (caps && caps.width && caps.height) {
-      const minW = caps.width.min, maxW = caps.width.max;
-      const minH = caps.height.min, maxH = caps.height.max;
-      return COMMON_RESOLUTIONS.filter(r => r.w >= minW && r.w <= maxW && r.h >= minH && r.h <= maxH);
+      const matched = COMMON_RESOLUTIONS.filter(r =>
+        r.w >= caps.width.min && r.w <= caps.width.max &&
+        r.h >= caps.height.min && r.h <= caps.height.max
+      );
+      // If capabilities report a range that covers 1080p or higher, trust it
+      if (matched.length > 0 && matched[matched.length - 1].w >= 1920) return matched;
+      // Otherwise fall through to probing — getCapabilities() may be limited
     }
   } catch (_) {}
-  return COMMON_RESOLUTIONS;
+
+  // Probe each resolution with actual getUserMedia to discover real capabilities
+  const timeout = (ms) => new Promise((_, rj) => setTimeout(rj, ms));
+  const probe = async (res) => {
+    try {
+      const s = await Promise.race([
+        navigator.mediaDevices.getUserMedia({
+          video: { deviceId: { exact: deviceId }, width: { exact: res.w }, height: { exact: res.h } }
+        }),
+        timeout(2500)
+      ]);
+      s.getTracks().forEach(t => t.stop());
+      return res;
+    } catch (_) { return null; }
+  };
+  const results = await Promise.allSettled(COMMON_RESOLUTIONS.map(probe));
+  const supported = results.filter(r => r.status === 'fulfilled' && r.value).map(r => r.value);
+  return supported.length > 0 ? supported : COMMON_RESOLUTIONS;
 }
 
 function populateResolutionSelect(sel, deviceId, currentValue) {
@@ -2357,13 +2401,7 @@ if (recordAudioToggle) {
     await window.electronAPI.saveSettings({ recordAudio: enabled });
     appSettings.recordAudio = enabled;
     // Re-init cameras to apply the new audio constraint immediately
-    for (const [sid, st] of stations) {
-      if (st.stream) {
-        st.stream.getTracks().forEach(tr => tr.stop());
-        st.stream = null;
-      }
-      await initStationCamera(sid);
-    }
+    await reinitStationCameras();
   });
 }
 
@@ -2373,13 +2411,7 @@ if (defaultResolutionSel) {
     await window.electronAPI.saveSettings({ defaultResolution: val });
     appSettings.defaultResolution = val;
     // Re-init cameras to apply the new resolution
-    for (const [sid, st] of stations) {
-      if (st.stream) {
-        st.stream.getTracks().forEach(tr => tr.stop());
-        st.stream = null;
-      }
-      await initStationCamera(sid);
-    }
+    await reinitStationCameras();
   });
 }
 
@@ -2391,13 +2423,7 @@ if (defaultCameraSel) {
     // Re-populate resolution dropdown for the new camera
     populateDefaultCameraAndResolution();
     // Re-init cameras to apply the new camera
-    for (const [sid, st] of stations) {
-      if (st.stream) {
-        st.stream.getTracks().forEach(tr => tr.stop());
-        st.stream = null;
-      }
-      await initStationCamera(sid);
-    }
+    await reinitStationCameras();
   });
 }
 
