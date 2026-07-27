@@ -501,6 +501,12 @@ async function initStationCamera(sid) {
     }
     if (cameraError) cameraError.classList.add('hidden');
   } catch (err) {
+    // If the failure was specifically the resolution constraint, warn the user
+    const resolutionRejected = err.name === 'OverconstrainedError';
+    if (resolutionRejected && cameraError) {
+      cameraError.textContent = t('status.resolutionNotSupported');
+      cameraError.classList.remove('hidden');
+    }
     // Fallback: try without exact deviceId and resolution
     try {
       st.stream = await getUserMediaWithTimeout({ video: true, audio: !!appSettings.recordAudio });
@@ -508,7 +514,7 @@ async function initStationCamera(sid) {
         videoEl.srcObject = st.stream;
         videoEl.muted = true; // always mute preview
       }
-      if (cameraError) cameraError.classList.add('hidden');
+      if (!resolutionRejected && cameraError) cameraError.classList.add('hidden');
     } catch (err2) {
       if (cameraError) {
         cameraError.textContent = t('status.cameraError', err2.message);
@@ -711,7 +717,6 @@ async function populateDefaultCameraAndResolution() {
     cameras = devices.filter(d => d.kind === 'videoinput');
   } catch (_) {}
   populateDefaultCameraDropdown(cameras);
-  // Populate resolution dropdown using the selected camera (or first available)
   if (!defaultResolutionSel) return;
   const savedRes = appSettings.defaultResolution || '';
   const camId = (defaultCameraSel && defaultCameraSel.value) || (cameras.length > 0 ? cameras[0].deviceId : '');

@@ -116,6 +116,7 @@
     // Status messages (dynamic)
     'status.cameraError': (msg) => `Camera error: ${msg}. Please allow camera access or enable Test Mode in Settings.`,
     'status.cameraUnavailable': (code) => `Camera not available. Cannot record for: ${code}`,
+    'status.resolutionNotSupported': 'Selected resolution not available on this camera. Using default.',
     'status.failedOpenFile': (msg) => `Failed to open file for writing: ${msg}`,
     'status.failedStartRecorder': (msg) => `Failed to start recorder: ${msg}`,
     'status.recordingFor': (code) => `Recording for: ${code}`,
@@ -395,6 +396,7 @@
     // Status messages (dynamic)
     'status.cameraError': (msg) => `Kesalahan kamera: ${msg}. Izinkan akses kamera atau aktifkan Mode Uji di Pengaturan.`,
     'status.cameraUnavailable': (code) => `Kamera tidak tersedia. Tidak dapat merekam untuk: ${code}`,
+    'status.resolutionNotSupported': 'Resolusi yang dipilih tidak tersedia di kamera ini. Menggunakan default.',
     'status.failedOpenFile': (msg) => `Gagal membuka file untuk ditulis: ${msg}`,
     'status.failedStartRecorder': (msg) => `Gagal memulai perekam: ${msg}`,
     'status.recordingFor': (code) => `Merekam untuk: ${code}`,
