@@ -1907,7 +1907,7 @@
   };
 
   // ── Language switcher ───────────────────────────────────────────────────────
-  let currentLang = localStorage.getItem('pr_site_lang') || 'id';
+  let currentLang = localStorage.getItem('pr_site_lang') || 'en';
   let _pricingData = null; // cached so setLang can re-render promo elements
 
   function setLang(lang) {
