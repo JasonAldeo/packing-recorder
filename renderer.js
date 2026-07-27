@@ -77,6 +77,7 @@ const voiceVolumeRange     = document.getElementById('voice-volume-range');
 const voiceVolumeLabel     = document.getElementById('voice-volume-label');
 const voiceTestBtn         = document.getElementById('voice-test-btn');
 const recordAudioToggle    = document.getElementById('record-audio-toggle');
+const defaultResolutionSel = document.getElementById('default-resolution-select');
 const localeSelect         = document.getElementById('locale-select');
 
 // Multi-station DOM
@@ -234,6 +235,7 @@ async function initStations() {
       id,
       label: saved.label || `Station ${i}`,
       cameraDeviceId: saved.cameraDeviceId || null,
+      cameraResolution: saved.cameraResolution || null,
     });
   }
 
@@ -268,6 +270,8 @@ async function initStations() {
       stations.set(cfg.id, {
         id: cfg.id,
         label: cfg.label,
+        cameraDeviceId: cfg.cameraDeviceId || null,
+        cameraResolution: cfg.cameraResolution || null,
         state: 'idle',
         stream: null,
         mediaRecorder: null,
@@ -369,6 +373,7 @@ async function buildStation(cfg, fullSize) {
     id: sid,
     label: cfg.label || `Station ${num}`,
     cameraDeviceId: cfg.cameraDeviceId || null,
+    cameraResolution: cfg.cameraResolution || null,
     stream: null,
     mediaRecorder: null,
     writeQueue: Promise.resolve(),
@@ -466,11 +471,25 @@ async function initStationCamera(sid) {
     ]);
   }
 
+  function buildVideoConstraint() {
+    const vc = {};
+    if (st.cameraDeviceId) vc.deviceId = { exact: st.cameraDeviceId };
+    const resStr = st.cameraResolution || appSettings.defaultResolution || null;
+    if (resStr) {
+      const parts = resStr.split('x');
+      const w = parseInt(parts[0], 10);
+      const h = parseInt(parts[1], 10);
+      if (w && h) {
+        vc.width  = { exact: w };
+        vc.height = { exact: h };
+      }
+    }
+    return Object.keys(vc).length > 0 ? vc : true;
+  }
+
   try {
     const constraints = {
-      video: st.cameraDeviceId
-        ? { deviceId: { exact: st.cameraDeviceId } }
-        : true,
+      video: buildVideoConstraint(),
       audio: !!appSettings.recordAudio
     };
     st.stream = await getUserMediaWithTimeout(constraints);
@@ -480,7 +499,7 @@ async function initStationCamera(sid) {
     }
     if (cameraError) cameraError.classList.add('hidden');
   } catch (err) {
-    // Fallback: try without exact deviceId
+    // Fallback: try without exact deviceId and resolution
     try {
       st.stream = await getUserMediaWithTimeout({ video: true, audio: !!appSettings.recordAudio });
       if (videoEl) {
@@ -565,6 +584,64 @@ function populateCameraDropdowns(videoDevices) {
       sel.appendChild(opt);
     });
     if (currentVal) sel.value = currentVal;
+  });
+}
+
+// ─── Camera resolution ────────────────────────────────────────────────────────
+const COMMON_RESOLUTIONS = [
+  { w: 640,  h: 480,  label: '640 × 480' },
+  { w: 800,  h: 600,  label: '800 × 600' },
+  { w: 1024, h: 768,  label: '1024 × 768' },
+  { w: 1280, h: 720,  label: '1280 × 720 (HD)' },
+  { w: 1600, h: 1200, label: '1600 × 1200' },
+  { w: 1920, h: 1080, label: '1920 × 1080 (Full HD)' },
+  { w: 2560, h: 1440, label: '2560 × 1440 (QHD)' },
+  { w: 3840, h: 2160, label: '3840 × 2160 (4K)' },
+];
+
+async function queryCameraResolutions(deviceId) {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { deviceId: { exact: deviceId } }
+    });
+    const track = stream.getVideoTracks()[0];
+    const caps = track.getCapabilities();
+    track.stop();
+    if (caps && caps.width && caps.height) {
+      const minW = caps.width.min, maxW = caps.width.max;
+      const minH = caps.height.min, maxH = caps.height.max;
+      return COMMON_RESOLUTIONS.filter(r => r.w >= minW && r.w <= maxW && r.h >= minH && r.h <= maxH);
+    }
+  } catch (_) {}
+  return COMMON_RESOLUTIONS;
+}
+
+function populateResolutionSelect(sel, deviceId, currentValue) {
+  if (!sel) return;
+  sel.disabled = !deviceId;
+  sel.innerHTML = `<option value="">${t('settings.resolutionDefault')}</option>`;
+  if (!deviceId) {
+    if (currentValue) sel.value = currentValue;
+    return;
+  }
+  queryCameraResolutions(deviceId).then(resolutions => {
+    resolutions.forEach(r => {
+      const val = `${r.w}x${r.h}`;
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = r.label;
+      sel.appendChild(opt);
+    });
+    if (currentValue) sel.value = currentValue;
+  }).catch(() => {
+    COMMON_RESOLUTIONS.forEach(r => {
+      const val = `${r.w}x${r.h}`;
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = r.label;
+      sel.appendChild(opt);
+    });
+    if (currentValue) sel.value = currentValue;
   });
 }
 
@@ -2062,6 +2139,11 @@ async function loadSavedDir() {
   // Record audio setting
   if (recordAudioToggle) recordAudioToggle.checked = !!settings.recordAudio;
 
+  // Camera resolution setting
+  if (defaultResolutionSel) {
+    defaultResolutionSel.value = settings.defaultResolution || '';
+  }
+
   // Multi-station settings
   const multiStation = settings.multiStation || false;
   const stationCount = parseInt(settings.stationCount, 10) || 1;
@@ -2104,6 +2186,9 @@ function renderStationConfigArea(count, settings) {
         <select class="station-camera-select" id="cfg-cam-${sid}">
           <option value="">${t('settings.cameraNotAssigned')}</option>
         </select>
+        <select class="station-camera-select" id="cfg-res-${sid}">
+          <option value="">${t('settings.resolutionDefault')}</option>
+        </select>
       </div>
     `;
     stationConfigArea.appendChild(row);
@@ -2111,12 +2196,24 @@ function renderStationConfigArea(count, settings) {
   // Trigger camera enum to populate dropdowns
   navigator.mediaDevices.enumerateDevices().then(devices => {
     populateCameraDropdowns(devices.filter(d => d.kind === 'videoinput'));
-    // Restore saved device selections
+    // Restore saved device selections and populate resolution dropdowns
     stationsCfg.forEach(sc => {
-      const sel = document.getElementById(`cfg-cam-${sc.id}`);
-      if (sel && sc.cameraDeviceId) sel.value = sc.cameraDeviceId;
+      const camSel = document.getElementById(`cfg-cam-${sc.id}`);
+      if (camSel && sc.cameraDeviceId) {
+        camSel.value = sc.cameraDeviceId;
+        const resSel = document.getElementById(`cfg-res-${sc.id}`);
+        if (resSel) populateResolutionSelect(resSel, sc.cameraDeviceId, sc.cameraResolution);
+      }
     });
   }).catch(() => {});
+  // Wire camera select change to repopulate resolution dropdown
+  document.querySelectorAll('.station-camera-select[id^="cfg-cam-"]').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const sid = sel.id.replace('cfg-cam-', '');
+      const resSel = document.getElementById(`cfg-res-${sid}`);
+      if (resSel) populateResolutionSelect(resSel, sel.value, null);
+    });
+  });
 }
 
 if (multiStationToggle) {
@@ -2159,10 +2256,12 @@ if (saveStationsBtn) {
       const sid = `station${i}`;
       const labelEl = document.getElementById(`cfg-label-${sid}`);
       const camEl = document.getElementById(`cfg-cam-${sid}`);
+      const resEl = document.getElementById(`cfg-res-${sid}`);
       stations_cfg.push({
         id: sid,
         label: labelEl ? labelEl.value.trim() || `Station ${i}` : `Station ${i}`,
         cameraDeviceId: camEl ? camEl.value || null : null,
+        cameraResolution: resEl ? resEl.value || null : null,
       });
     }
 
@@ -2226,6 +2325,22 @@ if (recordAudioToggle) {
     await window.electronAPI.saveSettings({ recordAudio: enabled });
     appSettings.recordAudio = enabled;
     // Re-init cameras to apply the new audio constraint immediately
+    for (const [sid, st] of stations) {
+      if (st.stream) {
+        st.stream.getTracks().forEach(tr => tr.stop());
+        st.stream = null;
+      }
+      await initStationCamera(sid);
+    }
+  });
+}
+
+if (defaultResolutionSel) {
+  defaultResolutionSel.addEventListener('change', async () => {
+    const val = defaultResolutionSel.value || null;
+    await window.electronAPI.saveSettings({ defaultResolution: val });
+    appSettings.defaultResolution = val;
+    // Re-init cameras to apply the new resolution
     for (const [sid, st] of stations) {
       if (st.stream) {
         st.stream.getTracks().forEach(tr => tr.stop());

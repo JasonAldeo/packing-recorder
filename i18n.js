@@ -227,6 +227,11 @@
     'settings.recordAudioTitle': 'Record Audio',
     'settings.recordAudioHint': 'Capture microphone audio in recordings. Requires microphone permission.',
 
+    // Camera resolution setting
+    'settings.cameraResolutionTitle': 'Camera Resolution',
+    'settings.cameraResolutionHint':  'Choose recording resolution. Leave as Default for browser auto.',
+    'settings.resolutionDefault':     'Default (auto)',
+
     // Voice announcements settings
     'settings.voiceTitle': 'Voice Announcements',
     'settings.voiceHint': 'Speaks station status aloud. Useful for operators away from the screen.',
@@ -497,6 +502,11 @@
     // Record audio setting
     'settings.recordAudioTitle': 'Rekam Audio',
     'settings.recordAudioHint': 'Rekam audio mikrofon dalam video. Memerlukan izin mikrofon.',
+
+    // Camera resolution setting
+    'settings.cameraResolutionTitle': 'Resolusi Kamera',
+    'settings.cameraResolutionHint':  'Pilih resolusi rekaman. Biarkan Default untuk otomatis browser.',
+    'settings.resolutionDefault':     'Default (otomatis)',
 
     // Voice announcements settings
     'settings.voiceTitle': 'Pengumuman Suara',
