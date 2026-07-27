@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Beli Lisensi – Packing Recorder</title>
+  <title>Buy License – Packing Recorder</title>
   <link rel="icon" type="image/x-icon" href="/icon.ico" />
   <link rel="shortcut icon" type="image/x-icon" href="/icon.ico" />
   <style>
@@ -258,14 +258,14 @@
     <div class="logo-mark">
       <img src="/icon.ico" alt="Packing Recorder" style="width:22px;height:22px;object-fit:contain;" />    </div>
     <h1>Packing Recorder</h1>
-    <p>Aktifkan lisensi 30 hari — bayar sekarang, pakai langsung</p>
+    <p>Activate your 30-day license — pay now, use instantly</p>
   </div>
 
   <!-- Auth error (shown if no valid token) -->
   <div id="auth-error-section" class="card hidden">
     <div class="auth-error-section">
-      <p>Sesi tidak valid atau sudah kadaluarsa.</p>
-      <small>Silakan buka halaman ini dari tombol "Beli Lisensi" di aplikasi Packing Recorder.</small>
+      <p>Session is invalid or has expired.</p>
+      <small>Please open this page from the "Buy License" button in the Packing Recorder app.</small>
     </div>
   </div>
 
@@ -277,16 +277,16 @@
     </div>
 
     <ul class="features">
-      <li>Rekam video packing otomatis via barcode</li>
-      <li>Cari &amp; putar ulang rekaman kapan saja</li>
-      <li>Lisensi 30 hari, dapat diperpanjang kapan saja</li>
-      <li>Lisensi terhubung ke akun, bukan ke komputer</li>
+      <li>Automatic packing video recording via barcode</li>
+      <li>Search &amp; replay recordings anytime</li>
+      <li>30-day license, renewable anytime</li>
+      <li>License tied to your account, not to a computer</li>
     </ul>
 
     <div class="price-row">
       <div>
-        <div class="price-label">Harga Lisensi 30 Hari</div>
-        <div class="price-note">Dapat ditambah (stacking) saat masih aktif</div>
+        <div class="price-label">30-Day License Price</div>
+        <div class="price-note">Can be stacked while still active</div>
       </div>
       <div style="text-align:right;">
         <div class="price-original" id="price-original"></div>
@@ -295,10 +295,9 @@
       </div>
     </div>
 
-    <button class="btn-primary" id="pay-btn">Bayar Sekarang &rarr;</button>
+    <button class="btn-primary" id="pay-btn">Pay Now &rarr;</button>
     <div id="payment-notice" class="payment-notice hidden">
-      ⚠ Pembayaran sementara tidak tersedia. Mohon tunggu beberapa saat.<br>
-      <small>Payment is temporarily unavailable. Please check back shortly.</small>
+      ⚠ Payment is temporarily unavailable. Please check back shortly.
     </div>
     <div id="form-error" class="error-msg hidden"></div>
   </div>
@@ -307,22 +306,22 @@
   <div id="step-success" class="card hidden">
     <div class="success-section">
       <div class="success-icon">🎉</div>
-      <h3>Pembayaran Berhasil!</h3>
-      <p>Lisensi telah ditambahkan ke akunmu. Kamu bisa menutup halaman ini dan kembali ke aplikasi.</p>
+      <h3>Payment Successful!</h3>
+      <p>Your license has been added to your account. You can close this page and return to the app.</p>
 
       <div class="license-info-box">
-        <div class="license-info-label">Lisensi Aktif Hingga</div>
+        <div class="license-info-label">License Active Until</div>
         <div id="license-expiry-display" class="license-info-value">—</div>
       </div>
 
       <div class="license-close-note">
-        Lisensi terhubung ke akun kamu secara otomatis. Tidak perlu memasukkan kode apapun — cukup buka aplikasi dan lisensi akan terdeteksi.
+        Your license is automatically linked to your account. No code needed — just open the app and the license will be detected.
       </div>
     </div>
   </div>
 
   <div class="footer">
-    Butuh bantuan? Hubungi <a href="mailto:aldeojason@gmail.com">aldeojason@gmail.com</a>
+    Need help? Contact <a href="mailto:aldeojason@gmail.com">aldeojason@gmail.com</a>
   </div>
 
 </div>
@@ -334,7 +333,7 @@
   fetch(`${SERVER}/pricing`)
     .then(r => r.json())
     .then(data => {
-      const fmt = n => 'Rp ' + Number(n).toLocaleString('id-ID');
+      const fmt = n => 'Rp ' + Number(n).toLocaleString('en-US');
       const amountEl = document.getElementById('price-amount');
       const originalEl = document.getElementById('price-original');
       const badgeEl = document.getElementById('price-promo-badge');
@@ -380,7 +379,7 @@
 
   function formatExpiry(isoString) {
     const d = new Date(isoString);
-    return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    return d.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
   }
 
   // ── On load: verify token ──────────────────────────────────────────────────
@@ -409,7 +408,7 @@
   payBtn.addEventListener('click', async () => {
     hide(formError);
     payBtn.disabled = true;
-    payBtn.textContent = 'Membuat pembayaran…';
+    payBtn.textContent = 'Creating payment…';
 
     try {
       const res = await fetch(`${SERVER}/create-order`, {
@@ -422,7 +421,7 @@
       });
       const data = await res.json();
       if (!res.ok || data.error) {
-        throw new Error(data.error || 'Gagal membuat order.');
+        throw new Error(data.error || 'Failed to create order.');
       }
 
       currentOrderId = data.orderId;
@@ -440,25 +439,25 @@
           // Payment initiated (e.g. bank transfer) — poll for confirmation
           startPolling();
           payBtn.disabled = false;
-          payBtn.textContent = 'Bayar Sekarang →';
+          payBtn.textContent = 'Pay Now →';
         },
         onError: function(result) {
           console.log('[snap] error', result);
-          showError(formError, 'Pembayaran gagal. Silakan coba lagi.');
+          showError(formError, 'Payment failed. Please try again.');
           payBtn.disabled = false;
-          payBtn.textContent = 'Bayar Sekarang →';
+          payBtn.textContent = 'Pay Now →';
         },
         onClose: function() {
           // User closed the popup without completing payment
           payBtn.disabled = false;
-          payBtn.textContent = 'Bayar Sekarang →';
+          payBtn.textContent = 'Pay Now →';
         },
       });
 
     } catch (err) {
-      showError(formError, err.message || 'Terjadi kesalahan. Coba lagi.');
+      showError(formError, err.message || 'An error occurred. Please try again.');
       payBtn.disabled = false;
-      payBtn.textContent = 'Bayar Sekarang →';
+      payBtn.textContent = 'Pay Now →';
     }
   });
 
@@ -467,7 +466,7 @@
     if (pollInterval) return;
     // Show a waiting message while polling
     payBtn.disabled = true;
-    payBtn.textContent = 'Memverifikasi pembayaran…';
+    payBtn.textContent = 'Verifying payment…';
     pollInterval = setInterval(async () => {
       try {
         const res = await fetch(`${SERVER}/check-order/${currentOrderId}`, {
