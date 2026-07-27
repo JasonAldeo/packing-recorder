@@ -2582,6 +2582,20 @@ if (window.electronAPI.onUpdateDownloaded) {
   });
 }
 
+if (window.electronAPI.onUpdateNotAvailable) {
+  window.electronAPI.onUpdateNotAvailable(() => {
+    if (checkUpdateBtn) checkUpdateBtn.disabled = false;
+    setUpdateStatus(t('settings.updateNotAvailable'), 'success');
+  });
+}
+
+if (window.electronAPI.onUpdateError) {
+  window.electronAPI.onUpdateError(() => {
+    if (checkUpdateBtn) checkUpdateBtn.disabled = false;
+    setUpdateStatus(t('settings.updateError'), 'error');
+  });
+}
+
 // ─── QR Code (manual) ─────────────────────────────────────────────────────────
 if (printQrBtn) {
   printQrBtn.addEventListener('click', async () => {

@@ -508,6 +508,10 @@ app.whenReady().then(() => {
     if (mainWindow) mainWindow.webContents.send('update-available', info);
   });
 
+  autoUpdater.on('update-not-available', () => {
+    if (mainWindow) mainWindow.webContents.send('update-not-available');
+  });
+
   autoUpdater.on('update-downloaded', (info) => {
     if (mainWindow) mainWindow.webContents.send('update-downloaded', info);
     // If a recording is active, defer the restart dialog until recording finishes
@@ -520,6 +524,8 @@ app.whenReady().then(() => {
 
   autoUpdater.on('error', (err) => {
     console.error('[auto-updater] error:', err.message);
+    // Notify the renderer so it doesn't get stuck in "Downloading..." forever
+    if (mainWindow) mainWindow.webContents.send('update-error');
   });
 
   // Check for updates silently on startup (delay 3s to let window finish loading).
@@ -558,7 +564,7 @@ ipcMain.handle('check-for-updates', async () => {
     if (!result || !result.updateInfo) return { isUpdateAvailable: false };
     const currentVersion = app.getVersion();
     const latestVersion  = result.updateInfo.version;
-    const isUpdateAvailable = result.cancellationToken != null;
+    const isUpdateAvailable = latestVersion !== currentVersion;
     return { isUpdateAvailable, version: latestVersion, currentVersion };
   } catch (err) {
     console.error('[auto-updater] manual check failed:', err.message);

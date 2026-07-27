@@ -64,7 +64,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppVersion:         ()                         => ipcRenderer.invoke('get-app-version'),
   checkForUpdates:       ()                         => ipcRenderer.invoke('check-for-updates'),
   onUpdateAvailable:     (cb)                       => ipcRenderer.on('update-available', (_, info) => cb(info)),
+  onUpdateNotAvailable:  (cb)                       => ipcRenderer.on('update-not-available', () => cb()),
   onUpdateDownloaded:    (cb)                       => ipcRenderer.on('update-downloaded', (_, info) => cb(info)),
+  onUpdateError:         (cb)                       => ipcRenderer.on('update-error', () => cb()),
   // true when the app is running as a Microsoft Store MSIX install
   isWindowsStore:        ()                         => process.windowsStore === true,
   // Notify main whether any station is currently recording (defers update dialog)
