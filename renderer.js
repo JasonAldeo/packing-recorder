@@ -645,6 +645,23 @@ function populateResolutionSelect(sel, deviceId, currentValue) {
   });
 }
 
+async function populateGlobalResolutionSelect() {
+  if (!defaultResolutionSel) return;
+  const savedValue = appSettings.defaultResolution || '';
+  let deviceId = '';
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const cams = devices.filter(d => d.kind === 'videoinput');
+    if (cams.length > 0) deviceId = cams[0].deviceId;
+  } catch (_) {}
+  if (deviceId) {
+    populateResolutionSelect(defaultResolutionSel, deviceId, savedValue);
+  } else {
+    defaultResolutionSel.innerHTML = `<option value="">${t('settings.resolutionDefault')}</option>`;
+    if (savedValue) defaultResolutionSel.value = savedValue;
+  }
+}
+
 function createFakeStream() {
   const canvas = document.createElement('canvas');
   canvas.width = 640;
@@ -2140,9 +2157,7 @@ async function loadSavedDir() {
   if (recordAudioToggle) recordAudioToggle.checked = !!settings.recordAudio;
 
   // Camera resolution setting
-  if (defaultResolutionSel) {
-    defaultResolutionSel.value = settings.defaultResolution || '';
-  }
+  populateGlobalResolutionSelect();
 
   // Multi-station settings
   const multiStation = settings.multiStation || false;
