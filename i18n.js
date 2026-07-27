@@ -227,7 +227,10 @@
     'settings.recordAudioTitle': 'Record Audio',
     'settings.recordAudioHint': 'Capture microphone audio in recordings. Requires microphone permission.',
 
-    // Camera resolution setting
+    // Camera setting
+    'settings.cameraTitle':       'Camera',
+    'settings.cameraHint':        'Select which camera to use by default. Per-station setting in multi-station mode overrides this.',
+    'settings.cameraDefault':     'Default (system camera)',
     'settings.cameraResolutionTitle': 'Camera Resolution',
     'settings.cameraResolutionHint':  'Choose recording resolution. Leave as Default for browser auto.',
     'settings.resolutionDefault':     'Default (auto)',
@@ -503,7 +506,10 @@
     'settings.recordAudioTitle': 'Rekam Audio',
     'settings.recordAudioHint': 'Rekam audio mikrofon dalam video. Memerlukan izin mikrofon.',
 
-    // Camera resolution setting
+    // Camera setting
+    'settings.cameraTitle':       'Kamera',
+    'settings.cameraHint':        'Pilih kamera yang digunakan secara default. Pengaturan per-stasiun di mode multi-stasiun akan menggantikan ini.',
+    'settings.cameraDefault':     'Default (kamera sistem)',
     'settings.cameraResolutionTitle': 'Resolusi Kamera',
     'settings.cameraResolutionHint':  'Pilih resolusi rekaman. Biarkan Default untuk otomatis browser.',
     'settings.resolutionDefault':     'Default (otomatis)',

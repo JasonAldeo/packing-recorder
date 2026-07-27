@@ -77,6 +77,7 @@ const voiceVolumeRange     = document.getElementById('voice-volume-range');
 const voiceVolumeLabel     = document.getElementById('voice-volume-label');
 const voiceTestBtn         = document.getElementById('voice-test-btn');
 const recordAudioToggle    = document.getElementById('record-audio-toggle');
+const defaultCameraSel     = document.getElementById('default-camera-select');
 const defaultResolutionSel = document.getElementById('default-resolution-select');
 const localeSelect         = document.getElementById('locale-select');
 
@@ -473,7 +474,8 @@ async function initStationCamera(sid) {
 
   function buildVideoConstraint() {
     const vc = {};
-    if (st.cameraDeviceId) vc.deviceId = { exact: st.cameraDeviceId };
+    const camId = st.cameraDeviceId || appSettings.defaultCameraDeviceId || null;
+    if (camId) vc.deviceId = { exact: camId };
     const resStr = st.cameraResolution || appSettings.defaultResolution || null;
     if (resStr) {
       const parts = resStr.split('x');
@@ -645,20 +647,35 @@ function populateResolutionSelect(sel, deviceId, currentValue) {
   });
 }
 
-async function populateGlobalResolutionSelect() {
-  if (!defaultResolutionSel) return;
-  const savedValue = appSettings.defaultResolution || '';
-  let deviceId = '';
+function populateDefaultCameraDropdown(cameras) {
+  if (!defaultCameraSel) return;
+  const saved = appSettings.defaultCameraDeviceId || '';
+  defaultCameraSel.innerHTML = `<option value="">${t('settings.cameraDefault')}</option>`;
+  cameras.forEach((d, i) => {
+    const opt = document.createElement('option');
+    opt.value = d.deviceId;
+    opt.textContent = d.label || `Camera ${i + 1}`;
+    defaultCameraSel.appendChild(opt);
+  });
+  if (saved) defaultCameraSel.value = saved;
+}
+
+async function populateDefaultCameraAndResolution() {
+  let cameras = [];
   try {
     const devices = await navigator.mediaDevices.enumerateDevices();
-    const cams = devices.filter(d => d.kind === 'videoinput');
-    if (cams.length > 0) deviceId = cams[0].deviceId;
+    cameras = devices.filter(d => d.kind === 'videoinput');
   } catch (_) {}
-  if (deviceId) {
-    populateResolutionSelect(defaultResolutionSel, deviceId, savedValue);
+  populateDefaultCameraDropdown(cameras);
+  // Populate resolution dropdown using the selected camera (or first available)
+  if (!defaultResolutionSel) return;
+  const savedRes = appSettings.defaultResolution || '';
+  const camId = (defaultCameraSel && defaultCameraSel.value) || (cameras.length > 0 ? cameras[0].deviceId : '');
+  if (camId) {
+    populateResolutionSelect(defaultResolutionSel, camId, savedRes);
   } else {
     defaultResolutionSel.innerHTML = `<option value="">${t('settings.resolutionDefault')}</option>`;
-    if (savedValue) defaultResolutionSel.value = savedValue;
+    if (savedRes) defaultResolutionSel.value = savedRes;
   }
 }
 
@@ -2156,8 +2173,8 @@ async function loadSavedDir() {
   // Record audio setting
   if (recordAudioToggle) recordAudioToggle.checked = !!settings.recordAudio;
 
-  // Camera resolution setting
-  populateGlobalResolutionSelect();
+  // Camera and resolution settings
+  populateDefaultCameraAndResolution();
 
   // Multi-station settings
   const multiStation = settings.multiStation || false;
@@ -2356,6 +2373,24 @@ if (defaultResolutionSel) {
     await window.electronAPI.saveSettings({ defaultResolution: val });
     appSettings.defaultResolution = val;
     // Re-init cameras to apply the new resolution
+    for (const [sid, st] of stations) {
+      if (st.stream) {
+        st.stream.getTracks().forEach(tr => tr.stop());
+        st.stream = null;
+      }
+      await initStationCamera(sid);
+    }
+  });
+}
+
+if (defaultCameraSel) {
+  defaultCameraSel.addEventListener('change', async () => {
+    const val = defaultCameraSel.value || null;
+    await window.electronAPI.saveSettings({ defaultCameraDeviceId: val });
+    appSettings.defaultCameraDeviceId = val;
+    // Re-populate resolution dropdown for the new camera
+    populateDefaultCameraAndResolution();
+    // Re-init cameras to apply the new camera
     for (const [sid, st] of stations) {
       if (st.stream) {
         st.stream.getTracks().forEach(tr => tr.stop());
