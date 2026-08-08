@@ -454,6 +454,12 @@ body {
   border: 1px solid #bbf7d0;
 }
 
+.status.processing {
+  background: #f0f4ff;
+  color: #3b5bdb;
+  border: 1px solid #c7d2fe;
+}
+
 .status.warning {
   background: #fffbeb;
   color: #b45309;

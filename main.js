@@ -424,6 +424,43 @@ function createWindow() {
 let rendererIsRecording = false; // true while any station is recording
 let pendingUpdateInfo   = null;  // holds update info when download finished during a recording
 
+// Download-stall watchdog: electron-updater has no inactivity timeout, so a
+// stalled connection hangs at some percentage forever. If no download progress
+// arrives for 45s, cancel the download and surface an error so the user can
+// retry instead of waiting indefinitely.
+let currentUpdateCancel = null; // CancellationToken of the active download
+let lastProgressAt      = 0;
+let stallTimer          = null;
+
+function armStallWatchdog() {
+  clearStallWatchdog();
+  lastProgressAt = Date.now();
+  stallTimer = setInterval(() => {
+    if (Date.now() - lastProgressAt > 45000) {
+      clearStallWatchdog();
+      console.error('[auto-updater] download stalled — cancelling so the user can retry');
+      if (currentUpdateCancel) {
+        currentUpdateCancel.cancel();
+        currentUpdateCancel = null;
+      }
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('update-error', 'The update download stalled. Please check your connection and try again.');
+      }
+    }
+  }, 5000);
+}
+
+function bumpStallWatchdog() {
+  lastProgressAt = Date.now();
+}
+
+function clearStallWatchdog() {
+  if (stallTimer) {
+    clearInterval(stallTimer);
+    stallTimer = null;
+  }
+}
+
 function closeAllStationWindows() {
   for (const [sid, win] of stationWindows.entries()) {
     if (win && !win.isDestroyed()) win.close();
@@ -516,14 +553,19 @@ app.whenReady().then(() => {
   autoUpdater.autoInstallOnAppQuit = false;
 
   autoUpdater.on('update-available', (info) => {
+    armStallWatchdog();
     if (mainWindow) mainWindow.webContents.send('update-available', info);
   });
 
   autoUpdater.on('update-not-available', () => {
+    clearStallWatchdog();
+    currentUpdateCancel = null;
     if (mainWindow) mainWindow.webContents.send('update-not-available');
   });
 
   autoUpdater.on('update-downloaded', (info) => {
+    clearStallWatchdog();
+    currentUpdateCancel = null;
     if (mainWindow) mainWindow.webContents.send('update-downloaded', info);
     // If a recording is active, defer the restart dialog until recording finishes
     if (rendererIsRecording) {
@@ -534,6 +576,7 @@ app.whenReady().then(() => {
   });
 
   autoUpdater.on('download-progress', (progress) => {
+    bumpStallWatchdog();
     if (mainWindow) mainWindow.webContents.send('update-download-progress', {
       percent: progress.percent,
       bytesPerSecond: progress.bytesPerSecond,
@@ -543,6 +586,8 @@ app.whenReady().then(() => {
   });
 
   autoUpdater.on('error', (err) => {
+    clearStallWatchdog();
+    currentUpdateCancel = null;
     console.error('[auto-updater] error:', err.message);
     // Notify the renderer so it doesn't get stuck in "Downloading..." forever
     if (mainWindow) mainWindow.webContents.send('update-error', err.message || '');
@@ -552,9 +597,15 @@ app.whenReady().then(() => {
   // Skipped when running as a Microsoft Store MSIX — the Store manages updates there.
   if (!process.windowsStore) {
     setTimeout(() => {
-      autoUpdater.checkForUpdates().catch(err => {
-        console.error('[auto-updater] startup check failed:', err.message);
-      });
+      autoUpdater.checkForUpdates()
+        .then(result => {
+          if (result && result.cancellationToken && !currentUpdateCancel) {
+            currentUpdateCancel = result.cancellationToken;
+          }
+        })
+        .catch(err => {
+          console.error('[auto-updater] startup check failed:', err.message);
+        });
     }, 3000);
   }
 
@@ -580,6 +631,11 @@ ipcMain.handle('check-for-updates', async () => {
   if (process.windowsStore) return { isUpdateAvailable: false, storeManaged: true };
   try {
     const result = await autoUpdater.checkForUpdates();
+    // Keep the token of the active download so a stall can cancel it (only the
+    // first check's token matters — electron-updater reuses the in-flight download).
+    if (result && result.cancellationToken && !currentUpdateCancel) {
+      currentUpdateCancel = result.cancellationToken;
+    }
     // result is null when no update feed is reachable (dev/local build)
     if (!result || !result.updateInfo) return { isUpdateAvailable: false };
     const currentVersion = app.getVersion();
@@ -611,35 +667,69 @@ ipcMain.on('set-recording-state', (_, isRecording) => {
 const _writeStates = new Map();
 // stationId -> { stream, tempPath, finalPath, filename }
 
-ipcMain.handle('begin-video-write', (event, { stationId, shippingCode }) => {
+// Clean up an abandoned write state (streams + temp files)
+function destroyWriteState(state) {
+  if (!state) return;
+  try { state.stream.destroy(); } catch (_) {}
+  try { if (state.audioStream) state.audioStream.destroy(); } catch (_) {}
+  if (state.videoPath && fs.existsSync(state.videoPath)) { try { fs.unlinkSync(state.videoPath); } catch (_) {} }
+  if (state.audioPath && fs.existsSync(state.audioPath)) { try { fs.unlinkSync(state.audioPath); } catch (_) {} }
+  if (state.tempPath && fs.existsSync(state.tempPath)) { try { fs.unlinkSync(state.tempPath); } catch (_) {} }
+}
+
+function cleanupWriteState(sid) {
+  const state = _writeStates.get(sid);
+  if (!state) return;
+  destroyWriteState(state);
+  _writeStates.delete(sid);
+}
+
+ipcMain.handle('begin-video-write', (event, { stationId, shippingCode, format }) => {
   const sid = String(stationId || 'station1');
+  const fmt = format === 'mp4' ? 'mp4' : 'webm';
 
   // Clean up any abandoned previous stream for this station
-  if (_writeStates.has(sid)) {
-    const prev = _writeStates.get(sid);
-    try { prev.stream.destroy(); } catch (_) {}
-    if (prev.tempPath && fs.existsSync(prev.tempPath)) {
-      try { fs.unlinkSync(prev.tempPath); } catch (_) {}
-    }
-    _writeStates.delete(sid);
-  }
+  if (_writeStates.has(sid)) cleanupWriteState(sid);
 
   const videosDir = getVideosDir();
-  const sanitizedCode = shippingCode.replace(/[^a-zA-Z0-9_\-]/g, '_');
+  const sanitizedCode = String(shippingCode || '').replace(/[^a-zA-Z0-9_\-]/g, '_');
   // Include station ID prefix in filename
   const stationPrefix = sid.replace(/[^a-zA-Z0-9_\-]/g, '_');
-  let filename = `${stationPrefix}_${sanitizedCode}.webm`;
+  const ext = fmt === 'mp4' ? '.mp4' : '.webm';
+  let base = `${stationPrefix}_${sanitizedCode}`;
+  let filename = base + ext;
   let filePath = path.join(videosDir, filename);
 
   if (fs.existsSync(filePath)) {
-    const timestamp = Date.now();
-    filename = `${stationPrefix}_${sanitizedCode}_${timestamp}.webm`;
+    base = `${stationPrefix}_${sanitizedCode}_${Date.now()}`;
+    filename = base + ext;
     filePath = path.join(videosDir, filename);
   }
 
-  const tempPath = filePath + '.tmp';
-  const writeStream = fs.createWriteStream(tempPath);
-  _writeStates.set(sid, { stream: writeStream, tempPath, finalPath: filePath, filename });
+  if (fmt === 'mp4') {
+    // Video (H.264 Annex-B) and audio (opus/webm) are streamed to temp files,
+    // then muxed into a single MP4 on end-video-write.
+    const videoPath = path.join(videosDir, base + '.h264.tmp');
+    const audioPath = path.join(videosDir, base + '.audio.webm.tmp');
+    _writeStates.set(sid, {
+      stream: fs.createWriteStream(videoPath),
+      audioStream: fs.createWriteStream(audioPath),
+      videoPath,
+      audioPath,
+      finalPath: filePath,
+      filename,
+      format: 'mp4'
+    });
+  } else {
+    const tempPath = filePath + '.tmp';
+    _writeStates.set(sid, {
+      stream: fs.createWriteStream(tempPath),
+      tempPath,
+      finalPath: filePath,
+      filename,
+      format: 'webm'
+    });
+  }
   return { ok: true };
 });
 
@@ -655,6 +745,18 @@ ipcMain.handle('write-video-chunk', (event, stationId, chunk) => {
   });
 });
 
+ipcMain.handle('write-audio-chunk', (event, stationId, chunk) => {
+  const sid = String(stationId || 'station1');
+  return new Promise((resolve, reject) => {
+    const state = _writeStates.get(sid);
+    if (!state || !state.audioStream) return reject(new Error(`No active audio stream for station: ${sid}`));
+    const buffer = Buffer.from(chunk);
+    state.audioStream.write(buffer, (err) => {
+      if (err) reject(err); else resolve();
+    });
+  });
+});
+
 ipcMain.handle('end-video-write', (event, stationId) => {
   const sid = String(stationId || 'station1');
   return new Promise((resolve, reject) => {
@@ -662,29 +764,62 @@ ipcMain.handle('end-video-write', (event, stationId) => {
     if (!state) return reject(new Error(`No active write stream for station: ${sid}`));
     _writeStates.delete(sid);
 
+    if (state.format !== 'mp4') {
+      state.stream.end((err) => {
+        if (err) return reject(err);
+        try {
+          fs.renameSync(state.tempPath, state.finalPath);
+          const stats = fs.statSync(state.finalPath);
+          resolve({ filename: state.filename, filePath: state.finalPath, size: stats.size });
+        } catch (e) {
+          reject(e);
+        }
+      });
+      return;
+    }
+
+    // MP4: end both streams, then mux H.264 (+ audio) into the final MP4 with ffmpeg.
     state.stream.end((err) => {
-      if (err) return reject(err);
-      try {
-        fs.renameSync(state.tempPath, state.finalPath);
-        const stats = fs.statSync(state.finalPath);
-        resolve({ filename: state.filename, filePath: state.finalPath, size: stats.size });
-      } catch (e) {
-        reject(e);
+      if (err) {
+        destroyWriteState(state);
+        return reject(err);
       }
+      const endAudio = (cb) => {
+        if (state.audioStream) state.audioStream.end(cb);
+        else cb();
+      };
+      endAudio(() => {
+        const args = ['-y', '-framerate', '30', '-i', state.videoPath];
+        const hasAudio = state.audioPath && fs.existsSync(state.audioPath) && fs.statSync(state.audioPath).size > 0;
+        if (hasAudio) {
+          args.push('-i', state.audioPath);
+          args.push('-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k');
+        } else {
+          args.push('-c:v', 'copy', '-an');
+        }
+        args.push('-movflags', '+faststart', state.finalPath);
+        execFile(ffmpegPath, args, (muxErr) => {
+          try { if (fs.existsSync(state.videoPath)) fs.unlinkSync(state.videoPath); } catch (_) {}
+          try { if (state.audioPath && fs.existsSync(state.audioPath)) fs.unlinkSync(state.audioPath); } catch (_) {}
+          if (muxErr) {
+            try { if (fs.existsSync(state.finalPath)) fs.unlinkSync(state.finalPath); } catch (_) {}
+            return reject(new Error('Failed to finalize MP4: ' + muxErr.message));
+          }
+          try {
+            const stats = fs.statSync(state.finalPath);
+            resolve({ filename: state.filename, filePath: state.finalPath, size: stats.size });
+          } catch (e) {
+            reject(e);
+          }
+        });
+      });
     });
   });
 });
 
 ipcMain.handle('abort-video-write', (event, stationId) => {
   const sid = String(stationId || 'station1');
-  const state = _writeStates.get(sid);
-  if (state) {
-    try { state.stream.destroy(); } catch (_) {}
-    if (state.tempPath && fs.existsSync(state.tempPath)) {
-      try { fs.unlinkSync(state.tempPath); } catch (_) {}
-    }
-    _writeStates.delete(sid);
-  }
+  cleanupWriteState(sid);
 });
 
 // ─── Multi-window: Station Windows ────────────────────────────────────────────
@@ -773,6 +908,11 @@ ipcMain.handle('notify-station-event', (event, payload) => {
   }
 });
 
+// True for recording files in either format: legacy WebM (VP8 fallback) or MP4 (H.264)
+function isRecordingFile(name) {
+  return /\.(webm|mp4)$/i.test(name);
+}
+
 // Search for video by shipping code
 ipcMain.handle('search-video', (event, shippingCode) => {
   const videosDir = getVideosDir();
@@ -781,7 +921,7 @@ ipcMain.handle('search-video', (event, shippingCode) => {
   const sanitizedCode = shippingCode.replace(/[^a-zA-Z0-9_\-]/g, '_');
   const files = fs.readdirSync(videosDir);
   const matches = files
-    .filter(f => f.includes(sanitizedCode) && f.endsWith('.webm'))
+    .filter(f => f.includes(sanitizedCode) && isRecordingFile(f))
     .map(f => ({
       filename: f,
       filePath: path.join(videosDir, f),
@@ -803,11 +943,11 @@ ipcMain.handle('list-all-videos', () => {
   const videosDir = getVideosDir();
   if (!fs.existsSync(videosDir)) return [];
   return fs.readdirSync(videosDir)
-    .filter(f => f.endsWith('.webm'))
+    .filter(f => isRecordingFile(f))
     .map(f => {
       const stats = fs.statSync(path.join(videosDir, f));
-      // Parse: stationN_SHIPPINGCODE[_timestamp].webm
-      const base = f.replace(/\.webm$/, '');
+      // Parse: stationN_SHIPPINGCODE[_timestamp].webm|.mp4
+      const base = f.replace(/\.(webm|mp4)$/i, '');
       // Try to extract station prefix
       const stationMatch = base.match(/^(station\d+)_(.+?)(?:_(\d{13}))?$/);
       let stationId = null;
@@ -836,7 +976,7 @@ ipcMain.handle('list-all-videos', () => {
 
 // Save a copy of a recording to a user-chosen path, converted to MP4
 ipcMain.handle('save-video-as', async (event, { srcPath, defaultName }) => {
-  const baseName = defaultName.replace(/\.webm$/i, '');
+  const baseName = defaultName.replace(/\.(webm|mp4)$/i, '');
   const result = await dialog.showSaveDialog(mainWindow, {
     title: 'Save Recording As MP4',
     defaultPath: baseName + '.mp4',
@@ -883,7 +1023,7 @@ function runAutoDelete() {
   const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
   let deleted = 0;
   fs.readdirSync(videosDir)
-    .filter(f => f.endsWith('.webm'))
+    .filter(f => isRecordingFile(f))
     .forEach(f => {
       const fp = path.join(videosDir, f);
       try {

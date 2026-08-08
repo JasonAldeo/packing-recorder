@@ -811,6 +811,130 @@ function stopCanvasOverlay(sid) {
   st.overlayCanvas = null;
 }
 
+// ─── WebCodecs H.264 recording (Phase 1) ──────────────────────────────────────
+// When available we encode the overlay canvas with the hardware H.264 encoder
+// instead of MediaRecorder's software VP8/VP9. Encoded Annex-B chunks are
+// streamed to main and muxed into MP4 on stop. If WebCodecs/H.264 is not
+// supported, recording falls back to the classic MediaRecorder (VP8/WebM) path.
+
+function canUseWebCodecs() {
+  return typeof VideoEncoder !== 'undefined' && typeof MediaStreamTrackProcessor !== 'undefined';
+}
+
+async function buildH264Config(canvas) {
+  if (!canvas) return null;
+  const config = {
+    codec: 'avc1.4D401F',
+    width: canvas.width,
+    height: canvas.height,
+    bitrate: computeVideoBitrate(canvas.width, canvas.height),
+    framerate: 30,
+    avc: { format: 'annexb' },
+    hardwareAcceleration: 'prefer-hardware'
+  };
+  if (!VideoEncoder.isConfigSupported) return config;
+  try {
+    const support = await VideoEncoder.isConfigSupported(config);
+    if (support && support.supported) return config;
+    const soft = { ...config, hardwareAcceleration: 'no-preference' };
+    const softSupport = await VideoEncoder.isConfigSupported(soft);
+    return softSupport && softSupport.supported ? soft : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function pumpVideoFrames(sid, track, encoder) {
+  const st = stations.get(sid);
+  if (!st) return;
+  let reader = null;
+  try {
+    const processor = new MediaStreamTrackProcessor({ track });
+    reader = processor.readable.getReader();
+    st.pumpReader = reader;
+    let frameCount = 0;
+    while (true) {
+      if (st.encodingStopped) break;
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (st.encodingStopped) { value.close(); break; }
+      if (encoder.encodeQueueSize >= 3) {
+        // Encoder is falling behind — drop this frame to keep real-time
+        value.close();
+        frameCount++;
+        continue;
+      }
+      encoder.encode(value, { keyFrame: frameCount % 60 === 0 });
+      value.close();
+      frameCount++;
+    }
+  } catch (e) {
+    console.error(`[${sid}] Frame pump error:`, e);
+  } finally {
+    if (reader) {
+      try { await reader.cancel(); } catch (_) {}
+      try { reader.releaseLock(); } catch (_) {}
+      st.pumpReader = null;
+    }
+  }
+  try {
+    await encoder.flush();
+  } catch (e) {
+    console.error(`[${sid}] Encoder flush failed:`, e);
+  }
+  if (st.videoEncoder) {
+    try { st.videoEncoder.close(); st.videoEncoder = null; } catch (_) {}
+  }
+}
+
+function startAudioRecorder(sid) {
+  const st = stations.get(sid);
+  if (!appSettings.recordAudio || !st || !st.stream) return;
+  const audioTrack = st.stream.getAudioTracks()[0];
+  if (!audioTrack) return;
+  try {
+    const audioStream = new MediaStream([audioTrack]);
+    const mimeType = (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('audio/webm;codecs=opus'))
+      ? 'audio/webm;codecs=opus'
+      : 'audio/webm';
+    const recorder = new MediaRecorder(audioStream, { mimeType });
+    recorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) {
+        st.audioWriteQueue = st.audioWriteQueue.then(async () => {
+          const arrayBuffer = await e.data.arrayBuffer();
+          await window.electronAPI.writeAudioChunk(sid, new Uint8Array(arrayBuffer));
+        }).catch(err => console.error(`[${sid}] Audio chunk write error:`, err));
+      }
+    };
+    recorder.onstop = () => {
+      st.audioStopped = true;
+      maybeFinishRecording(sid);
+    };
+    st.audioRecorder = recorder;
+    recorder.start(500);
+  } catch (e) {
+    console.error(`[${sid}] Audio recorder failed (recording video-only):`, e);
+    st.audioStopped = true;
+  }
+}
+
+function maybeFinishRecording(sid) {
+  const st = stations.get(sid);
+  if (!st) return;
+  const audioDone = st.audioRecorder ? !!st.audioStopped : true;
+  if (st.videoDone && audioDone) finishRecording(sid);
+}
+
+async function finishRecording(sid) {
+  const st = stations.get(sid);
+  if (!st) return;
+  stopCanvasOverlay(sid);
+  try {
+    await Promise.all([st.writeQueue, st.audioWriteQueue]);
+  } catch (_) {}
+  await saveStationRecording(sid);
+}
+
 function drawVideoOverlay(ctx, w, h, vid, code) {
   // Draw camera frame
   if (vid.readyState >= 2) {
@@ -1241,9 +1365,18 @@ async function startRecording(sid, code) {
     return;
   }
 
+  // Start canvas compositing overlay; record from canvas stream
+  startCanvasOverlay(sid, code);
+
+  // Decide encoder: WebCodecs H.264/MP4 when available, else MediaRecorder VP8/WebM.
+  // Must be known before begin-video-write so main writes the right format.
+  const h264Config = canUseWebCodecs() ? await buildH264Config(st.overlayCanvas) : null;
+  const useH264 = !!h264Config;
+
   try {
-    await window.electronAPI.beginVideoWrite(sid, code);
+    await window.electronAPI.beginVideoWrite(sid, code, useH264 ? 'mp4' : 'webm');
   } catch (err) {
+    stopCanvasOverlay(sid);
     if (stations.size === 1 && statusMessage) {
       setStatus('waiting', t('status.failedOpenFile', err.message));
     }
@@ -1253,52 +1386,80 @@ async function startRecording(sid, code) {
   }
 
   st.writeQueue = Promise.resolve();
+  st.audioWriteQueue = Promise.resolve();
+  st.encodingStopped = false;
+  st.videoDone = false;
+  st.audioStopped = false;
+  st.audioRecorder = null;
+  st.recordingFormat = useH264 ? 'mp4' : 'webm';
 
-  // Start canvas compositing overlay; record from canvas stream
-  startCanvasOverlay(sid, code);
-  const recordStream = (st.overlayCanvas && st.overlayCanvas.captureStream)
-    ? st.overlayCanvas.captureStream(30)
-    : st.stream;
-
-  // If audio was requested, add the audio track from the camera stream
-  if (appSettings.recordAudio && st.stream) {
-    st.stream.getAudioTracks().forEach(track => recordStream.addTrack(track));
-  }
-
-  const mimeType = getSupportedMimeType();
-  const options = mimeType ? { mimeType } : {};
-  if (st.overlayCanvas) {
-    options.videoBitsPerSecond = computeVideoBitrate(st.overlayCanvas.width, st.overlayCanvas.height);
-  }
-
-  try {
-    st.mediaRecorder = new MediaRecorder(recordStream, options);
-  } catch (err) {
-    stopCanvasOverlay(sid);
-    await window.electronAPI.abortVideoWrite(sid).catch(() => {});
-    if (stations.size === 1 && statusMessage) {
-      setStatus('waiting', t('status.failedStartRecorder', err.message));
+  if (useH264) {
+    try {
+      st.recordStream = st.overlayCanvas.captureStream(30);
+      const track = st.recordStream.getVideoTracks()[0];
+      const encoder = new VideoEncoder({
+        output: (chunk) => {
+          if (!chunk) return;
+          const data = new Uint8Array(chunk.byteLength);
+          chunk.copyTo(data);
+          st.writeQueue = st.writeQueue.then(async () => {
+            await window.electronAPI.writeVideoChunk(sid, data);
+          }).catch(err => console.error(`[${sid}] H.264 chunk write error:`, err));
+        },
+        error: (e) => console.error(`[${sid}] VideoEncoder error:`, e)
+      });
+      encoder.configure(h264Config);
+      st.videoEncoder = encoder;
+      st.pumpPromise = pumpVideoFrames(sid, track, encoder);
+      startAudioRecorder(sid);
+    } catch (err) {
+      console.error(`[${sid}] WebCodecs start failed, aborting recording:`, err);
+      stopCanvasOverlay(sid);
+      await window.electronAPI.abortVideoWrite(sid).catch(() => {});
+      st.recordingFormat = null;
+      st.state = 'idle';
+      setStationStatus(sid, 'idle');
+      return;
     }
-    st.state = 'idle';
-    setStationStatus(sid, 'idle');
-    return;
-  }
-
-  st.mediaRecorder.ondataavailable = (e) => {
-    if (e.data && e.data.size > 0) {
-      st.writeQueue = st.writeQueue.then(async () => {
-        const arrayBuffer = await e.data.arrayBuffer();
-        await window.electronAPI.writeVideoChunk(sid, new Uint8Array(arrayBuffer));
-      }).catch(err => console.error(`[${sid}] Chunk write error:`, err));
+  } else {
+    // Fallback: classic MediaRecorder (VP8/WebM)
+    const recordStream = (st.overlayCanvas && st.overlayCanvas.captureStream)
+      ? st.overlayCanvas.captureStream(30)
+      : st.stream;
+    if (appSettings.recordAudio && st.stream) {
+      st.stream.getAudioTracks().forEach(track => recordStream.addTrack(track));
     }
-  };
-
-  st.mediaRecorder.onstop = () => {
-    stopCanvasOverlay(sid);
-    st.writeQueue.then(() => saveStationRecording(sid)).catch(() => saveStationRecording(sid));
-  };
-
-  st.mediaRecorder.start(500);
+    const mimeType = getSupportedMimeType();
+    const options = mimeType ? { mimeType } : {};
+    if (st.overlayCanvas) {
+      options.videoBitsPerSecond = computeVideoBitrate(st.overlayCanvas.width, st.overlayCanvas.height);
+    }
+    try {
+      st.mediaRecorder = new MediaRecorder(recordStream, options);
+    } catch (err) {
+      stopCanvasOverlay(sid);
+      await window.electronAPI.abortVideoWrite(sid).catch(() => {});
+      if (stations.size === 1 && statusMessage) {
+        setStatus('waiting', t('status.failedStartRecorder', err.message));
+      }
+      st.state = 'idle';
+      setStationStatus(sid, 'idle');
+      return;
+    }
+    st.mediaRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) {
+        st.writeQueue = st.writeQueue.then(async () => {
+          const arrayBuffer = await e.data.arrayBuffer();
+          await window.electronAPI.writeVideoChunk(sid, new Uint8Array(arrayBuffer));
+        }).catch(err => console.error(`[${sid}] Chunk write error:`, err));
+      }
+    };
+    st.mediaRecorder.onstop = () => {
+      stopCanvasOverlay(sid);
+      st.writeQueue.then(() => saveStationRecording(sid)).catch(() => saveStationRecording(sid));
+    };
+    st.mediaRecorder.start(500);
+  }
 
   // Update UI
   setStationStatus(sid, 'recording');
@@ -1331,7 +1492,36 @@ async function startRecording(sid, code) {
 function stopRecording(sid) {
   const st = stations.get(sid);
   if (!st) return;
-  if (st.mediaRecorder && st.mediaRecorder.state !== 'inactive') {
+
+  if (st.recordingFormat === 'mp4') {
+    if (st.encodingStopped) return;
+    st.encodingStopped = true;
+    // Stop the capture stream + reader so the frame pump exits, then flush the encoder
+    if (st.recordStream) {
+      try { st.recordStream.getTracks().forEach(t => t.stop()); } catch (_) {}
+    }
+    if (st.pumpReader) {
+      try { st.pumpReader.cancel().catch(() => {}); } catch (_) {}
+    }
+    if (st.audioRecorder && st.audioRecorder.state !== 'inactive') {
+      st.audioRecorder.stop();
+    } else {
+      st.audioStopped = true;
+    }
+    const pump = st.pumpPromise || Promise.resolve();
+    pump.then(() => {
+      st.videoDone = true;
+      maybeFinishRecording(sid);
+    }).catch(() => {
+      console.error(`[${sid}] Recording aborted due to encoder error`);
+      stopCanvasOverlay(sid);
+      window.electronAPI.abortVideoWrite(sid).catch(() => {});
+      st.currentShippingCode = null;
+      st.state = 'idle';
+      notifyRecordingState();
+      setStationStatus(sid, 'idle');
+    });
+  } else if (st.mediaRecorder && st.mediaRecorder.state !== 'inactive') {
     st.mediaRecorder.stop();
   } else if (!st.mediaRecorder && appSettings.multiWindow && !stationWindowId) {
     // Dashboard in multi-window mode: no local mediaRecorder, just clean up state
@@ -1349,6 +1539,9 @@ async function saveStationRecording(sid) {
   if (!st) return;
 
   try {
+    if (stations.size === 1 && statusMessage) {
+      setStatus('processing', t('status.processing'));
+    }
     const result = await window.electronAPI.endVideoWrite(sid);
     const sizeKb = (result.size / 1024).toFixed(1);
     speak('voice.saved', sid);
@@ -1378,6 +1571,7 @@ async function saveStationRecording(sid) {
 
   st.currentShippingCode = null;
   st.state = 'idle';
+  st.recordingFormat = null;
   notifyRecordingState();
   setStationStatus(sid, 'idle');
 }
