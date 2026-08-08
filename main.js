@@ -424,17 +424,28 @@ function createWindow() {
 let rendererIsRecording = false; // true while any station is recording
 let pendingUpdateInfo   = null;  // holds update info when download finished during a recording
 
+function closeAllStationWindows() {
+  for (const [sid, win] of stationWindows.entries()) {
+    if (win && !win.isDestroyed()) win.close();
+  }
+}
+
 function showUpdateDialog(info) {
   if (!mainWindow) return;
   dialog.showMessageBox(mainWindow, {
     type: 'info',
     title: 'Update Ready',
-    message: `Version ${info.version} has been downloaded. Restart now to install the update?`,
-    buttons: ['Restart Now', 'Later'],
+    message: `Version ${info.version} has been downloaded. The app will close automatically, install the update, and restart.`,
+    buttons: ['Update Now', 'Later'],
     defaultId: 0,
     cancelId: 1
   }).then(({ response }) => {
-    if (response === 0) autoUpdater.quitAndInstall();
+    if (response === 0) {
+      // Close station windows first so the app quits cleanly before the
+      // installer runs — the installer force-closes anything left over anyway.
+      closeAllStationWindows();
+      autoUpdater.quitAndInstall();
+    }
   });
 }
 
