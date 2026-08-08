@@ -999,13 +999,18 @@ ipcMain.handle('save-video-as', async (event, { srcPath, defaultName }) => {
   return new Promise((resolve) => {
     // -movflags faststart writes the seek index (moov atom) at the front of the
     // file so seeking works. MP4 sources are copied with no re-encoding. WebM
-    // sources (VP8/VP9) cannot be copied into MP4 (the container doesn't support
-    // those codecs), so they are re-encoded to H.264/AAC here.
-    const args = ['-y', '-i', srcPath];
+    // sources (VP8/VP9) cannot be copied into MP4, so they are re-encoded to
+    // H.264/AAC. Chrome's MediaRecorder WebM often has missing/odd timestamps
+    // ("Duration: N/A", misreported frame rate), so +genpts regenerates the
+    // timestamps and -r 30 forces a correct 30fps output — otherwise players
+    // like VLC fail to render the result.
+    const args = ['-y'];
     if (isWebm) {
-      args.push('-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23');
+      args.push('-fflags', '+genpts', '-i', srcPath);
+      args.push('-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-r', '30', '-pix_fmt', 'yuv420p');
       args.push('-c:a', 'aac', '-b:a', '128k');
     } else {
+      args.push('-i', srcPath);
       args.push('-c', 'copy');
     }
     args.push('-movflags', 'faststart', destPath);
