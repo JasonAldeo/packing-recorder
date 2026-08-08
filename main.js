@@ -522,10 +522,19 @@ app.whenReady().then(() => {
     }
   });
 
+  autoUpdater.on('download-progress', (progress) => {
+    if (mainWindow) mainWindow.webContents.send('update-download-progress', {
+      percent: progress.percent,
+      bytesPerSecond: progress.bytesPerSecond,
+      transferred: progress.transferred,
+      total: progress.total
+    });
+  });
+
   autoUpdater.on('error', (err) => {
     console.error('[auto-updater] error:', err.message);
     // Notify the renderer so it doesn't get stuck in "Downloading..." forever
-    if (mainWindow) mainWindow.webContents.send('update-error');
+    if (mainWindow) mainWindow.webContents.send('update-error', err.message || '');
   });
 
   // Check for updates silently on startup (delay 3s to let window finish loading).

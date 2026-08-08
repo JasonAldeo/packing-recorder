@@ -269,6 +269,7 @@
     'settings.updateReady':     (v) => `Version ${v} ready \u2014 restart to install`,
     'settings.updateNotAvailable': 'You\u2019re up to date.',
     'settings.updateError':     'Update check failed. Please try again later.',
+    'settings.updateErrorDetail': (msg) => `Update failed: ${msg}`,
     'settings.updateManagedByStore': 'Updates are managed by the Microsoft Store.',
 
     // Auth validation & button states
@@ -549,6 +550,7 @@
     'settings.updateReady':     (v) => `Versi ${v} siap \u2014 restart untuk menginstal`,
     'settings.updateNotAvailable': 'Aplikasi sudah versi terbaru.',
     'settings.updateError':     'Gagal memeriksa pembaruan. Coba lagi nanti.',
+    'settings.updateErrorDetail': (msg) => `Pembaruan gagal: ${msg}`,
     'settings.updateManagedByStore': 'Pembaruan dikelola oleh Microsoft Store.',
 
     // Auth validation & button states

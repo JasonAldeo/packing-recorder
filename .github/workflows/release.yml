@@ -43,34 +43,22 @@ jobs:
           echo "appx=$appx"        >> $env:GITHUB_OUTPUT
           echo "Found appx: $appx"
 
-      - name: Upload unsigned installer for signing
-        id: upload-unsigned
-        uses: actions/upload-artifact@v4
-        with:
-          name: PackingRecorder-Setup-unsigned
-          path: dist/PackingRecorder-Setup.exe
-          archive: false
-
-      - name: Sign installer with SignPath
-        continue-on-error: true
-        uses: signpath/github-action-submit-signing-request@v2
-        with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
-          project-slug: packing-recorder
-          signing-policy-slug: release-signing
-          github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
-          wait-for-completion: true
-          output-artifact-directory: dist/signed
-
       - name: Create GitHub Release with installer and MSIX
         shell: pwsh
         run: |
-          $installer = if (Test-Path "dist/signed/PackingRecorder-Setup.exe") {
-            "dist/signed/PackingRecorder-Setup.exe"
-          } else {
-            "dist/PackingRecorder-Setup.exe"
-          }
+          $installer = "dist/PackingRecorder-Setup.exe"
+          # Recompute sha512/size so latest.yml always describes the exact file being
+          # uploaded. Keeps the update feed self-consistent in case the installer is
+          # ever post-processed before publishing.
+          $file  = Get-Item -LiteralPath $installer
+          $bytes = [System.IO.File]::ReadAllBytes($file.FullName)
+          $sha   = [System.Security.Cryptography.SHA512]::Create()
+          $b64   = [System.Convert]::ToBase64String($sha.ComputeHash($bytes))
+          $size  = $bytes.Length
+          $yml   = [System.IO.File]::ReadAllText("dist/latest.yml")
+          $yml   = $yml -replace '(sha512: ).*', ('${1}' + $b64)
+          $yml   = $yml -replace '(size: ).*',   ('${1}' + $size)
+          [System.IO.File]::WriteAllText("dist/latest.yml", $yml, (New-Object System.Text.UTF8Encoding($false)))
           $appx = "${{ steps.artifacts.outputs.appx }}"
           $files = @($installer, "dist/latest.yml")
           if ($appx -and (Test-Path $appx)) { $files += $appx }

@@ -37,7 +37,6 @@
         { "target": "appx", "arch": ["x64"] }
       ],
       "icon": "icon.ico",
-      "publisherName": "Aldeo Studio",
       "legalTrademarks": "Packing Recorder is a trademark of Aldeo Studio",
       "requestedExecutionLevel": "asInvoker"
     },

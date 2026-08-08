@@ -2568,12 +2568,34 @@ if (pickDirBtn) {
 const appVersionDisplay = document.getElementById('app-version-display');
 const checkUpdateBtn    = document.getElementById('check-update-btn');
 const updateStatusEl    = document.getElementById('update-status');
+const updateProgressEl  = document.getElementById('update-progress');
+const updateProgressBarEl  = document.getElementById('update-progress-bar');
+const updateProgressTextEl = document.getElementById('update-progress-text');
 
 function setUpdateStatus(text, type) {
   if (!updateStatusEl) return;
   updateStatusEl.classList.remove('hidden', 'success', 'info', 'error');
   updateStatusEl.textContent = text;
   if (type) updateStatusEl.classList.add(type);
+}
+
+function showUpdateProgress(indeterminate) {
+  if (!updateProgressEl) return;
+  updateProgressEl.classList.remove('hidden', 'indeterminate');
+  if (indeterminate) updateProgressEl.classList.add('indeterminate');
+}
+
+function setUpdateProgress(percent) {
+  if (!updateProgressEl || !updateProgressBarEl) return;
+  updateProgressEl.classList.remove('hidden', 'indeterminate');
+  const pct = Math.max(0, Math.min(100, Math.round(percent || 0)));
+  updateProgressBarEl.style.width = pct + '%';
+  if (updateProgressTextEl) updateProgressTextEl.textContent = pct + '%';
+}
+
+function hideUpdateProgress() {
+  if (updateProgressEl) updateProgressEl.classList.add('hidden');
+  if (updateProgressBarEl) updateProgressBarEl.style.width = '0%';
 }
 
 // Display version on load
@@ -2594,6 +2616,7 @@ if (window.electronAPI.isWindowsStore && window.electronAPI.isWindowsStore()) {
 if (checkUpdateBtn) {
   checkUpdateBtn.addEventListener('click', async () => {
     checkUpdateBtn.disabled = true;
+    hideUpdateProgress();
     setUpdateStatus(t('settings.updateChecking'), 'info');
     try {
       const result = await window.electronAPI.checkForUpdates();
@@ -2603,12 +2626,15 @@ if (checkUpdateBtn) {
       // "already up to date" messages when the check took longer than 4 s.
       if (result && result.isUpdateAvailable) {
         setUpdateStatus(t('settings.updateAvailable', result.version), 'info');
+        showUpdateProgress(true);
       } else {
         setUpdateStatus(t('settings.updateNotAvailable'), 'success');
+        hideUpdateProgress();
       }
     } catch (_) {
       checkUpdateBtn.disabled = false;
       setUpdateStatus(t('settings.updateError'), 'error');
+      hideUpdateProgress();
     }
   });
 }
@@ -2618,6 +2644,13 @@ if (window.electronAPI.onUpdateAvailable) {
   window.electronAPI.onUpdateAvailable((info) => {
     if (checkUpdateBtn) checkUpdateBtn.disabled = false;
     setUpdateStatus(t('settings.updateAvailable', info.version), 'info');
+    showUpdateProgress(true);
+  });
+}
+
+if (window.electronAPI.onUpdateDownloadProgress) {
+  window.electronAPI.onUpdateDownloadProgress((progress) => {
+    setUpdateProgress(progress.percent);
   });
 }
 
@@ -2625,6 +2658,7 @@ if (window.electronAPI.onUpdateDownloaded) {
   window.electronAPI.onUpdateDownloaded((info) => {
     if (checkUpdateBtn) checkUpdateBtn.disabled = false;
     setUpdateStatus(t('settings.updateReady', info.version), 'success');
+    hideUpdateProgress();
   });
 }
 
@@ -2632,13 +2666,15 @@ if (window.electronAPI.onUpdateNotAvailable) {
   window.electronAPI.onUpdateNotAvailable(() => {
     if (checkUpdateBtn) checkUpdateBtn.disabled = false;
     setUpdateStatus(t('settings.updateNotAvailable'), 'success');
+    hideUpdateProgress();
   });
 }
 
 if (window.electronAPI.onUpdateError) {
-  window.electronAPI.onUpdateError(() => {
+  window.electronAPI.onUpdateError((msg) => {
     if (checkUpdateBtn) checkUpdateBtn.disabled = false;
-    setUpdateStatus(t('settings.updateError'), 'error');
+    setUpdateStatus(msg ? t('settings.updateErrorDetail', msg) : t('settings.updateError'), 'error');
+    hideUpdateProgress();
   });
 }
 
