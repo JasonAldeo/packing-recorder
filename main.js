@@ -418,6 +418,12 @@ function createWindow() {
   });
 
   mainWindow.loadFile('index.html');
+
+  // Forward renderer console output to the main process stdout so diagnostics
+  // are visible when the app is launched from a terminal (devTools is disabled).
+  mainWindow.webContents.on('console-message', (event, level, message) => {
+    console.log(`[renderer] ${message}`);
+  });
 }
 
 // ─── Recording-aware update state ─────────────────────────────────────────────
@@ -856,6 +862,10 @@ ipcMain.handle('open-station-window', (event, stationId) => {
 
   win.loadFile('index.html', { query: { station: sid } });
 
+  win.webContents.on('console-message', (event, level, message) => {
+    console.log(`[renderer:${sid}] ${message}`);
+  });
+
   win.on('closed', () => {
     stationWindows.delete(sid);
     // Notify main window that this station window closed
@@ -985,16 +995,21 @@ ipcMain.handle('save-video-as', async (event, { srcPath, defaultName }) => {
   if (result.canceled || !result.filePath) return { canceled: true };
 
   const destPath = result.filePath;
+  const isWebm = /\.webm$/i.test(srcPath);
   return new Promise((resolve) => {
-    // -movflags faststart writes the seek index (moov atom) at the front of
-    // the file so seeking works. -c copy means no re-encoding — very fast.
-    execFile(ffmpegPath, [
-      '-y',
-      '-i', srcPath,
-      '-c', 'copy',
-      '-movflags', 'faststart',
-      destPath
-    ], (err) => {
+    // -movflags faststart writes the seek index (moov atom) at the front of the
+    // file so seeking works. MP4 sources are copied with no re-encoding. WebM
+    // sources (VP8/VP9) cannot be copied into MP4 (the container doesn't support
+    // those codecs), so they are re-encoded to H.264/AAC here.
+    const args = ['-y', '-i', srcPath];
+    if (isWebm) {
+      args.push('-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23');
+      args.push('-c:a', 'aac', '-b:a', '128k');
+    } else {
+      args.push('-c', 'copy');
+    }
+    args.push('-movflags', 'faststart', destPath);
+    execFile(ffmpegPath, args, (err) => {
       if (err) {
         resolve({ canceled: false, filePath: destPath, error: err.message });
       } else {

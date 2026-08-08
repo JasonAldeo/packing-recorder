@@ -822,26 +822,59 @@ function canUseWebCodecs() {
 }
 
 async function buildH264Config(canvas) {
-  if (!canvas) return null;
-  const config = {
-    codec: 'avc1.4D401F',
-    width: canvas.width,
-    height: canvas.height,
-    bitrate: computeVideoBitrate(canvas.width, canvas.height),
-    framerate: 30,
-    avc: { format: 'annexb' },
-    hardwareAcceleration: 'prefer-hardware'
-  };
-  if (!VideoEncoder.isConfigSupported) return config;
-  try {
-    const support = await VideoEncoder.isConfigSupported(config);
-    if (support && support.supported) return config;
-    const soft = { ...config, hardwareAcceleration: 'no-preference' };
-    const softSupport = await VideoEncoder.isConfigSupported(soft);
-    return softSupport && softSupport.supported ? soft : null;
-  } catch (_) {
-    return null;
+  if (!canvas) { console.warn('[WebCodecs] buildH264Config: no overlay canvas'); return null; }
+  console.log('[WebCodecs] availability — VideoEncoder:', typeof VideoEncoder, '| MediaStreamTrackProcessor:', typeof MediaStreamTrackProcessor);
+  if (typeof VideoEncoder === 'undefined') return null;
+
+  const dims = { width: canvas.width, height: canvas.height };
+  if (!VideoEncoder.isConfigSupported) {
+    console.warn('[WebCodecs] VideoEncoder.isConfigSupported unavailable — assuming supported');
+    return {
+      codec: 'avc1.4D401F',
+      ...dims,
+      bitrate: computeVideoBitrate(canvas.width, canvas.height),
+      framerate: 30,
+      avc: { format: 'annexb' },
+      hardwareAcceleration: 'prefer-hardware'
+    };
   }
+
+  const probe = async (config) => {
+    try {
+      const r = await VideoEncoder.isConfigSupported(config);
+      console.log('[WebCodecs] probe', config.codec, config.hardwareAcceleration, '→', r && r.supported ? 'supported' : 'unsupported');
+      return !!(r && r.supported);
+    } catch (e) {
+      console.error('[WebCodecs] isConfigSupported threw:', e);
+      return false;
+    }
+  };
+
+  const codecs = ['avc1.64001F', 'avc1.4D401F', 'avc1.42E01E'];
+  const accelerations = ['prefer-hardware', 'no-preference'];
+
+  for (const codec of codecs) {
+    for (const hardwareAcceleration of accelerations) {
+      const config = {
+        codec,
+        ...dims,
+        bitrate: computeVideoBitrate(canvas.width, canvas.height),
+        framerate: 30,
+        avc: { format: 'annexb' },
+        hardwareAcceleration
+      };
+      if (await probe(config)) return config;
+    }
+  }
+  // Last resort: minimal config (some encoders reject bitrate/framerate hints)
+  for (const codec of codecs) {
+    for (const hardwareAcceleration of accelerations) {
+      const config = { codec, ...dims, avc: { format: 'annexb' }, hardwareAcceleration };
+      if (await probe(config)) return config;
+    }
+  }
+  console.warn('[WebCodecs] No H.264 config supported — falling back to VP8/WebM');
+  return null;
 }
 
 async function pumpVideoFrames(sid, track, encoder) {
@@ -1372,6 +1405,7 @@ async function startRecording(sid, code) {
   // Must be known before begin-video-write so main writes the right format.
   const h264Config = canUseWebCodecs() ? await buildH264Config(st.overlayCanvas) : null;
   const useH264 = !!h264Config;
+  console.log(`[${sid}] Recording format:`, useH264 ? 'mp4 (WebCodecs H.264)' : 'webm (MediaRecorder VP8 fallback)');
 
   try {
     await window.electronAPI.beginVideoWrite(sid, code, useH264 ? 'mp4' : 'webm');
