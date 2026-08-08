@@ -784,8 +784,14 @@ function startCanvasOverlay(sid, code) {
   st.overlayCanvas = canvas;
   st.hiddenVideo   = vid;
 
-  function tick() {
-    drawVideoOverlay(ctx, w, h, vid, code);
+  const FRAME_MS = 1000 / 30;
+  let lastDraw = 0;
+
+  function tick(now) {
+    if (now - lastDraw >= FRAME_MS) {
+      drawVideoOverlay(ctx, w, h, vid, code);
+      lastDraw = now;
+    }
     st.overlayAnimFrame = requestAnimationFrame(tick);
   }
   st.overlayAnimFrame = requestAnimationFrame(tick);
@@ -1248,9 +1254,6 @@ async function startRecording(sid, code) {
 
   st.writeQueue = Promise.resolve();
 
-  const mimeType = getSupportedMimeType();
-  const options = mimeType ? { mimeType } : {};
-
   // Start canvas compositing overlay; record from canvas stream
   startCanvasOverlay(sid, code);
   const recordStream = (st.overlayCanvas && st.overlayCanvas.captureStream)
@@ -1260,6 +1263,12 @@ async function startRecording(sid, code) {
   // If audio was requested, add the audio track from the camera stream
   if (appSettings.recordAudio && st.stream) {
     st.stream.getAudioTracks().forEach(track => recordStream.addTrack(track));
+  }
+
+  const mimeType = getSupportedMimeType();
+  const options = mimeType ? { mimeType } : {};
+  if (st.overlayCanvas) {
+    options.videoBitsPerSecond = computeVideoBitrate(st.overlayCanvas.width, st.overlayCanvas.height);
   }
 
   try {
@@ -1289,7 +1298,7 @@ async function startRecording(sid, code) {
     st.writeQueue.then(() => saveStationRecording(sid)).catch(() => saveStationRecording(sid));
   };
 
-  st.mediaRecorder.start(100);
+  st.mediaRecorder.start(500);
 
   // Update UI
   setStationStatus(sid, 'recording');
@@ -1469,8 +1478,8 @@ function generateManualName() {
 
 function getSupportedMimeType() {
   const types = [
-    'video/webm;codecs=vp9,opus',
     'video/webm;codecs=vp8,opus',
+    'video/webm;codecs=vp9,opus',
     'video/webm',
     'video/mp4'
   ];
@@ -1478,6 +1487,12 @@ function getSupportedMimeType() {
     if (MediaRecorder.isTypeSupported(type)) return type;
   }
   return '';
+}
+
+function computeVideoBitrate(w, h) {
+  const pixels = (w || 1280) * (h || 720);
+  const bps = Math.round(4000000 * (pixels / 921600));
+  return Math.max(2000000, Math.min(bps, 50000000));
 }
 
 function formatManualCode(shippingCode) {
