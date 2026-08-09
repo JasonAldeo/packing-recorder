@@ -811,6 +811,28 @@ function stopCanvasOverlay(sid) {
   st.overlayCanvas = null;
 }
 
+// Resolves once the hidden overlay <video> has presented its first camera frame,
+// so recording doesn't begin on black frames. Falls back after a timeout so a
+// stalled camera never blocks recording indefinitely.
+function waitForVideoFirstFrame(vid, timeoutMs = 2000) {
+  return new Promise((resolve) => {
+    if (!vid) return resolve();
+    let done = false;
+    const finish = () => { if (!done) { done = true; resolve(); } };
+    const timer = setTimeout(finish, timeoutMs);
+    try {
+      vid.requestVideoFrameCallback(() => {
+        clearTimeout(timer);
+        // Wait one more rAF so the next overlay draw paints a real frame.
+        requestAnimationFrame(finish);
+      });
+    } catch (_) {
+      clearTimeout(timer);
+      finish();
+    }
+  });
+}
+
 // ─── Recording format selection ──────────────────────────────────────────────
 // Native MP4 (H.264+AAC) is used when the browser's MediaRecorder supports it —
 // on machines with a hardware H.264 encoder this moves encoding off the CPU.
@@ -1265,6 +1287,10 @@ async function startRecording(sid, code) {
 
   // Start canvas compositing overlay; record from canvas stream
   startCanvasOverlay(sid, code);
+
+  // Wait for the hidden overlay video to present its first camera frame so the
+  // recording doesn't begin with ~1s of black frames.
+  await waitForVideoFirstFrame(st.hiddenVideo);
 
   // Pick native MP4 (H.264) when MediaRecorder supports it, else VP8/WebM.
   const recordingMime = getRecordingMimeType();
