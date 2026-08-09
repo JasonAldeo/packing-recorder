@@ -11,7 +11,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ─── Video write — per-station ─────────────────────────────────────────────
   beginVideoWrite:       (stationId, shippingCode, format) => ipcRenderer.invoke('begin-video-write', { stationId, shippingCode, format }),
   writeVideoChunk:       (stationId, chunk)         => ipcRenderer.invoke('write-video-chunk', stationId, chunk),
-  writeAudioChunk:       (stationId, chunk)         => ipcRenderer.invoke('write-audio-chunk', stationId, chunk),
   endVideoWrite:         (stationId)                => ipcRenderer.invoke('end-video-write', stationId),
   abortVideoWrite:       (stationId)                => ipcRenderer.invoke('abort-video-write', stationId),
 

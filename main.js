@@ -421,8 +421,8 @@ function createWindow() {
 
   // Forward renderer console output to the main process stdout so diagnostics
   // are visible when the app is launched from a terminal (devTools is disabled).
-  mainWindow.webContents.on('console-message', (event, level, message) => {
-    console.log(`[renderer] ${message}`);
+  mainWindow.webContents.on('console-message', (event, details) => {
+    console.log(`[renderer] ${details && details.message ? details.message : ''}`);
   });
 }
 
@@ -673,13 +673,10 @@ ipcMain.on('set-recording-state', (_, isRecording) => {
 const _writeStates = new Map();
 // stationId -> { stream, tempPath, finalPath, filename }
 
-// Clean up an abandoned write state (streams + temp files)
+// Clean up an abandoned write state (stream + temp file)
 function destroyWriteState(state) {
   if (!state) return;
   try { state.stream.destroy(); } catch (_) {}
-  try { if (state.audioStream) state.audioStream.destroy(); } catch (_) {}
-  if (state.videoPath && fs.existsSync(state.videoPath)) { try { fs.unlinkSync(state.videoPath); } catch (_) {} }
-  if (state.audioPath && fs.existsSync(state.audioPath)) { try { fs.unlinkSync(state.audioPath); } catch (_) {} }
   if (state.tempPath && fs.existsSync(state.tempPath)) { try { fs.unlinkSync(state.tempPath); } catch (_) {} }
 }
 
@@ -712,30 +709,16 @@ ipcMain.handle('begin-video-write', (event, { stationId, shippingCode, format })
     filePath = path.join(videosDir, filename);
   }
 
-  if (fmt === 'mp4') {
-    // Video (H.264 Annex-B) and audio (opus/webm) are streamed to temp files,
-    // then muxed into a single MP4 on end-video-write.
-    const videoPath = path.join(videosDir, base + '.h264.tmp');
-    const audioPath = path.join(videosDir, base + '.audio.webm.tmp');
-    _writeStates.set(sid, {
-      stream: fs.createWriteStream(videoPath),
-      audioStream: fs.createWriteStream(audioPath),
-      videoPath,
-      audioPath,
-      finalPath: filePath,
-      filename,
-      format: 'mp4'
-    });
-  } else {
-    const tempPath = filePath + '.tmp';
-    _writeStates.set(sid, {
-      stream: fs.createWriteStream(tempPath),
-      tempPath,
-      finalPath: filePath,
-      filename,
-      format: 'webm'
-    });
-  }
+  // Recording is streamed to a temp file (either MP4 from MediaRecorder or WebM
+  // fallback) and renamed to the final file on end-video-write.
+  const tempPath = filePath + '.tmp';
+  _writeStates.set(sid, {
+    stream: fs.createWriteStream(tempPath),
+    tempPath,
+    finalPath: filePath,
+    filename,
+    format: fmt
+  });
   return { ok: true };
 });
 
@@ -751,18 +734,6 @@ ipcMain.handle('write-video-chunk', (event, stationId, chunk) => {
   });
 });
 
-ipcMain.handle('write-audio-chunk', (event, stationId, chunk) => {
-  const sid = String(stationId || 'station1');
-  return new Promise((resolve, reject) => {
-    const state = _writeStates.get(sid);
-    if (!state || !state.audioStream) return reject(new Error(`No active audio stream for station: ${sid}`));
-    const buffer = Buffer.from(chunk);
-    state.audioStream.write(buffer, (err) => {
-      if (err) reject(err); else resolve();
-    });
-  });
-});
-
 ipcMain.handle('end-video-write', (event, stationId) => {
   const sid = String(stationId || 'station1');
   return new Promise((resolve, reject) => {
@@ -770,55 +741,18 @@ ipcMain.handle('end-video-write', (event, stationId) => {
     if (!state) return reject(new Error(`No active write stream for station: ${sid}`));
     _writeStates.delete(sid);
 
-    if (state.format !== 'mp4') {
-      state.stream.end((err) => {
-        if (err) return reject(err);
-        try {
-          fs.renameSync(state.tempPath, state.finalPath);
-          const stats = fs.statSync(state.finalPath);
-          resolve({ filename: state.filename, filePath: state.finalPath, size: stats.size });
-        } catch (e) {
-          reject(e);
-        }
-      });
-      return;
-    }
-
-    // MP4: end both streams, then mux H.264 (+ audio) into the final MP4 with ffmpeg.
     state.stream.end((err) => {
       if (err) {
         destroyWriteState(state);
         return reject(err);
       }
-      const endAudio = (cb) => {
-        if (state.audioStream) state.audioStream.end(cb);
-        else cb();
-      };
-      endAudio(() => {
-        const args = ['-y', '-framerate', '30', '-i', state.videoPath];
-        const hasAudio = state.audioPath && fs.existsSync(state.audioPath) && fs.statSync(state.audioPath).size > 0;
-        if (hasAudio) {
-          args.push('-i', state.audioPath);
-          args.push('-c:v', 'copy', '-c:a', 'aac', '-b:a', '128k');
-        } else {
-          args.push('-c:v', 'copy', '-an');
-        }
-        args.push('-movflags', '+faststart', state.finalPath);
-        execFile(ffmpegPath, args, (muxErr) => {
-          try { if (fs.existsSync(state.videoPath)) fs.unlinkSync(state.videoPath); } catch (_) {}
-          try { if (state.audioPath && fs.existsSync(state.audioPath)) fs.unlinkSync(state.audioPath); } catch (_) {}
-          if (muxErr) {
-            try { if (fs.existsSync(state.finalPath)) fs.unlinkSync(state.finalPath); } catch (_) {}
-            return reject(new Error('Failed to finalize MP4: ' + muxErr.message));
-          }
-          try {
-            const stats = fs.statSync(state.finalPath);
-            resolve({ filename: state.filename, filePath: state.finalPath, size: stats.size });
-          } catch (e) {
-            reject(e);
-          }
-        });
-      });
+      try {
+        fs.renameSync(state.tempPath, state.finalPath);
+        const stats = fs.statSync(state.finalPath);
+        resolve({ filename: state.filename, filePath: state.finalPath, size: stats.size });
+      } catch (e) {
+        reject(e);
+      }
     });
   });
 });
@@ -862,8 +796,8 @@ ipcMain.handle('open-station-window', (event, stationId) => {
 
   win.loadFile('index.html', { query: { station: sid } });
 
-  win.webContents.on('console-message', (event, level, message) => {
-    console.log(`[renderer:${sid}] ${message}`);
+  win.webContents.on('console-message', (event, details) => {
+    console.log(`[renderer:${sid}] ${details && details.message ? details.message : ''}`);
   });
 
   win.on('closed', () => {

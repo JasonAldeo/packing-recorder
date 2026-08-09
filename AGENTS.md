@@ -72,9 +72,10 @@ onUpdateDownloaded(cb)    → push event, cb receives { version, ... }
 ## Architecture — Electron app
 
 - **Context isolation ON, nodeIntegration OFF.** All Node/Electron APIs are accessed only via `window.electronAPI` (defined in `preload.js` via `contextBridge`). Never `require()` anything in renderer code.
-- Recording is written to disk in chunks via IPC: `begin-video-write` → repeated `write-video-chunk` (+ optional `write-audio-chunk`) → `end-video-write`. Do not pass a full video buffer over IPC in one call.
-- Recording pipeline: the overlay canvas stream is encoded with WebCodecs `VideoEncoder` (H.264 `avc1.4D401F`, `hardwareAcceleration: 'prefer-hardware'`, Annex-B) and streamed as `.h264`; audio is captured by an audio-only `MediaRecorder` (opus/webm). On stop, `end-video-write` muxes both into a single `.mp4` via `ffmpeg-static` (`-c:v copy -c:a aac -movflags +faststart`). If WebCodecs/H.264 is unsupported, recording falls back to the classic `MediaRecorder` VP8/WebM path (no mux).
-- WebM → MP4 export re-encodes with `ffmpeg-static` (VP8/VP9 can't be copied into MP4; uses `-c:v libx264 -c:a aac`). For MP4 recordings, "Save as" is effectively a file copy. The binary is explicitly listed in `electron-builder` files — do not remove it.
+- Recording is written to disk in chunks via IPC: `begin-video-write` → repeated `write-video-chunk` → `end-video-write`. Do not pass a full video buffer over IPC in one call.
+- Recording pipeline: the overlay canvas stream (+ camera audio track) is recorded with a single `MediaRecorder` using `video/mp4` (H.264+AAC) when the browser supports it — on machines with a hardware H.264 encoder this keeps encoding off the CPU. Chunks are streamed to a temp file and renamed to the final file on `end-video-write` (MediaRecorder produces a complete file, so there is **no mux step**). If `MediaRecorder` doesn't support `video/mp4`, it falls back to VP8/WebM. MP4 recordings are fragmented MP4 and play in the in-app player and modern VLC.
+- Requires Electron 32+ (Chromium 128+) for `MediaRecorder` `video/mp4`; the project pins Electron ^43. CI builds with Node 22.
+- WebM → MP4 export re-encodes with `ffmpeg-static` (VP8/VP9 can't be copied into MP4; uses `-c:v libx264 -c:a aac`, with `-fflags +genpts -r 30` to fix Chrome MediaRecorder WebM timestamp quirks). For MP4 recordings, "Save as" is effectively a file copy via `-c copy -movflags faststart`. The binary is explicitly listed in `electron-builder` files — do not remove it.
 - `LICENSE_SERVER_URL` is hardcoded at `main.js:12` as `https://packing-recorder-production.up.railway.app`.
 - Runtime data (license, settings, videos) lives in `app.getPath('userData')` (e.g. `%APPDATA%\Packing Recorder\`), not in the repo directory.
 - Machine ID on Windows reads `HKLM\SOFTWARE\Microsoft\Cryptography\MachineGuid`; license validation is machine-locked.
@@ -107,7 +108,7 @@ Do not remove `i18n.js` or `print-stations.html` — both are required at runtim
 - Armed timeout default: 15 s (configurable in Settings). On timeout, station returns to `idle` silently.
 - Cancelled flash: `.station-cancelled` class + "CANCELLED"/"BATAL" badge for 1500 ms, then back to `idle`.
 - Station QR codes encode `STATION:X` (prefix `STATION_QR_PREFIX = 'STATION:'`). Manual scan code is `'MANUALSCAN'`.
-- Recording filenames: `station1_ABC123.webm` (station prefix + shipping code).
+- Recording filenames: `station1_ABC123.mp4` or `station1_ABC123.webm` (station prefix + shipping code).
 
 ## Multi-window mode (dashboard)
 
