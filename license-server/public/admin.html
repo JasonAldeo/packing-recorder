@@ -511,7 +511,7 @@
       </div>
       <div class="meta-item">
         <div class="meta-label">Email</div>
-        <div class="meta-value" id="res-email">—<span id="res-suspended-badge" class="suspended-badge" style="display:none;">Suspended</span></div>
+        <div class="meta-value"><span id="res-email">—</span><span id="res-suspended-badge" class="suspended-badge" style="display:none;">Suspended</span></div>
       </div>
       <div class="meta-item">
         <div class="meta-label">Role</div>
@@ -904,10 +904,7 @@
     }
   }
 
-  // Allow pressing Enter in the email input to trigger lookup
-  document.getElementById('email-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') lookupUser();
-  });  // ── Pricing ──────────────────────────────────────────────────────────────────
+  // ── Pricing ──────────────────────────────────────────────────────────────────
 
   function formatIDR(amount) {
     return 'Rp ' + Number(amount).toLocaleString('id-ID');
