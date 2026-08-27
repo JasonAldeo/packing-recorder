@@ -10,7 +10,7 @@ const jwt = require('jsonwebtoken');
 const { Resend } = require('resend');
 
 // ─── Email ────────────────────────────────────────────────────────────────────
-const resend = new Resend(process.env.RESEND_API_KEY || '');
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const FROM_EMAIL = 'noreply@mail.packingrecorder.com';
 const SUPPORT_EMAIL = 'aldeojason@gmail.com';
 
@@ -22,6 +22,9 @@ const IS_PRODUCTION = process.env.MIDTRANS_ENVIRONMENT === 'production';
 const MIDTRANS_SNAP_URL = IS_PRODUCTION
   ? 'https://app.midtrans.com/snap/v1/transactions'
   : 'https://app.sandbox.midtrans.com/snap/v1/transactions';
+const MIDTRANS_SNAP_JS_URL = IS_PRODUCTION
+  ? 'https://app.midtrans.com/snap/snap.js'
+  : 'https://app.sandbox.midtrans.com/snap/snap.js';
 const PRODUCT_PRICE = 75000; // IDR
 const LICENSE_DAYS = 30;
 const PAYMENT_DISABLED = process.env.PAYMENT_DISABLED === 'true';
@@ -1074,6 +1077,7 @@ app.get('/pricing', (req, res) => {
     promoActive,
     paymentDisabled: PAYMENT_DISABLED,
     clientKey: MIDTRANS_CLIENT_KEY,
+    snapJsUrl: MIDTRANS_SNAP_JS_URL,
   });
 });
 
@@ -1167,11 +1171,12 @@ app.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
 
     const resetLink = `https://packingrecorder.com/reset-password?token=${rawToken}`;
 
-    await resend.emails.send({
-      from:    FROM_EMAIL,
-      to:      cleanEmail,
-      replyTo: SUPPORT_EMAIL,
-      subject: 'Reset your Packing Recorder password',
+    if (resend) {
+      await resend.emails.send({
+        from:    FROM_EMAIL,
+        to:      cleanEmail,
+        replyTo: SUPPORT_EMAIL,
+        subject: 'Reset your Packing Recorder password',
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">
           <h2 style="margin:0 0 8px;font-size:20px;color:#1a1a1a;">Reset your password</h2>
@@ -1191,9 +1196,10 @@ app.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
           </p>
         </div>
       `,
-    });
+      });
 
-    console.log(`[forgot-password] Reset link sent to ${cleanEmail}`);
+      console.log(`[forgot-password] Reset link sent to ${cleanEmail}`);
+    }
   } catch (err) {
     // Log server-side but never expose details to the caller
     console.error('[forgot-password]', err.message);

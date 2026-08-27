@@ -349,7 +349,7 @@
       // Dynamically inject the Midtrans Snap SDK with the client key
       if (data.clientKey) {
         const snapScript = document.createElement('script');
-        snapScript.src = 'https://app.midtrans.com/snap/snap.js';
+        snapScript.src = data.snapJsUrl || 'https://app.midtrans.com/snap/snap.js';
         snapScript.setAttribute('data-client-key', data.clientKey);
         document.head.appendChild(snapScript);
       }
