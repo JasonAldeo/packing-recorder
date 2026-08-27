@@ -445,6 +445,42 @@
     .mono-sm { font-family: monospace; font-size: 0.68rem; color: #64748b; }
     .td-actions { display: flex; flex-wrap: wrap; gap: 4px; }
 
+    /* ── Pagination ── */
+    .pagination {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+    .page-btn {
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #cbd5e1;
+      border-radius: 8px;
+      padding: 5px 11px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+      min-width: 30px;
+    }
+    .page-btn:hover:not(:disabled) { border-color: #3b5bdb; color: #fff; }
+    .page-btn.active {
+      background: linear-gradient(135deg, #3b5bdb, #7c3aed);
+      border-color: transparent;
+      color: #fff;
+    }
+    .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .page-ellipsis { color: #475569; font-size: 0.8rem; padding: 0 2px; }
+    .page-info {
+      margin-left: auto;
+      font-size: 0.75rem;
+      color: #64748b;
+      white-space: nowrap;
+    }
+
     /* ── Ban list ── */
     .ban-row {
       display: flex;
@@ -611,7 +647,7 @@
   <div class="card card-wide" style="max-width:100%;">
     <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
       <span>Recent Registrations</span>
-      <button class="btn btn-primary" style="font-size:0.78rem;padding:6px 14px;" onclick="loadRecentRegistrations()">Refresh</button>
+      <button class="btn btn-primary" style="font-size:0.78rem;padding:6px 14px;" onclick="loadRecentRegistrations(1)">Refresh</button>
     </div>
     <div id="recent-regs-container"><span style="color:#475569;font-size:0.85rem;">Loading…</span></div>
   </div>
@@ -679,6 +715,10 @@
   const SERVER = '';
   let currentEmail = null;
   let _currentConfig = {}; // in-memory cache so each save button can merge both cards
+  const REG_PER_PAGE = 5;
+  let regPage = 1;
+  let regTotalPages = 1;
+  let regTotal = 0;
 
   // ── Auth helpers ─────────────────────────────────────────────────────────────
   function getAuthHeader() {
@@ -1068,13 +1108,24 @@
 
   // ── Recent Registrations ──────────────────────────────────────────────────────
 
-  async function loadRecentRegistrations() {
+  async function loadRecentRegistrations(page = regPage) {
     const container = document.getElementById('recent-regs-container');
     container.innerHTML = '<span style="color:#475569;font-size:0.85rem;">Loading…</span>';
     try {
-      const res = await authFetch(`${SERVER}/admin/recent-registrations?limit=50`);
+      const res = await authFetch(`${SERVER}/admin/recent-registrations?page=${page}&perPage=${REG_PER_PAGE}`);
       const data = await res.json();
       if (!res.ok) { container.innerHTML = `<span style="color:#f87171">${data.error || 'Failed to load.'}</span>`; return; }
+
+      regPage = data.page || 1;
+      regTotalPages = data.totalPages || 1;
+      regTotal = data.total || 0;
+
+      // If this page became empty (e.g. after a ban), step back one page
+      if ((!data.users || data.users.length === 0) && regPage > 1) {
+        loadRecentRegistrations(regPage - 1);
+        return;
+      }
+
       if (!data.users || data.users.length === 0) {
         container.innerHTML = '<div class="no-orders">No registrations yet.</div>';
         return;
@@ -1110,10 +1161,32 @@
         </tr>`;
       }
       html += '</tbody></table>';
+      html += renderPaginationBar();
       container.innerHTML = html;
     } catch (err) {
       container.innerHTML = '<span style="color:#f87171">Network error.</span>';
     }
+  }
+
+  function renderPaginationBar() {
+    if (regTotalPages <= 1) return '';
+    const btns = [];
+    const pushNum = (p) => {
+      btns.push(`<button class="page-btn${p === regPage ? ' active' : ''}" onclick="loadRecentRegistrations(${p})" ${p === regPage ? 'disabled' : ''}>${p}</button>`);
+    };
+    const pushEllipsis = () => { btns.push('<span class="page-ellipsis">…</span>'); };
+
+    pushNum(1);
+    const from = Math.max(2, regPage - 1);
+    const to = Math.min(regTotalPages - 1, regPage + 1);
+    if (from > 2) pushEllipsis();
+    for (let p = from; p <= to; p++) pushNum(p);
+    if (to < regTotalPages - 1) pushEllipsis();
+    if (regTotalPages > 1) pushNum(regTotalPages);
+
+    const prev = `<button class="page-btn" onclick="loadRecentRegistrations(${regPage - 1})" ${regPage === 1 ? 'disabled' : ''}>‹</button>`;
+    const next = `<button class="page-btn" onclick="loadRecentRegistrations(${regPage + 1})" ${regPage === regTotalPages ? 'disabled' : ''}>›</button>`;
+    return `<div class="pagination">${prev}${btns.join('')}${next}<span class="page-info">${regTotal} users — Page ${regPage} / ${regTotalPages}</span></div>`;
   }
 
   // ── Bans ─────────────────────────────────────────────────────────────────────

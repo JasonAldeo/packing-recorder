@@ -810,13 +810,26 @@ app.post('/admin/grant-license', requireAdmin, async (req, res) => {
  */
 app.get('/admin/recent-registrations', requireAdmin, async (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const perPage = Math.min(Math.max(parseInt(req.query.perPage, 10) || 5, 1), 100);
+    const offset = (page - 1) * perPage;
+
+    const countResult = await pool.query('SELECT COUNT(*)::int AS total FROM users');
+    const total = countResult.rows[0].total;
+
     const result = await pool.query(
       `SELECT id, username, email, role, created_at, machine_id, registered_ip
-         FROM users ORDER BY created_at DESC LIMIT $1`,
-      [limit]
+         FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+      [perPage, offset]
     );
-    res.json({ users: result.rows });
+
+    res.json({
+      users: result.rows,
+      page,
+      perPage,
+      total,
+      totalPages: Math.max(Math.ceil(total / perPage), 1),
+    });
   } catch (err) {
     console.error('[admin/recent-registrations]', err.message);
     res.status(500).json({ error: 'Server error.' });
