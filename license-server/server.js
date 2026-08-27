@@ -286,6 +286,26 @@ async function stackLicense(userId) {
   return newExpiry;
 }
 
+/** Sets a user's effective license expiry to an absolute date (edits existing row or inserts). */
+async function setLicenseExpiry(userId, newExpiry) {
+  const current = await pool.query(
+    `SELECT id FROM licenses WHERE user_id = $1 ORDER BY expires_at DESC LIMIT 1`,
+    [userId]
+  );
+  if (current.rows.length > 0) {
+    await pool.query(
+      'UPDATE licenses SET expires_at = $1 WHERE id = $2',
+      [newExpiry, current.rows[0].id]
+    );
+  } else {
+    await pool.query(
+      'INSERT INTO licenses (user_id, expires_at) VALUES ($1, $2)',
+      [userId, newExpiry]
+    );
+  }
+  return newExpiry;
+}
+
 /** Returns true if the given email is in the banned_emails table. */
 async function checkEmailBan(email) {
   const result = await pool.query(
@@ -832,6 +852,83 @@ app.get('/admin/recent-registrations', requireAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error('[admin/recent-registrations]', err.message);
+    res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+/**
+ * GET /admin/licensed-users?page=1&perPage=5
+ * Returns users that have at least one license row, with their effective expiry.
+ */
+app.get('/admin/licensed-users', requireAdmin, async (req, res) => {
+  try {
+    const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const perPage = Math.min(Math.max(parseInt(req.query.perPage, 10) || 5, 1), 100);
+    const offset = (page - 1) * perPage;
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*)::int AS total FROM users u
+        WHERE EXISTS (SELECT 1 FROM licenses l WHERE l.user_id = u.id)`
+    );
+    const total = countResult.rows[0].total;
+
+    const result = await pool.query(
+      `SELECT u.id, u.username, u.email, u.created_at,
+              (SELECT MAX(l.expires_at) FROM licenses l WHERE l.user_id = u.id) AS expires_at
+         FROM users u
+        WHERE EXISTS (SELECT 1 FROM licenses l WHERE l.user_id = u.id)
+        ORDER BY expires_at DESC NULLS LAST, u.created_at DESC
+        LIMIT $1 OFFSET $2`,
+      [perPage, offset]
+    );
+
+    res.json({
+      users: result.rows,
+      page,
+      perPage,
+      total,
+      totalPages: Math.max(Math.ceil(total / perPage), 1),
+    });
+  } catch (err) {
+    console.error('[admin/licensed-users]', err.message);
+    res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+/**
+ * POST /admin/update-license-expiry
+ * Body: { email, expiresAt } — sets the user's effective license expiry to an absolute date.
+ */
+app.post('/admin/update-license-expiry', requireAdmin, async (req, res) => {
+  try {
+    const { email, expiresAt } = req.body;
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: 'Email is required.' });
+    }
+    const exp = new Date(expiresAt);
+    if (isNaN(exp.getTime())) {
+      return res.status(400).json({ error: 'A valid expiry date is required.' });
+    }
+
+    const userResult = await pool.query(
+      'SELECT id, username, email FROM users WHERE email = $1',
+      [email.trim().toLowerCase()]
+    );
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+    const user = userResult.rows[0];
+    const newExpiry = await setLicenseExpiry(user.id, exp);
+
+    console.log(`[admin] Set license expiry for ${user.email} to ${newExpiry.toISOString()}`);
+    res.json({
+      success: true,
+      username: user.username,
+      email: user.email,
+      newExpiresAt: newExpiry.toISOString(),
+    });
+  } catch (err) {
+    console.error('[admin/update-license-expiry]', err.message);
     res.status(500).json({ error: 'Server error.' });
   }
 });

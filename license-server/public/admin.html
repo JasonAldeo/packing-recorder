@@ -480,6 +480,30 @@
       color: #64748b;
       white-space: nowrap;
     }
+    .expiry-input {
+      background: #0f172a;
+      border: 1.5px solid #334155;
+      border-radius: 8px;
+      padding: 5px 8px;
+      font-size: 0.78rem;
+      font-family: inherit;
+      color: #e2e8f0;
+      outline: none;
+      transition: border-color 0.15s;
+      color-scheme: dark;
+    }
+    .expiry-input:focus { border-color: #3b5bdb; }
+    .btn-grant-small {
+      background: #16a34a;
+      color: #fff;
+      padding: 5px 12px;
+      font-size: 0.75rem;
+      border-radius: 6px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .btn-grant-small:hover:not(:disabled) { opacity: 0.85; }
+    .btn-grant-small:disabled { opacity: 0.5; cursor: not-allowed; }
 
     /* ── Ban list ── */
     .ban-row {
@@ -652,6 +676,15 @@
     <div id="recent-regs-container"><span style="color:#475569;font-size:0.85rem;">Loading…</span></div>
   </div>
 
+  <!-- Licensed Users -->
+  <div class="card card-wide" style="max-width:100%;">
+    <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>Licensed Users</span>
+      <button class="btn btn-primary" style="font-size:0.78rem;padding:6px 14px;" onclick="loadLicensedUsers(1)">Refresh</button>
+    </div>
+    <div id="licensed-users-container"><span style="color:#475569;font-size:0.85rem;">Loading…</span></div>
+  </div>
+
   <!-- Bans -->
   <div class="card">
     <div class="card-title">Ban Machine ID</div>
@@ -719,6 +752,10 @@
   let regPage = 1;
   let regTotalPages = 1;
   let regTotal = 0;
+  const LIC_PER_PAGE = 5;
+  let licPage = 1;
+  let licTotalPages = 1;
+  let licTotal = 0;
 
   // ── Auth helpers ─────────────────────────────────────────────────────────────
   function getAuthHeader() {
@@ -783,6 +820,7 @@
     });
     loadPricing();
     loadRecentRegistrations();
+    loadLicensedUsers();
     loadBans();
   }
 
@@ -1161,32 +1199,121 @@
         </tr>`;
       }
       html += '</tbody></table>';
-      html += renderPaginationBar();
+      html += renderPagination(regPage, regTotalPages, regTotal, 'loadRecentRegistrations');
       container.innerHTML = html;
     } catch (err) {
       container.innerHTML = '<span style="color:#f87171">Network error.</span>';
     }
   }
 
-  function renderPaginationBar() {
-    if (regTotalPages <= 1) return '';
+  function renderPagination(page, totalPages, total, loaderName) {
+    if (totalPages <= 1) return '';
     const btns = [];
     const pushNum = (p) => {
-      btns.push(`<button class="page-btn${p === regPage ? ' active' : ''}" onclick="loadRecentRegistrations(${p})" ${p === regPage ? 'disabled' : ''}>${p}</button>`);
+      btns.push(`<button class="page-btn${p === page ? ' active' : ''}" onclick="${loaderName}(${p})" ${p === page ? 'disabled' : ''}>${p}</button>`);
     };
     const pushEllipsis = () => { btns.push('<span class="page-ellipsis">…</span>'); };
 
     pushNum(1);
-    const from = Math.max(2, regPage - 1);
-    const to = Math.min(regTotalPages - 1, regPage + 1);
+    const from = Math.max(2, page - 1);
+    const to = Math.min(totalPages - 1, page + 1);
     if (from > 2) pushEllipsis();
     for (let p = from; p <= to; p++) pushNum(p);
-    if (to < regTotalPages - 1) pushEllipsis();
-    if (regTotalPages > 1) pushNum(regTotalPages);
+    if (to < totalPages - 1) pushEllipsis();
+    if (totalPages > 1) pushNum(totalPages);
 
-    const prev = `<button class="page-btn" onclick="loadRecentRegistrations(${regPage - 1})" ${regPage === 1 ? 'disabled' : ''}>‹</button>`;
-    const next = `<button class="page-btn" onclick="loadRecentRegistrations(${regPage + 1})" ${regPage === regTotalPages ? 'disabled' : ''}>›</button>`;
-    return `<div class="pagination">${prev}${btns.join('')}${next}<span class="page-info">${regTotal} users — Page ${regPage} / ${regTotalPages}</span></div>`;
+    const prev = `<button class="page-btn" onclick="${loaderName}(${page - 1})" ${page === 1 ? 'disabled' : ''}>‹</button>`;
+    const next = `<button class="page-btn" onclick="${loaderName}(${page + 1})" ${page === totalPages ? 'disabled' : ''}>›</button>`;
+    return `<div class="pagination">${prev}${btns.join('')}${next}<span class="page-info">${total} users — Page ${page} / ${totalPages}</span></div>`;
+  }
+
+  // ── Licensed Users ───────────────────────────────────────────────────────────
+
+  function toLocalInputValue(date) {
+    const d = new Date(date);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  async function loadLicensedUsers(page = licPage) {
+    const container = document.getElementById('licensed-users-container');
+    container.innerHTML = '<span style="color:#475569;font-size:0.85rem;">Loading…</span>';
+    try {
+      const res = await authFetch(`${SERVER}/admin/licensed-users?page=${page}&perPage=${LIC_PER_PAGE}`);
+      const data = await res.json();
+      if (!res.ok) { container.innerHTML = `<span style="color:#f87171">${data.error || 'Failed to load.'}</span>`; return; }
+
+      licPage = data.page || 1;
+      licTotalPages = data.totalPages || 1;
+      licTotal = data.total || 0;
+
+      if ((!data.users || data.users.length === 0) && licPage > 1) {
+        loadLicensedUsers(licPage - 1);
+        return;
+      }
+
+      if (!data.users || data.users.length === 0) {
+        container.innerHTML = '<div class="no-orders">No licensed users yet.</div>';
+        return;
+      }
+
+      let html = `<table class="reg-table">
+        <colgroup>
+          <col class="col-email" /><col class="col-date" /><col class="col-date" /><col class="col-actions" />
+        </colgroup>
+        <thead><tr>
+          <th>Email</th>
+          <th>Expires At</th>
+          <th>Created At</th>
+          <th>Actions</th>
+        </tr></thead><tbody>`;
+      for (const u of data.users) {
+        const inputId = `lic-exp-${u.id}`;
+        html += `<tr>
+          <td title="${escHtml(u.email)}">${escHtml(u.email)}</td>
+          <td>
+            <input type="datetime-local" id="${inputId}" class="expiry-input"
+                   value="${u.expires_at ? toLocalInputValue(u.expires_at) : ''}" />
+          </td>
+          <td title="${escHtml(formatDate(u.created_at))}">${escHtml(formatDate(u.created_at))}</td>
+          <td><div class="td-actions">
+            <button class="btn btn-grant-small" onclick="saveLicenseExpiry('${escHtml(u.email)}', '${inputId}', this)">Save</button>
+          </div></td>
+        </tr>`;
+      }
+      html += '</tbody></table>';
+      html += renderPagination(licPage, licTotalPages, licTotal, 'loadLicensedUsers');
+      container.innerHTML = html;
+    } catch (err) {
+      container.innerHTML = '<span style="color:#f87171">Network error.</span>';
+    }
+  }
+
+  async function saveLicenseExpiry(email, inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input || !input.value) { alert('Please pick an expiry date.'); return; }
+    const expiresAt = new Date(input.value).toISOString();
+    if (isNaN(new Date(expiresAt).getTime())) { alert('Invalid expiry date.'); return; }
+
+    btn.disabled = true;
+    const originalText = btn.textContent;
+    btn.textContent = 'Saving…';
+    try {
+      const res = await authFetch(`${SERVER}/admin/update-license-expiry`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, expiresAt }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || 'Failed to update expiry.'); return; }
+      input.value = toLocalInputValue(data.newExpiresAt);
+      alert(`✓ License updated for ${data.email}. New expiry: ${formatDate(data.newExpiresAt)}`);
+    } catch (_) {
+      alert('Network error. Please try again.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
   }
 
   // ── Bans ─────────────────────────────────────────────────────────────────────
