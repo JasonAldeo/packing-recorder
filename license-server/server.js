@@ -229,6 +229,7 @@ async function createSnapToken(orderId, email) {
       ],
       customer_details: { email },
       language: 'id',
+      credit_card: { secure: true },
     }),
   });
   const data = await response.json();
