@@ -137,6 +137,75 @@
     }
     .price-note { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; }
 
+    /* ── Plan selector ── */
+    .plan-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .plan-option {
+      position: relative;
+      display: block;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 14px 16px;
+      cursor: pointer;
+      background: #fff;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .plan-option:hover { border-color: #c7d2fe; }
+    .plan-option.selected {
+      border-color: #3b5bdb;
+      box-shadow: 0 4px 16px rgba(59,91,219,0.15);
+      background: #f0f4ff;
+    }
+    .plan-option input { position: absolute; opacity: 0; pointer-events: none; }
+    .plan-name {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 6px;
+    }
+    .plan-save-badge {
+      background: linear-gradient(135deg, #16a34a, #059669);
+      color: #fff;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .plan-price { font-size: 1.05rem; font-weight: 800; color: #3b5bdb; letter-spacing: -0.4px; }
+    .plan-price .plan-per { font-size: 0.75rem; font-weight: 500; color: #94a3b8; }
+    .plan-price-original {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #94a3b8;
+      text-decoration: line-through;
+      margin-right: 6px;
+    }
+    .plan-promo-badge {
+      display: none;
+      font-size: 0.62rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #3b5bdb, #7c3aed);
+      color: #fff;
+      padding: 1px 8px;
+      border-radius: 20px;
+      margin-top: 4px;
+      width: fit-content;
+    }
+    .plan-note { font-size: 0.72rem; color: #94a3b8; margin-top: 4px; line-height: 1.4; }
+    @media (max-width: 480px) {
+      .plan-selector { grid-template-columns: 1fr; }
+    }
+
     /* ── Buttons ── */
     .btn-primary {
       width: 100%;
@@ -258,7 +327,7 @@
     <div class="logo-mark">
       <img src="/icon.ico" alt="Packing Recorder" style="width:22px;height:22px;object-fit:contain;" />    </div>
     <h1>Packing Recorder</h1>
-    <p>Activate your 30-day license — pay now, use instantly</p>
+    <p>Activate your license — pay now, use instantly</p>
   </div>
 
   <!-- Auth error (shown if no valid token) -->
@@ -279,20 +348,32 @@
     <ul class="features">
       <li>Automatic packing video recording via barcode</li>
       <li>Search &amp; replay recordings anytime</li>
-      <li>30-day license, renewable anytime</li>
+      <li>30-day or 1-year license, renewable anytime</li>
       <li>License tied to your account, not to a computer</li>
     </ul>
 
-    <div class="price-row">
-      <div>
-        <div class="price-label">30-Day License Price</div>
-        <div class="price-note">Can be stacked while still active</div>
-      </div>
-      <div style="text-align:right;">
-        <div class="price-original" id="price-original"></div>
-        <div class="price-amount" id="price-amount">Rp 199.000</div>
-        <div class="price-promo-badge" id="price-promo-badge"></div>
-      </div>
+    <div class="plan-selector" id="plan-selector">
+      <label class="plan-option selected" id="plan-card-monthly">
+        <input type="radio" name="plan" value="monthly" checked />
+        <div class="plan-name">30 Days</div>
+        <div class="plan-price">
+          <span class="plan-price-original" id="plan-monthly-original"></span>
+          <span id="plan-monthly-price">Rp 199.000</span>
+          <span class="plan-per" id="plan-monthly-per">/ 30 hari</span>
+        </div>
+        <div class="plan-promo-badge" id="plan-monthly-badge"></div>
+      </label>
+
+      <label class="plan-option" id="plan-card-yearly">
+        <input type="radio" name="plan" value="yearly" />
+        <div class="plan-name">1 Tahun <span class="plan-save-badge">Hemat 10%</span></div>
+        <div class="plan-price">
+          <span class="plan-price-original" id="plan-yearly-original"></span>
+          <span id="plan-yearly-price">Rp 1.609.200</span>
+          <span class="plan-per" id="plan-yearly-per">/ 1 tahun</span>
+        </div>
+        <div class="plan-note">Hemat 10% — setahun sekali bayar</div>
+      </label>
     </div>
 
     <button class="btn-primary" id="pay-btn">Pay Now &rarr;</button>
@@ -330,18 +411,31 @@
   const SERVER = ''; // same origin
 
   // ── Load dynamic pricing + client key ────────────────────────────────────
+  let selectedPlan = 'monthly';
   fetch(`${SERVER}/pricing`)
     .then(r => r.json())
     .then(data => {
       const fmt = n => 'Rp ' + Number(n).toLocaleString('en-US');
-      const amountEl = document.getElementById('price-amount');
-      const originalEl = document.getElementById('price-original');
-      const badgeEl = document.getElementById('price-promo-badge');
-      if (amountEl) amountEl.childNodes[0].textContent = fmt(data.effectivePrice) + ' ';
+
+      // Monthly plan
+      const monthlyPriceEl = document.getElementById('plan-monthly-price');
+      const monthlyOrigEl  = document.getElementById('plan-monthly-original');
+      const monthlyBadgeEl = document.getElementById('plan-monthly-badge');
+      if (monthlyPriceEl) monthlyPriceEl.textContent = fmt(data.effectivePrice);
       if (data.promoActive) {
-        if (originalEl) { originalEl.textContent = fmt(data.publishedPrice); originalEl.style.display = 'block'; }
-        if (badgeEl)    { badgeEl.textContent = data.promoLabelId; badgeEl.style.display = 'inline-block'; }
+        if (monthlyOrigEl)  { monthlyOrigEl.textContent = fmt(data.publishedPrice); monthlyOrigEl.style.display = ''; }
+        if (monthlyBadgeEl) { monthlyBadgeEl.textContent = data.promoLabelId; monthlyBadgeEl.style.display = 'block'; }
       }
+
+      // Yearly plan — always show compare-at (published x 12) + discounted price
+      const yearlyPriceEl = document.getElementById('plan-yearly-price');
+      const yearlyOrigEl  = document.getElementById('plan-yearly-original');
+      if (yearlyPriceEl) yearlyPriceEl.textContent = fmt(data.yearlyPrice);
+      if (yearlyOrigEl)  {
+        yearlyOrigEl.textContent = fmt(data.yearlyCompareAt);
+        yearlyOrigEl.style.display = '';
+      }
+
       if (data.paymentDisabled) {
         if (paymentNotice) paymentNotice.classList.remove('hidden');
         if (payBtn) { payBtn.disabled = true; payBtn.style.opacity = '0.5'; payBtn.style.cursor = 'not-allowed'; }
@@ -355,6 +449,16 @@
       }
     })
     .catch(() => { /* silently ignore */ });
+
+  // ── Plan selection ─────────────────────────────────────────────────────────
+  document.querySelectorAll('input[name="plan"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      if (!radio.checked) return;
+      selectedPlan = radio.value;
+      document.getElementById('plan-card-monthly').classList.toggle('selected', selectedPlan === 'monthly');
+      document.getElementById('plan-card-yearly').classList.toggle('selected', selectedPlan === 'yearly');
+    });
+  });
 
   // Read JWT from URL query param (?token=...)
   const urlParams = new URLSearchParams(window.location.search);
@@ -417,7 +521,7 @@
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${authToken}`,
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ plan: selectedPlan }),
       });
       const data = await res.json();
       if (!res.ok || data.error) {

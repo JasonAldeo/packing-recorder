@@ -607,10 +607,10 @@
     /* ── Pricing ── */
     .pricing-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 24px;
       margin-top: 52px;
-      max-width: 680px;
+      max-width: 980px;
       margin-left: auto;
       margin-right: auto;
     }
@@ -639,6 +639,9 @@
       padding: 4px 14px;
       border-radius: 20px;
       white-space: nowrap;
+    }
+    .pricing-badge.save {
+      background: linear-gradient(135deg, #16a34a, #059669);
     }
     .pricing-name {
       font-size: 1rem;
@@ -1616,6 +1619,22 @@
         </ul>
         <div class="pricing-note" data-i18n="plan2.note">Bayar via GoPay, transfer bank, QRIS, dan lainnya di dalam aplikasi.</div>
       </div>
+
+      <!-- Yearly License -->
+      <div class="pricing-card featured">
+        <div class="pricing-badge save" data-i18n="plan3.badge">Hemat Lebih</div>
+        <div class="pricing-name" data-i18n="plan3.name">Lisensi 1 Tahun</div>
+        <div id="pricing-yearly-original" class="pricing-price-original"></div>
+        <div class="pricing-price" id="pricing-yearly">Rp 1.609.200 <span data-i18n="plan3.per">/ 1 tahun</span></div>
+        <div class="pricing-period" data-i18n="plan3.period">Hemat 10% — bayar setahun sekali</div>
+        <ul class="pricing-features">
+          <li data-i18n="plan3.f1">Semua fitur tanpa batas</li>
+          <li data-i18n="plan3.f2">Lisensi terhubung ke akun</li>
+          <li data-i18n="plan3.f3">Bisa dipakai di komputer berbeda</li>
+          <li data-i18n="plan3.f4">Hemat 10% dibanding 30 hari &times; 12</li>
+        </ul>
+        <div class="pricing-note" data-i18n="plan3.note">Bayar via GoPay, transfer bank, QRIS, dan lainnya di dalam aplikasi.</div>
+      </div>
     </div>
 
     <p class="pricing-cta-note">
@@ -1781,6 +1800,15 @@
       'plan2.f3':               'Bisa dipakai di komputer berbeda',
       'plan2.f4':               'Bisa ditambah (stacking) saat masih aktif',
       'plan2.note':             'Bayar via GoPay, transfer bank, QRIS, dan lainnya di dalam aplikasi.',
+      'plan3.badge':            'Hemat Lebih',
+      'plan3.name':             'Lisensi 1 Tahun',
+      'plan3.per':              '/ 1 tahun',
+      'plan3.period':           'Hemat 10% — bayar setahun sekali',
+      'plan3.f1':               'Semua fitur tanpa batas',
+      'plan3.f2':               'Lisensi terhubung ke akun',
+      'plan3.f3':               'Bisa dipakai di komputer berbeda',
+      'plan3.f4':               'Hemat 10% dibanding 30 hari × 12',
+      'plan3.note':             'Bayar via GoPay, transfer bank, QRIS, dan lainnya di dalam aplikasi.',
       'pricing.ctaNote':        'Pembelian dilakukan di dalam aplikasi',
       'pricing.ctaSub':         'Download dulu, daftar akun, lalu beli lisensi dari tombol di aplikasi.',
       'dl.label':               'Download',
@@ -1890,6 +1918,15 @@
       'plan2.f3':               'Use on any computer',
       'plan2.f4':               'Stack licenses while still active',
       'plan2.note':             'Pay via GoPay, bank transfer, QRIS, and more inside the app.',
+      'plan3.badge':            'Save More',
+      'plan3.name':             '1-Year License',
+      'plan3.per':              '/ 1 year',
+      'plan3.period':           'Save 10% — pay once a year',
+      'plan3.f1':               'All features, no limits',
+      'plan3.f2':               'License tied to your account',
+      'plan3.f3':               'Use on any computer',
+      'plan3.f4':               'Save 10% vs 30 days × 12',
+      'plan3.note':             'Pay via GoPay, bank transfer, QRIS, and more inside the app.',
       'pricing.ctaNote':        'Purchase is done inside the app',
       'pricing.ctaSub':         'Download first, create an account, then buy a license from the button in the app.',
       'dl.label':               'Download',
@@ -1926,8 +1963,14 @@
     });
 
     // Re-render promo elements that were set imperatively from fetch data
-    if (_pricingData && _pricingData.promoActive) {
+    if (_pricingData) {
       const fmt = n => 'Rp ' + Number(n).toLocaleString('id-ID');
+
+      // Re-render price labels for the current language
+      const effectiveEl = document.getElementById('pricing-effective');
+      if (effectiveEl) effectiveEl.innerHTML = `${fmt(_pricingData.effectivePrice)} <span>${lang === 'id' ? '/ 30 hari' : '/ 30 days'}</span>`;
+      const yearlyPriceEl = document.getElementById('pricing-yearly');
+      if (yearlyPriceEl) yearlyPriceEl.innerHTML = `${fmt(_pricingData.yearlyPrice)} <span>${lang === 'id' ? '/ 1 tahun' : '/ 1 year'}</span>`;
 
       const promoBadge  = document.getElementById('pricing-promo-badge');
       const promoEndsEl = document.getElementById('pricing-promo-ends');
@@ -1988,6 +2031,12 @@
       const promoEndsEl = document.getElementById('pricing-promo-ends');
 
       if (effectiveEl) effectiveEl.innerHTML = `${fmt(data.effectivePrice)} <span>${perLabel}</span>`;
+
+      // Yearly card — always show compare-at (published x 12) + discounted price
+      const yearlyPriceEl = document.getElementById('pricing-yearly');
+      const yearlyOrigEl  = document.getElementById('pricing-yearly-original');
+      if (yearlyPriceEl) yearlyPriceEl.innerHTML = `${fmt(data.yearlyPrice)} <span>${currentLang === 'id' ? '/ 1 tahun' : '/ 1 year'}</span>`;
+      if (yearlyOrigEl)  { yearlyOrigEl.textContent = fmt(data.yearlyCompareAt); yearlyOrigEl.style.display = ''; }
 
       if (data.promoActive) {
         if (originalEl)  { originalEl.textContent = fmt(data.publishedPrice); originalEl.style.display = ''; }

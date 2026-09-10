@@ -633,6 +633,10 @@
         <label>RSP / Selling Price (IDR)</label>
         <input type="number" id="price-rsp" placeholder="149000" min="1" />
       </div>
+      <div class="pricing-field">
+        <label>Yearly Discount (%)</label>
+        <input type="number" id="price-yearly-discount" placeholder="10" min="0" max="90" />
+      </div>
     </div>
 
     <div class="pricing-status" id="pricing-status">Loading current pricing…</div>
@@ -1015,6 +1019,7 @@
   function populatePricingFields(data) {
     document.getElementById('price-published').value = data.publishedPrice || '';
     document.getElementById('price-rsp').value = data.rsp || '';
+    document.getElementById('price-yearly-discount').value = data.yearlyDiscountPct ?? 10;
   }
 
   function populatePromoFields(data) {
@@ -1035,6 +1040,10 @@
     statusEl.innerHTML = `
       <div>Effective price charged: <span class="eff-price">${formatIDR(data.effectivePrice)}</span></div>
       <div style="margin-top:4px">Published: ${formatIDR(data.publishedPrice)} &nbsp;|&nbsp; RSP: ${formatIDR(data.rsp)}</div>
+      <div style="margin-top:8px;color:#4ade80;font-weight:600;">
+        Yearly: ${formatIDR(data.yearlyPrice)} <span style="color:#94a3b8;text-decoration:line-through;font-weight:400;">${formatIDR(data.yearlyCompareAt)}</span>
+        <span style="color:#94a3b8;font-weight:400;">(discount ${data.yearlyDiscountPct ?? 10}%)</span>
+      </div>
     `;
   }
 
@@ -1053,6 +1062,7 @@
   async function savePricing() {
     const publishedPrice = document.getElementById('price-published').value;
     const rsp            = document.getElementById('price-rsp').value;
+    const yearlyDiscountPct = document.getElementById('price-yearly-discount').value;
 
     if (!publishedPrice || !rsp) {
       showFeedback('pricing-feedback', 'error', 'Published price and RSP are required.');
@@ -1073,7 +1083,7 @@
       const res = await authFetch(`${SERVER}/admin/set-pricing`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ publishedPrice, rsp, promoLabelId, promoLabelEn, promoEndsAt }),
+        body: JSON.stringify({ publishedPrice, rsp, yearlyDiscountPct, promoLabelId, promoLabelEn, promoEndsAt }),
       });
       const data = await res.json();
 
@@ -1105,6 +1115,7 @@
     // Merge with cached price values
     const publishedPrice = _currentConfig.publishedPrice || '';
     const rsp            = _currentConfig.rsp            || '';
+    const yearlyDiscountPct = _currentConfig.yearlyDiscountPct ?? 10;
 
     if (!publishedPrice || !rsp) {
       showFeedback('promo-feedback', 'error', 'Pricing must be loaded before saving promo. Refresh the page.');
@@ -1120,7 +1131,7 @@
       const res = await authFetch(`${SERVER}/admin/set-pricing`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ publishedPrice, rsp, promoLabelId, promoLabelEn, promoEndsAt }),
+        body: JSON.stringify({ publishedPrice, rsp, yearlyDiscountPct, promoLabelId, promoLabelEn, promoEndsAt }),
       });
       const data = await res.json();
 

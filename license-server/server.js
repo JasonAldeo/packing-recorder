@@ -36,6 +36,7 @@ const JWT_EXPIRY = '7d'; // sliding window — renewed on each /me call
 const DEFAULT_PRICING = {
   publishedPrice: 199000,
   rsp:            149000,
+  yearlyDiscountPct: 10,  // % discount applied to yearly = rsp * 12 * (1 - pct/100)
   promoLabelId:   'Promo Peluncuran',
   promoLabelEn:   'Launching Promo',
   promoEndsAt:    null,  // null = no promo; ISO string = promo active until that date
@@ -52,6 +53,33 @@ function isPromoActive(cfg) {
 function getEffectivePrice(cfg) {
   return isPromoActive(cfg) ? cfg.rsp : cfg.publishedPrice;
 }
+
+/** Yearly compare-at (advertising anchor) = published price x 12. */
+function getYearlyCompareAt(cfg) {
+  return cfg.publishedPrice * 12;
+}
+
+/** Yearly price = RSP x 12 with the yearly discount applied. */
+function getYearlyPrice(cfg) {
+  const pct = Math.min(Math.max(Number(cfg.yearlyDiscountPct) || 0, 0), 90);
+  return Math.round(cfg.rsp * 12 * (1 - pct / 100));
+}
+
+// Purchase plans — price is always derived server-side from pricing config
+const PLANS = {
+  monthly: {
+    days:    30,
+    getPrice: () => getEffectivePrice(pricingConfig),
+    snapId:  'license-30d',
+    name:    'Lisensi 30 Hari - Packing Recorder',
+  },
+  yearly: {
+    days:    365,
+    getPrice: () => getYearlyPrice(pricingConfig),
+    snapId:  'license-365d',
+    name:    'Lisensi 1 Tahun (Hemat 10%) - Packing Recorder',
+  },
+};
 
 /** Loads pricing config from app_meta, falling back to defaults. */
 async function loadPricingConfig() {
@@ -124,6 +152,11 @@ async function initDB() {
   // Add user_id column to existing deployments that don't have it yet
   await pool.query(`
     ALTER TABLE orders ADD COLUMN IF NOT EXISTS user_id INT REFERENCES users(id) ON DELETE SET NULL
+  `);
+
+  // Add plan_days column — how many license days the order grants (30 / 365)
+  await pool.query(`
+    ALTER TABLE orders ADD COLUMN IF NOT EXISTS plan_days INT NOT NULL DEFAULT 30
   `);
 
   // Add machine_id column to existing deployments that don't have it yet
@@ -210,8 +243,10 @@ function generateOrderId() {
   return `PR-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 }
 
-/** Calls Midtrans Snap API to create a payment token. */
-async function createSnapToken(orderId, email) {
+/** Calls Midtrans Snap API to create a payment token for a given plan. */
+async function createSnapToken(orderId, email, plan) {
+  const planCfg = PLANS[plan] || PLANS.monthly;
+  const amount = planCfg.getPrice();
   const auth = Buffer.from(MIDTRANS_SERVER_KEY + ':').toString('base64');
   const response = await fetch(MIDTRANS_SNAP_URL, {
     method: 'POST',
@@ -221,13 +256,13 @@ async function createSnapToken(orderId, email) {
       'Authorization': `Basic ${auth}`,
     },
     body: JSON.stringify({
-      transaction_details: { order_id: orderId, gross_amount: getEffectivePrice(pricingConfig) },
+      transaction_details: { order_id: orderId, gross_amount: amount },
       item_details: [
         {
-          id: 'license-30d',
-          price: getEffectivePrice(pricingConfig),
+          id: planCfg.snapId,
+          price: amount,
           quantity: 1,
-          name: 'Lisensi 30 Hari - Packing Recorder',
+          name: planCfg.name,
         },
       ],
       customer_details: { email },
@@ -262,12 +297,12 @@ async function getActiveLicense(userId) {
   return result.rows.length > 0 ? result.rows[0].expires_at : null;
 }
 
-/** Stacks LICENSE_DAYS days onto existing remaining time (or NOW) for a user. */
-async function stackLicense(userId) {
+/** Stacks `days` (default LICENSE_DAYS) onto existing remaining time (or NOW) for a user. */
+async function stackLicense(userId, days = LICENSE_DAYS) {
   // Find current expiry if any (must be future)
   const current = await getActiveLicense(userId);
   const base = current ? new Date(current) : new Date();
-  const newExpiry = new Date(base.getTime() + LICENSE_DAYS * 24 * 60 * 60 * 1000);
+  const newExpiry = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
 
   if (current) {
     // Update the existing active row
@@ -598,15 +633,22 @@ app.post('/create-order', requireAuth, createOrderLimiter, async (req, res) => {
   try {
     const userId = req.user.sub;
     const email  = req.user.email;
+    const plan   = (req.body && req.body.plan) || 'monthly';
+
+    if (!PLANS[plan]) {
+      return res.status(400).json({ error: 'Invalid plan. Choose monthly or yearly.' });
+    }
+    const planDays = PLANS[plan].days;
+
     const orderId = generateOrderId();
 
     await pool.query(
-      'INSERT INTO orders (order_id, user_id, email) VALUES ($1, $2, $3)',
-      [orderId, userId, email]
+      'INSERT INTO orders (order_id, user_id, email, plan_days) VALUES ($1, $2, $3, $4)',
+      [orderId, userId, email, planDays]
     );
-    console.log(`[create-order] DB insert OK — orderId=${orderId} userId=${userId}`);
+    console.log(`[create-order] DB insert OK — orderId=${orderId} userId=${userId} plan=${plan}`);
 
-    const snap = await createSnapToken(orderId, email);
+    const snap = await createSnapToken(orderId, email, plan);
     console.log(`[create-order] Snap token created — orderId=${orderId}`);
 
     res.json({
@@ -675,18 +717,18 @@ app.post('/midtrans-webhook', async (req, res) => {
 
     if (isPaid) {
       const existing = await pool.query(
-        'SELECT status, user_id FROM orders WHERE order_id = $1',
+        'SELECT status, user_id, plan_days FROM orders WHERE order_id = $1',
         [order_id]
       );
       if (existing.rows.length > 0 && existing.rows[0].status === 'pending') {
-        const { user_id } = existing.rows[0];
+        const { user_id, plan_days } = existing.rows[0];
         await pool.query(
           "UPDATE orders SET status = 'paid', recovered_at = NOW() WHERE order_id = $1",
           [order_id]
         );
         if (user_id) {
-          const newExpiry = await stackLicense(user_id);
-          console.log(`[webhook] Order ${order_id} paid. License stacked until ${newExpiry.toISOString()} for user ${user_id}.`);
+          const newExpiry = await stackLicense(user_id, plan_days || LICENSE_DAYS);
+          console.log(`[webhook] Order ${order_id} paid. License stacked ${plan_days || LICENSE_DAYS} days until ${newExpiry.toISOString()} for user ${user_id}.`);
         }
       }
     } else if (['expire', 'cancel', 'deny'].includes(transaction_status)) {
@@ -1099,7 +1141,7 @@ app.post('/recover-license', requireAuth, async (req, res) => {
 
     // Find paid orders not yet recovered for this user
     const ordersResult = await pool.query(
-      `SELECT id, order_id FROM orders
+      `SELECT id, order_id, plan_days FROM orders
          WHERE user_id = $1 AND status = 'paid' AND recovered_at IS NULL`,
       [userId]
     );
@@ -1111,7 +1153,7 @@ app.post('/recover-license', requireAuth, async (req, res) => {
     // Stack license for each unrecovered paid order
     let newExpiry = null;
     for (const order of ordersResult.rows) {
-      newExpiry = await stackLicense(userId);
+      newExpiry = await stackLicense(userId, order.plan_days || LICENSE_DAYS);
       await pool.query(
         'UPDATE orders SET recovered_at = NOW() WHERE id = $1',
         [order.id]
@@ -1188,6 +1230,11 @@ app.get('/pricing', (req, res) => {
     paymentDisabled: PAYMENT_DISABLED,
     clientKey: MIDTRANS_CLIENT_KEY,
     snapJsUrl: MIDTRANS_SNAP_JS_URL,
+    monthlyDays:  PLANS.monthly.days,
+    yearlyDays:   PLANS.yearly.days,
+    yearlyPrice:      getYearlyPrice(pricingConfig),
+    yearlyCompareAt:  getYearlyCompareAt(pricingConfig),
+    yearlyDiscountPct: pricingConfig.yearlyDiscountPct,
   });
 });
 
@@ -1198,7 +1245,7 @@ app.get('/pricing', (req, res) => {
  */
 app.post('/admin/set-pricing', requireAdmin, async (req, res) => {
   try {
-    const { publishedPrice, rsp, promoLabelId, promoLabelEn, promoEndsAt } = req.body;
+    const { publishedPrice, rsp, yearlyDiscountPct, promoLabelId, promoLabelEn, promoEndsAt } = req.body;
 
     if (!publishedPrice || !rsp || isNaN(publishedPrice) || isNaN(rsp)) {
       return res.status(400).json({ error: 'publishedPrice and rsp must be valid numbers.' });
@@ -1206,10 +1253,12 @@ app.post('/admin/set-pricing', requireAdmin, async (req, res) => {
     if (publishedPrice < 1 || rsp < 1) {
       return res.status(400).json({ error: 'Prices must be greater than 0.' });
     }
+    const discount = Math.min(Math.max(parseFloat(yearlyDiscountPct) || DEFAULT_PRICING.yearlyDiscountPct, 0), 90);
 
     const newConfig = {
       publishedPrice: parseInt(publishedPrice, 10),
       rsp:            parseInt(rsp, 10),
+      yearlyDiscountPct: discount,
       promoLabelId:   (promoLabelId || '').trim() || DEFAULT_PRICING.promoLabelId,
       promoLabelEn:   (promoLabelEn || '').trim() || DEFAULT_PRICING.promoLabelEn,
       promoEndsAt:    promoEndsAt || null,
@@ -1229,6 +1278,8 @@ app.post('/admin/set-pricing', requireAdmin, async (req, res) => {
       ...newConfig,
       effectivePrice: getEffectivePrice(newConfig),
       promoActive: isPromoActive(newConfig),
+      yearlyPrice:     getYearlyPrice(newConfig),
+      yearlyCompareAt: getYearlyCompareAt(newConfig),
     });
   } catch (err) {
     console.error('[admin/set-pricing]', err.message);
