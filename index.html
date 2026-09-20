@@ -548,6 +548,20 @@
     </div>
   </div>
 
+  <!-- ── Delete Confirmation Modal ── -->
+  <div id="delete-confirm-modal" class="help-modal hidden">
+    <div class="help-modal-backdrop"></div>
+    <div class="help-modal-card warn-modal-card">
+      <div class="warn-modal-icon">&#128465;</div>
+      <h2 class="warn-modal-title" data-i18n="rec.confirmDeleteTitle">Delete Recording</h2>
+      <p class="warn-modal-body"><span id="delete-confirm-name"></span></p>
+      <div class="warn-modal-actions delete-modal-actions">
+        <button id="delete-confirm-cancel-btn" class="btn-outline" data-i18n="rec.cancel">Cancel</button>
+        <button id="delete-confirm-ok-btn" class="delete-modal-danger" data-i18n="rec.delete">Delete</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Help Modal ── -->
   <div id="help-modal" class="help-modal hidden">
     <div class="help-modal-backdrop"></div>

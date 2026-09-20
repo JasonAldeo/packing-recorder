@@ -151,7 +151,9 @@
     'rec.filterCount': (n) => `${n} recording${n !== 1 ? 's' : ''} on this date`,
     'rec.play': 'Play',
     'rec.delete': 'Delete',
-    'rec.confirmDelete': (name) => `Delete "${name}"?`,
+    'rec.confirmDelete': (name) => `Delete "${name}"? This action cannot be undone.`,
+    'rec.confirmDeleteTitle': 'Delete Recording',
+    'rec.cancel': 'Cancel',
     'rec.deleteFailed': (msg) => `Delete failed: ${msg}`,
 
     // Search & Playback tab
@@ -433,7 +435,9 @@
     'rec.filterCount': (n) => `${n} rekaman pada tanggal ini`,
     'rec.play': 'Putar',
     'rec.delete': 'Hapus',
-    'rec.confirmDelete': (name) => `Hapus "${name}"?`,
+    'rec.confirmDelete': (name) => `Hapus "${name}"? Tindakan ini tidak dapat dibatalkan.`,
+    'rec.confirmDeleteTitle': 'Hapus Rekaman',
+    'rec.cancel': 'Batal',
     'rec.deleteFailed': (msg) => `Penghapusan gagal: ${msg}`,
 
     // Search & Playback tab

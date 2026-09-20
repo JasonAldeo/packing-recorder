@@ -128,6 +128,7 @@ const cameraWarningEl      = document.getElementById('camera-warning');
 async function initMainWindow() {
   initTabs();
   initRecordingWarnModal();
+  initDeleteConfirmModal();
   await loadSavedDir();
   await initStations();
   await loadRecordingsList();
@@ -2232,6 +2233,48 @@ function initRecordingWarnModal() {
   });
 }
 
+// Custom in-app delete confirmation modal (replaces native confirm(), whose
+// focus-restore behavior after dismissal dropped focus to <body> and made the
+// next search input get routed to the barcode scanner instead of the search box).
+let deleteConfirmResolver = null;
+function initDeleteConfirmModal() {
+  const modal = document.getElementById('delete-confirm-modal');
+  if (!modal) return;
+  const okBtn     = document.getElementById('delete-confirm-ok-btn');
+  const cancelBtn = document.getElementById('delete-confirm-cancel-btn');
+  const nameEl    = document.getElementById('delete-confirm-name');
+  const backdrop  = modal.querySelector('.help-modal-backdrop');
+  let sourceEl = null;
+
+  const close = (confirmed) => {
+    modal.classList.add('hidden');
+    if (!confirmed && sourceEl && sourceEl.isConnected) sourceEl.focus();
+    sourceEl = null;
+    if (deleteConfirmResolver) {
+      const resolve = deleteConfirmResolver;
+      deleteConfirmResolver = null;
+      resolve(confirmed);
+    }
+  };
+
+  if (okBtn)     okBtn.addEventListener('click', () => close(true));
+  if (cancelBtn) cancelBtn.addEventListener('click', () => close(false));
+  if (backdrop)  backdrop.addEventListener('click', () => close(false));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) close(false);
+  });
+
+  // Returns a Promise<boolean> — true if the user confirms the delete.
+  // `source` is the delete button that opened the modal; focus returns to it on cancel.
+  window.confirmDeleteModal = (filename, source) => {
+    if (nameEl) nameEl.textContent = t('rec.confirmDelete', filename);
+    sourceEl = source || null;
+    modal.classList.remove('hidden');
+    if (cancelBtn) cancelBtn.focus();
+    return new Promise((resolve) => { deleteConfirmResolver = resolve; });
+  };
+}
+
 function initTabs() {
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => switchTab(btn.dataset.tab));
@@ -2782,8 +2825,8 @@ async function doSearch() {
       btn.addEventListener('click', () => playVideo(btn.dataset.path, btn.dataset.name));
     });
     resultsList.querySelectorAll('.delete-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        if (!confirm(t('rec.confirmDelete', btn.dataset.name))) return;
+btn.addEventListener('click', async () => {
+        if (!(await window.confirmDeleteModal(btn.dataset.name, btn))) return;
         const result = await window.electronAPI.deleteVideo(btn.dataset.path);
         if (result.success) {
           if (currentPlayingPath === btn.dataset.path) {
@@ -2791,7 +2834,12 @@ async function doSearch() {
             currentPlayingPath = null;
           }
           await loadRecordingsList();
-          doSearch();
+          await doSearch();
+          // Deleting removes the focused delete button, so focus falls to <body>.
+          // Without this, the next waybill typed/scanned is caught by the global
+          // barcode keydown handler and routed as a scan instead of a search.
+          // select() makes the next scan/type replace the previous code.
+          if (searchInput) { searchInput.focus(); searchInput.select(); }
         } else {
           if (searchError) { searchError.textContent = t('rec.deleteFailed', result.error); searchError.classList.remove('hidden'); }
         }
@@ -2861,7 +2909,7 @@ function attachRecListEvents(listEl) {
   });
   listEl.querySelectorAll('.rec-delete-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm(t('rec.confirmDelete', btn.dataset.name))) return;
+      if (!(await window.confirmDeleteModal(btn.dataset.name, btn))) return;
       const result = await window.electronAPI.deleteVideo(btn.dataset.path);
       if (result.success) {
         if (currentPlayingPath === btn.dataset.path) {
