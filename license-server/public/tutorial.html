@@ -270,6 +270,47 @@
       color: var(--mid);
     }
 
+    /* ── Spec cards ── */
+    .spec-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      background: var(--bg);
+      margin: 14px 0;
+    }
+    .spec-card-title {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: var(--dark);
+      margin-bottom: 10px;
+    }
+    .spec-card p {
+      font-size: 0.9rem;
+      color: var(--mid);
+      margin-bottom: 0;
+      line-height: 1.6;
+    }
+    .spec-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 20px 0;
+    }
+    @media (max-width: 640px) {
+      .spec-cols { grid-template-columns: 1fr; }
+    }
+    .spec-cols .spec-card { margin: 0; }
+    .spec-card ul { list-style: none; padding: 0; margin: 0; }
+    .spec-card li {
+      font-size: 0.9rem;
+      color: var(--mid);
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+      line-height: 1.55;
+    }
+    .spec-card li:last-child { border-bottom: none; }
+    .spec-card li strong { color: var(--dark); }
+
     /* ── Footer ── */
     footer {
       background: var(--dark);
@@ -369,6 +410,7 @@
       <li><a href="#multiwindow" data-i18n="toc.s4">Mode Multi-Window (Dashboard)</a></li>
       <li><a href="#license" data-i18n="toc.s5">Lisensi &amp; Akun</a></li>
       <li><a href="#faq" data-i18n="toc.s6">FAQ</a></li>
+      <li><a href="#sysreq" data-i18n="toc.s7">Spesifikasi Sistem</a></li>
     </ol>
   </div>
 
@@ -633,6 +675,43 @@
 
   </div>
 
+  <!-- 7. System Requirements -->
+  <div class="guide-section" id="sysreq">
+    <div class="guide-section-label" data-i18n="s7.label">07</div>
+    <h2 data-i18n="s7.title">Spesifikasi Sistem</h2>
+    <p data-i18n="s7.intro">Spesifikasi yang dibutuhkan agar aplikasi berjalan lancar — termasuk untuk mode multi-stasiun dengan hingga 6 kamera.</p>
+
+    <div class="spec-card">
+      <div class="spec-card-title" data-i18n="s7.single.title">1 Kamera (Stasiun Tunggal)</div>
+      <p data-i18n="s7.single.desc">Windows 10/11 (64-bit), RAM 4 GB, webcam USB apa saja, dan ±1 GB ruang penyimpanan per jam rekaman.</p>
+    </div>
+
+    <div class="spec-cols">
+      <div class="spec-card">
+        <div class="spec-card-title" data-i18n="s7.min.title">Spesifikasi Minimal (Multi-Stasiun)</div>
+        <ul>
+          <li><strong data-i18n="s7.cpu">Prosesor (CPU):</strong> <span data-i18n="s7.min.cpu">Intel Core i5 gen 8+ (contoh: i5-8400, i5-10400) atau AMD Ryzen 5 (contoh: Ryzen 5 2600, Ryzen 5 5500)</span></li>
+          <li><strong data-i18n="s7.ram">RAM:</strong> <span data-i18n="s7.min.ram">8 GB</span></li>
+          <li><strong data-i18n="s7.gpu">GPU:</strong> <span data-i18n="s7.min.gpu">Tidak perlu kartu grafis tambahan — enkode H.264 sudah ada di prosesor (Intel Quick Sync / AMD)</span></li>
+          <li><strong data-i18n="s7.storage">Penyimpanan:</strong> <span data-i18n="s7.min.storage">Hard disk biasa (SSD lebih baik)</span></li>
+          <li><strong data-i18n="s7.camera">Kamera:</strong> <span data-i18n="s7.min.camera">Webcam USB apa saja, diatur ke resolusi 720p</span></li>
+        </ul>
+      </div>
+      <div class="spec-card">
+        <div class="spec-card-title" data-i18n="s7.rec.title">Rekomendasi (Multi-Stasiun)</div>
+        <ul>
+          <li><strong data-i18n="s7.cpu">Prosesor (CPU):</strong> <span data-i18n="s7.rec.cpu">Intel Core i7 (contoh: i7-9700, i7-10700, i7-11700) atau AMD Ryzen 7 (contoh: Ryzen 7 3700X, Ryzen 7 5700X)</span></li>
+          <li><strong data-i18n="s7.ram">RAM:</strong> <span data-i18n="s7.rec.ram">16 GB</span></li>
+          <li><strong data-i18n="s7.gpu">GPU:</strong> <span data-i18n="s7.rec.gpu">Cukup GPU terintegrasi di prosesor — tidak perlu kartu grafis tambahan</span></li>
+          <li><strong data-i18n="s7.storage">Penyimpanan:</strong> <span data-i18n="s7.rec.storage">SSD (wajib — 6 rekaman bersamaan butuh kecepatan tulis)</span></li>
+          <li><strong data-i18n="s7.camera">Kamera:</strong> <span data-i18n="s7.rec.camera">720p ke bawah per kamera</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="tip"><strong data-i18n="tip.label">Tips:</strong> <span data-i18n="s7.tip">Walaupun kamera mendukung 1080p (misal Logitech), resolusi rekaman bisa diatur 720p di aplikasi agar tetap lancar dengan 6 stasiun.</span></div>
+  </div>
+
 </div><!-- /page -->
 
 <footer>
@@ -652,6 +731,7 @@
       'toc.s4':             'Mode Multi-Window (Dashboard)',
       'toc.s5':             'Lisensi & Akun',
       'toc.s6':             'FAQ',
+      'toc.s7':             'Spesifikasi Sistem',
       'tip.label':          'Tips:',
       's1.label':           '01',
       's1.title':           'Mulai Cepat',
@@ -735,6 +815,29 @@
       'faq.a5':             'Ya. Setelah login, aplikasi bisa digunakan secara offline. Validasi lisensi di-cache selama 24 jam — kamu tetap bisa merekam meskipun tidak ada koneksi internet.',
       'faq.q6':             'Apakah bisa dipakai offline saat masa trial?',
       'faq.a6':             'Bisa, tapi maksimal <strong>1 jam</strong>. Jika offline lebih dari 1 jam saat masa percobaan, aplikasi akan terkunci sementara. Sambungkan kembali ke internet untuk melanjutkan. Pengguna dengan lisensi berbayar mendapat masa offline hingga 24 jam.',
+      's7.label':           '07',
+      's7.title':           'Spesifikasi Sistem',
+      's7.intro':           'Spesifikasi yang dibutuhkan agar aplikasi berjalan lancar — termasuk untuk mode multi-stasiun dengan hingga 6 kamera.',
+      's7.single.title':    '1 Kamera (Stasiun Tunggal)',
+      's7.single.desc':     'Windows 10/11 (64-bit), RAM 4 GB, webcam USB apa saja, dan ±1 GB ruang penyimpanan per jam rekaman.',
+      's7.min.title':       'Spesifikasi Minimal (Multi-Stasiun)',
+      's7.cpu':             'Prosesor (CPU):',
+      's7.ram':             'RAM:',
+      's7.gpu':             'GPU:',
+      's7.storage':         'Penyimpanan:',
+      's7.camera':          'Kamera:',
+      's7.min.cpu':         'Intel Core i5 gen 8+ (contoh: i5-8400, i5-10400) atau AMD Ryzen 5 (contoh: Ryzen 5 2600, Ryzen 5 5500)',
+      's7.min.ram':         '8 GB',
+      's7.min.gpu':         'Tidak perlu kartu grafis tambahan — enkode H.264 sudah ada di prosesor (Intel Quick Sync / AMD)',
+      's7.min.storage':     'Hard disk biasa (SSD lebih baik)',
+      's7.min.camera':      'Webcam USB apa saja, diatur ke resolusi 720p',
+      's7.rec.title':       'Rekomendasi (Multi-Stasiun)',
+      's7.rec.cpu':         'Intel Core i7 (contoh: i7-9700, i7-10700, i7-11700) atau AMD Ryzen 7 (contoh: Ryzen 7 3700X, Ryzen 7 5700X)',
+      's7.rec.ram':         '16 GB',
+      's7.rec.gpu':         'Cukup GPU terintegrasi di prosesor — tidak perlu kartu grafis tambahan',
+      's7.rec.storage':     'SSD (wajib — 6 rekaman bersamaan butuh kecepatan tulis)',
+      's7.rec.camera':      '720p ke bawah per kamera',
+      's7.tip':             'Walaupun kamera mendukung 1080p (misal Logitech), resolusi rekaman bisa diatur 720p di aplikasi agar tetap lancar dengan 6 stasiun.',
       'footer.home':        'Beranda',
       'footer.terms':       'Syarat &amp; Ketentuan',
     },
@@ -749,6 +852,7 @@
       'toc.s4':             'Multi-Window Mode (Dashboard)',
       'toc.s5':             'License & Account',
       'toc.s6':             'FAQ',
+      'toc.s7':             'System Requirements',
       'tip.label':          'Tip:',
       's1.label':           '01',
       's1.title':           'Quick Start',
@@ -832,6 +936,29 @@
       'faq.a5':             'Yes. Once logged in, the app works offline. License validation is cached for 24 hours — you can keep recording even without an internet connection.',
       'faq.q6':             'Can I use it offline during the trial?',
       'faq.a6':             'Yes, but for a maximum of <strong>1 hour</strong>. If you go offline for more than 1 hour during the trial period, the app will be temporarily blocked. Reconnect to the internet to continue. Users with a paid license can use the app offline for up to 24 hours.',
+      's7.label':           '07',
+      's7.title':           'System Requirements',
+      's7.intro':           'Specs needed for the app to run smoothly — including multi-station mode with up to 6 cameras.',
+      's7.single.title':    '1 Camera (Single Station)',
+      's7.single.desc':     'Windows 10/11 (64-bit), 4 GB RAM, any USB webcam, and ~1 GB of storage per hour of recording.',
+      's7.min.title':       'Minimum Spec (Multi-Station)',
+      's7.cpu':             'Processor (CPU):',
+      's7.ram':             'RAM:',
+      's7.gpu':             'GPU:',
+      's7.storage':         'Storage:',
+      's7.camera':          'Camera:',
+      's7.min.cpu':         'Intel Core i5 gen 8+ (e.g. i5-8400, i5-10400) or AMD Ryzen 5 (e.g. Ryzen 5 2600, Ryzen 5 5500)',
+      's7.min.ram':         '8 GB',
+      's7.min.gpu':         'No extra graphics card needed — H.264 encoding is built into the processor (Intel Quick Sync / AMD)',
+      's7.min.storage':     'Regular hard disk (SSD is better)',
+      's7.min.camera':      'Any USB webcam, set to 720p resolution',
+      's7.rec.title':       'Recommended Spec (Multi-Station)',
+      's7.rec.cpu':         'Intel Core i7 (e.g. i7-9700, i7-10700, i7-11700) or AMD Ryzen 7 (e.g. Ryzen 7 3700X, Ryzen 7 5700X)',
+      's7.rec.ram':         '16 GB',
+      's7.rec.gpu':         'The processor\'s integrated GPU is enough — no extra graphics card',
+      's7.rec.storage':     'SSD (required — 6 simultaneous recordings need fast write speed)',
+      's7.rec.camera':      '720p or lower per camera',
+      's7.tip':             'Even if your camera supports 1080p (e.g. Logitech), you can set the recording resolution to 720p in the app to keep 6 stations running smoothly.',
       'footer.home':        'Home',
       'footer.terms':       'Terms &amp; Conditions',
     }
