@@ -28,6 +28,23 @@ function saveLicenseData(data) {
   fs.writeFileSync(LICENSE_PATH, JSON.stringify(data, null, 2), 'utf8');
 }
 
+function appendAppLog(line) {
+  try {
+    const logPath = path.join(app.getPath('userData'), 'app.log');
+    try {
+      const stats = fs.statSync(logPath);
+      if (stats.size > 2 * 1024 * 1024) {
+        try { fs.renameSync(logPath, logPath + '.old'); } catch (_) {}
+      }
+    } catch (_) {}
+    fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${line}\n`, 'utf8');
+  } catch (_) {}
+}
+
+ipcMain.on('log-client-event', (event, message) => {
+  appendAppLog(`[renderer] ${String(message).slice(0, 2000)}`);
+});
+
 /**
  * Pre-login fallback only — used when user is not yet logged in.
  * Returns { daysLeft, expired } based on local firstLaunchDate.
@@ -364,6 +381,39 @@ ipcMain.handle('recover-license', async () => {
   }
 });
 
+ipcMain.handle('send-log', async () => {
+  const data = getLicenseData();
+  if (!data.token) return { success: false, error: 'notLoggedIn' };
+
+  let log = '';
+  try {
+    const logPath = path.join(app.getPath('userData'), 'app.log');
+    log = fs.readFileSync(logPath, 'utf8');
+  } catch (_) {}
+  if (!log.trim()) return { success: false, error: 'noLog' };
+  const MAX_LOG = 1024 * 1024;
+  if (log.length > MAX_LOG) log = log.slice(-MAX_LOG);
+
+  try {
+    const resp = await serverRequest('POST', '/send-log', {
+      log,
+      timestamp: new Date().toISOString(),
+      version: app.getVersion(),
+      platform: `${process.platform} ${process.arch}`,
+      osRelease: process.getSystemVersion ? process.getSystemVersion() : '',
+    }, data.token);
+
+    if (resp.status === 200) {
+      appendAppLog(`[support] log sent for ${resp.body.email || 'user'}`);
+      return { success: true, email: resp.body.email, subject: resp.body.subject };
+    }
+    if (resp.status === 401) return { success: false, error: 'sessionExpired' };
+    return { success: false, error: resp.body.error || 'sendFailed' };
+  } catch (_) {
+    return { success: false, error: 'network' };
+  }
+});
+
 // ─── Settings ─────────────────────────────────────────────────────────────────
 const SETTINGS_PATH = path.join(app.getPath('userData'), 'settings.json');
 
@@ -501,6 +551,7 @@ app.whenReady().then(() => {
 
   createWindow();
   runAutoDelete();
+  appendAppLog(`app started v${app.getVersion()} electron=${process.versions.electron}`);
 
   // ─── Application menu ────────────────────────────────────────────────────────
   const menu = Menu.buildFromTemplate([
@@ -719,6 +770,7 @@ ipcMain.handle('begin-video-write', (event, { stationId, shippingCode, format })
     filename,
     format: fmt
   });
+  appendAppLog(`[write] begin ${sid} code=${JSON.stringify(shippingCode || '')} format=${fmt} file=${filename}`);
   return { ok: true };
 });
 
@@ -744,13 +796,16 @@ ipcMain.handle('end-video-write', (event, stationId) => {
     state.stream.end((err) => {
       if (err) {
         destroyWriteState(state);
+        appendAppLog(`[write] end failed ${sid}: ${err.message}`);
         return reject(err);
       }
       try {
         fs.renameSync(state.tempPath, state.finalPath);
         const stats = fs.statSync(state.finalPath);
+        appendAppLog(`[write] saved ${state.filename} (${stats.size} bytes)`);
         resolve({ filename: state.filename, filePath: state.finalPath, size: stats.size });
       } catch (e) {
+        appendAppLog(`[write] rename failed ${sid}: ${e.message}`);
         reject(e);
       }
     });
@@ -759,6 +814,7 @@ ipcMain.handle('end-video-write', (event, stationId) => {
 
 ipcMain.handle('abort-video-write', (event, stationId) => {
   const sid = String(stationId || 'station1');
+  appendAppLog(`[write] abort ${sid}`);
   cleanupWriteState(sid);
 });
 

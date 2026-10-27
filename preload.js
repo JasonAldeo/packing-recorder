@@ -57,6 +57,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   forgotPassword:        (email)                    => ipcRenderer.invoke('forgot-password', email),
   openPurchasePage:      ()                         => ipcRenderer.invoke('open-purchase-page'),
   recoverLicense:        ()                         => ipcRenderer.invoke('recover-license'),
+  sendLog:               ()                         => ipcRenderer.invoke('send-log'),
   openExternalUrl:       (url)                      => ipcRenderer.invoke('open-external-url', url),
   fetchPricing:          ()                         => ipcRenderer.invoke('fetch-pricing'),
 
@@ -72,4 +73,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   isWindowsStore:        ()                         => process.windowsStore === true,
   // Notify main whether any station is currently recording (defers update dialog)
   setRecordingState:     (isRecording)              => ipcRenderer.send('set-recording-state', isRecording),
+  logClientEvent:        (message)                   => ipcRenderer.send('log-client-event', message),
 });

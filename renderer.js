@@ -6,6 +6,8 @@ const MANUAL_SCAN_CODE = 'MANUALSCAN';
 const STATION_QR_PREFIX = 'STATION:';
 const DEFAULT_ARMED_TIMEOUT_MS = 15000;
 const MAX_STATIONS = 6;
+const BARCODE_IDLE_RESET_MS = 1500;
+const MIN_BARCODE_LENGTH = 4;
 
 // ─── Global state ─────────────────────────────────────────────────────────────
 let trialDaysLeft = null;
@@ -13,6 +15,7 @@ let licenseDaysLeft = null;
 let currentUserRole = null;
 let barcodeBuffer = '';
 let barcodeTimeout = null;
+let barcodeLastKeyAt = 0;
 let currentPlayingPath = null;
 let allRecordings = [];
 
@@ -145,15 +148,21 @@ async function initMainWindow() {
 
   // Listen for recording events from station windows — keep dashboard state in sync
   window.electronAPI.onStationEvent((payload) => {
-    const { type, stationId } = payload;
+    const { type, stationId, code } = payload;
     const st = stations.get(stationId);
     if (!st) return;
-    if (type === 'recording-saved' || type === 'recording-aborted') {
-      st.currentShippingCode = null;
-      st.state = 'idle';
-      notifyRecordingState();
-      setStationStatus(stationId, 'idle');
+    if (type !== 'recording-saved' && type !== 'recording-aborted') return;
+
+    if (code && st.currentShippingCode && st.currentShippingCode !== code) {
+      logClient(`[${stationId}] ignored stale ${type} for ${JSON.stringify(code)} (current: ${JSON.stringify(st.currentShippingCode)})`);
+      return;
     }
+
+    logClient(`[${stationId}] ${type}: ${JSON.stringify(code || '')}`);
+    st.currentShippingCode = null;
+    st.state = 'idle';
+    notifyRecordingState();
+    setStationStatus(stationId, 'idle');
   });
 }
 
@@ -208,13 +217,32 @@ async function initAsStationWindow(sid) {
         break;
       case 'start-recording':
         if (st) {
+          logClient(`[${sid}] command start-recording: ${JSON.stringify(cmd.code)}`);
           st.state = 'recording';
           st.currentShippingCode = cmd.code;
           await startRecording(sid, cmd.code);
         }
         break;
       case 'stop-recording':
-        if (st) stopRecording(sid);
+        if (st) {
+          logClient(`[${sid}] command stop-recording`);
+          stopRecording(sid);
+        }
+        break;
+      case 'play-voice':
+        if (cmd.voiceKey) speak(cmd.voiceKey, sid);
+        break;
+      case 'duplicate-warning':
+        if (st) {
+          if (cmd.state) {
+            setStationStatus(sid, cmd.state);
+            st.state = cmd.state === 'cancelled' ? 'idle' : cmd.state;
+          }
+          logClient(`[${sid}] duplicate warning: ${JSON.stringify(cmd.code)} (${cmd.count})`);
+          setStatus('warning', t('status.duplicate', cmd.code, cmd.count));
+          const currentCodeEl = document.getElementById('current-code');
+          if (currentCodeEl) currentCodeEl.textContent = t('status.switchToSearch', cmd.code);
+        }
         break;
     }
   });
@@ -411,7 +439,9 @@ async function buildStation(cfg, fullSize) {
     const stopBtn = stateObj.elements.stopBtn;
     if (stopBtn) {
       stopBtn.addEventListener('click', () => {
-        if (stateObj.currentShippingCode) stopRecording(sid);
+        if (stateObj.state !== 'recording' && !stateObj.currentShippingCode) return;
+        logClient(`[${sid}] stop button pressed`);
+        stopRecording(sid);
       });
     }
 
@@ -930,6 +960,14 @@ function speak(voiceKey, sid) {
   audio.play().catch(() => {}); // silently ignore missing file errors
 }
 
+function announceDuplicate(sid) {
+  if (appSettings.multiWindow && !stationWindowId) {
+    pushToStationWindow(sid, { type: 'play-voice', voiceKey: 'voice.duplicate' });
+  } else {
+    speak('voice.duplicate', sid);
+  }
+}
+
 /**
  * Plays multiple voice announcement clips in sequence, one after another.
  * @param {Array<{key: string, sid: string}>} items
@@ -1005,8 +1043,14 @@ function updateDashboardWindowButton(sid, isOpen) {
 // ─── Scanner routing ──────────────────────────────────────────────────────────
 // Global keydown listener — routes to the right station
 document.addEventListener('keydown', (e) => {
-  const tag = document.activeElement.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement.isContentEditable) return;
+  const ae = document.activeElement;
+  if (ae) {
+    const editable = ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable;
+    if (editable) {
+      const panel = ae.closest ? ae.closest('.tab-panel') : null;
+      if (!panel || panel.classList.contains('active')) return;
+    }
+  }
 
   // ── Test mode: digit keys 1–5 simulate STATION:X QR scans ──────────────────
   if (appSettings.testMode && appSettings.multiStation && /^[1-6]$/.test(e.key)) {
@@ -1026,7 +1070,14 @@ document.addEventListener('keydown', (e) => {
     const code = barcodeBuffer.trim();
     barcodeBuffer = '';
     clearTimeout(barcodeTimeout);
+    barcodeTimeout = null;
     if (code.length > 0) {
+      if (code.length < MIN_BARCODE_LENGTH) {
+        logClient(`scan rejected (too short ${code.length}): ${JSON.stringify(code)}`);
+        showGlobalWarning(t('status.scanTooShort', code.length));
+        return;
+      }
+      logClient(`scan captured: ${JSON.stringify(code)}`);
       // Station windows relay all scans to the dashboard for routing
       if (stationWindowId) {
         window.electronAPI.relayScan(code);
@@ -1038,11 +1089,26 @@ document.addEventListener('keydown', (e) => {
   }
 
   if (e.key.length === 1) {
+    if (barcodeLastKeyAt && e.timeStamp - barcodeLastKeyAt > BARCODE_IDLE_RESET_MS) {
+      barcodeBuffer = '';
+    }
+    barcodeLastKeyAt = e.timeStamp;
     barcodeBuffer += e.key;
     clearTimeout(barcodeTimeout);
-    barcodeTimeout = setTimeout(() => { barcodeBuffer = ''; }, 500);
+    barcodeTimeout = setTimeout(() => {
+      barcodeBuffer = '';
+      barcodeTimeout = null;
+    }, BARCODE_IDLE_RESET_MS);
   }
 });
+
+window.addEventListener('blur', () => {
+  barcodeBuffer = '';
+  barcodeLastKeyAt = 0;
+  clearTimeout(barcodeTimeout);
+  barcodeTimeout = null;
+});
+
 
 function routeBarcode(code) {
   // Station QR code
@@ -1080,6 +1146,7 @@ function routeBarcode(code) {
     if (armed) {
       handleCodeForStation(armed.id, code);
     } else {
+      logClient(`scan ignored (no armed station): ${JSON.stringify(code)}`);
       showGlobalWarning(t('status.scanStationFirst'));
     }
   }
@@ -1133,6 +1200,7 @@ function handleStationQR(sid) {
     // Operator scanned their own station QR while armed — cancel
     cancelArm(sid, false);
   } else if (st.state === 'recording') {
+    logClient(`[${sid}] stop via station QR`);
     pushToStationWindow(sid, { type: 'stop-recording' });
     stopRecording(sid);
   }
@@ -1202,6 +1270,7 @@ async function handleCodeForStation(sid, code) {
   if (code === MANUAL_SCAN_CODE) {
     if (!st.currentShippingCode) {
       const name = generateManualName();
+      logClient(`[${sid}] start manual recording: ${name}`);
       clearArmedTimer(sid);
       st.state = 'recording';
       st.currentShippingCode = name;
@@ -1210,13 +1279,16 @@ async function handleCodeForStation(sid, code) {
       pushToStationWindow(sid, { type: 'start-recording', code: name });
       if (!delegated) await startRecording(sid, name);
     } else if (st.currentShippingCode.startsWith('MANUAL_')) {
+      logClient(`[${sid}] stop manual recording: ${st.currentShippingCode}`);
       pushToStationWindow(sid, { type: 'stop-recording' });
       if (!delegated) stopRecording(sid);
       else { st.currentShippingCode = null; st.state = 'idle'; notifyRecordingState(); setStationStatus(sid, 'idle'); }
     } else {
-      // Regular recording in progress
+      logClient(`[${sid}] manual scan ignored while recording: ${st.currentShippingCode}`);
       if (stations.size === 1 && statusMessage) {
         setStatus('warning', t('status.regularInProgress'));
+      } else {
+        showGlobalWarning(t('status.regularInProgress'));
       }
     }
     return;
@@ -1226,17 +1298,30 @@ async function handleCodeForStation(sid, code) {
     // Check for duplicates
     const existing = await window.electronAPI.searchVideo(code);
     if (existing.length > 0) {
-      if (stations.size === 1 && statusMessage) {
-        setStatus('warning', t('status.duplicate', code, existing.length));
-        document.getElementById('current-code').textContent = t('status.switchToSearch', code);
-        searchInput.value = code;
-      }
+      logClient(`[${sid}] duplicate blocked: ${JSON.stringify(code)} (${existing.length} file(s))`);
       clearArmedTimer(sid);
       st.state = 'idle';
       setStationStatus(sid, 'idle');
-      pushToStationWindow(sid, { type: 'set-status', state: 'idle' });
+
+      const singleViewVisible = stations.size === 1 && statusMessage &&
+        singleStationView && !singleStationView.classList.contains('hidden');
+      if (singleViewVisible) {
+        setStatus('warning', t('status.duplicate', code, existing.length));
+        const currentCodeEl = document.getElementById('current-code');
+        if (currentCodeEl) currentCodeEl.textContent = t('status.switchToSearch', code);
+        searchInput.value = code;
+      } else if (st.elements.codeLabel) {
+        st.elements.codeLabel.textContent = t('status.duplicateShort', code);
+      }
+
+      if (appSettings.multiWindow && !stationWindowId) {
+        pushToStationWindow(sid, { type: 'duplicate-warning', code, count: existing.length, state: 'idle' });
+      }
+      announceDuplicate(sid);
       return;
     }
+    if (st.currentShippingCode) return;
+    logClient(`[${sid}] start recording: ${JSON.stringify(code)}`);
     clearArmedTimer(sid);
     st.state = 'recording';
     st.currentShippingCode = code;
@@ -1245,13 +1330,20 @@ async function handleCodeForStation(sid, code) {
     pushToStationWindow(sid, { type: 'start-recording', code });
     if (!delegated) await startRecording(sid, code);
   } else if (code === st.currentShippingCode) {
+    logClient(`[${sid}] stop recording: ${JSON.stringify(code)}`);
     pushToStationWindow(sid, { type: 'stop-recording' });
     if (!delegated) stopRecording(sid);
     else { st.currentShippingCode = null; st.state = 'idle'; notifyRecordingState(); setStationStatus(sid, 'idle'); }
   } else {
-    console.log(`[${sid}] Ignored mismatched code: ${code} (current: ${st.currentShippingCode})`);
+    logClient(`[${sid}] scan ignored while recording ${JSON.stringify(st.currentShippingCode)}: ${JSON.stringify(code)}`);
+    if (stations.size === 1 && statusMessage) {
+      setStatus('warning', t('status.finishCurrentFirst', st.currentShippingCode));
+    } else {
+      showGlobalWarning(t('status.finishCurrentFirst', st.currentShippingCode));
+    }
   }
 }
+
 
 function clearArmedTimer(sid) {
   const st = stations.get(sid);
@@ -1273,16 +1365,26 @@ function notifyRecordingState() {
   window.electronAPI.setRecordingState(anyRecording);
 }
 
+function abortRecordingStart(sid, st) {
+  st.currentShippingCode = null;
+  st.state = 'idle';
+  setStationStatus(sid, 'idle');
+  notifyRecordingState();
+  if (stationWindowId) {
+    window.electronAPI.notifyDashboard({ type: 'recording-aborted', stationId: sid }).catch(() => {});
+  }
+}
+
 async function startRecording(sid, code) {
   const st = stations.get(sid);
   if (!st) return;
 
   if (!st.stream) {
+    logClient(`[${sid}] start failed (no stream) for ${JSON.stringify(code)}`);
     if (stations.size === 1 && statusMessage) {
       setStatus('recording', t('status.cameraUnavailable', code));
     }
-    st.state = 'idle';
-    setStationStatus(sid, 'idle');
+    abortRecordingStart(sid, st);
     return;
   }
 
@@ -1302,11 +1404,11 @@ async function startRecording(sid, code) {
     await window.electronAPI.beginVideoWrite(sid, code, format);
   } catch (err) {
     stopCanvasOverlay(sid);
+    logClient(`[${sid}] start failed (beginVideoWrite) for ${JSON.stringify(code)}: ${err.message}`);
     if (stations.size === 1 && statusMessage) {
       setStatus('waiting', t('status.failedOpenFile', err.message));
     }
-    st.state = 'idle';
-    setStationStatus(sid, 'idle');
+    abortRecordingStart(sid, st);
     return;
   }
 
@@ -1329,11 +1431,11 @@ async function startRecording(sid, code) {
   } catch (err) {
     stopCanvasOverlay(sid);
     await window.electronAPI.abortVideoWrite(sid).catch(() => {});
+    logClient(`[${sid}] start failed (MediaRecorder) for ${JSON.stringify(code)}: ${err.message}`);
     if (stations.size === 1 && statusMessage) {
       setStatus('waiting', t('status.failedStartRecorder', err.message));
     }
-    st.state = 'idle';
-    setStationStatus(sid, 'idle');
+    abortRecordingStart(sid, st);
     return;
   }
 
@@ -1351,10 +1453,22 @@ async function startRecording(sid, code) {
     st.writeQueue.then(() => saveStationRecording(sid)).catch(() => saveStationRecording(sid));
   };
 
-  st.mediaRecorder.start(500);
+  try {
+    st.mediaRecorder.start(500);
+  } catch (err) {
+    stopCanvasOverlay(sid);
+    await window.electronAPI.abortVideoWrite(sid).catch(() => {});
+    logClient(`[${sid}] start failed (mediaRecorder.start) for ${JSON.stringify(code)}: ${err.message}`);
+    if (stations.size === 1 && statusMessage) {
+      setStatus('waiting', t('status.failedStartRecorder', err.message));
+    }
+    abortRecordingStart(sid, st);
+    return;
+  }
 
   // Update UI
   setStationStatus(sid, 'recording');
+  logClient(`[${sid}] recording started: ${JSON.stringify(code)} (${format})`);
   speak('voice.recording', sid);
   const isManual = code.startsWith('MANUAL_');
   const displayLabel = isManual ? formatManualCode(code) : code;
@@ -1401,9 +1515,13 @@ async function saveStationRecording(sid) {
   const st = stations.get(sid);
   if (!st) return;
 
+  const savedCode = st.currentShippingCode;
+  let eventType = 'recording-saved';
+
   try {
     const result = await window.electronAPI.endVideoWrite(sid);
     const sizeKb = (result.size / 1024).toFixed(1);
+    logClient(`[${sid}] saved ${result.filename} (${sizeKb} KB)`);
     speak('voice.saved', sid);
     if (stations.size === 1 && statusMessage) {
       setStatus('saved', t('status.saved', result.filename));
@@ -1413,26 +1531,33 @@ async function saveStationRecording(sid) {
       }
     }
     if (st.elements.codeLabel) st.elements.codeLabel.textContent = '';
-    await loadRecordingsList();
-    // Notify dashboard that recording finished so it can update its state
-    if (stationWindowId) {
-      window.electronAPI.notifyDashboard({ type: 'recording-saved', stationId: sid }).catch(() => {});
-    }
   } catch (err) {
+    eventType = 'recording-aborted';
+    logClient(`[${sid}] save failed: ${err.message}`);
     if (stations.size === 1 && statusMessage) {
       setStatus('waiting', t('status.errorSaving', err.message));
     }
     stopCanvasOverlay(sid);
     await window.electronAPI.abortVideoWrite(sid).catch(() => {});
-    if (stationWindowId) {
-      window.electronAPI.notifyDashboard({ type: 'recording-aborted', stationId: sid }).catch(() => {});
-    }
   }
 
-  st.currentShippingCode = null;
-  st.state = 'idle';
-  notifyRecordingState();
-  setStationStatus(sid, 'idle');
+  const isCurrent = !st.currentShippingCode || st.currentShippingCode === savedCode;
+  if (isCurrent) {
+    st.currentShippingCode = null;
+    st.state = 'idle';
+    notifyRecordingState();
+    setStationStatus(sid, 'idle');
+  }
+
+  if (stationWindowId) {
+    window.electronAPI.notifyDashboard({
+      type: eventType,
+      stationId: sid,
+      code: savedCode
+    }).catch(() => {});
+  }
+
+  loadRecordingsList().catch(() => {});
 }
 
 // ─── Station UI state ──────────────────────────────────────────────────────────
@@ -1518,6 +1643,15 @@ function updateStationTimerDisplay(sid) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+function logClient(message) {
+  try {
+    if (window.electronAPI && window.electronAPI.logClientEvent) {
+      window.electronAPI.logClientEvent(message);
+    }
+  } catch (_) {}
+  console.log(`[scan] ${message}`);
+}
+
 function labelFromId(sid) {
   const num = parseInt(sid.replace('station', ''), 10);
   return `Station ${num}`;
@@ -1861,10 +1995,19 @@ if (licenseBuyBtn) {
   const helpTabs     = helpModal ? helpModal.querySelectorAll('.help-tab') : [];
   const helpContents = helpModal ? helpModal.querySelectorAll('.help-tab-content') : [];
   const helpExtLink  = document.getElementById('help-open-website');
+  const sendLogBtn   = document.getElementById('help-send-log-btn');
+  const sendLogStatus = document.getElementById('help-send-log-status');
 
   if (!helpBtn || !helpModal) return;
 
-  function openHelp() { helpModal.classList.remove('hidden'); }
+  function openHelp() {
+    if (sendLogBtn) sendLogBtn.disabled = false;
+    if (sendLogStatus) {
+      sendLogStatus.className = 'help-send-log-status';
+      sendLogStatus.textContent = '';
+    }
+    helpModal.classList.remove('hidden');
+  }
   function closeHelp() { helpModal.classList.add('hidden'); }
 
   helpBtn.addEventListener('click', openHelp);
@@ -1889,6 +2032,30 @@ if (licenseBuyBtn) {
   if (helpExtLink) {
     helpExtLink.addEventListener('click', () => {
       window.electronAPI.openExternalUrl('https://packingrecorder.com/tutorial.html');
+    });
+  }
+
+  if (sendLogBtn) {
+    sendLogBtn.addEventListener('click', async () => {
+      sendLogBtn.disabled = true;
+      if (sendLogStatus) {
+        sendLogStatus.className = 'help-send-log-status';
+        sendLogStatus.textContent = t('help.logSending');
+      }
+      const result = await window.electronAPI.sendLog();
+      sendLogBtn.disabled = false;
+      if (!sendLogStatus) return;
+      if (result.success) {
+        sendLogStatus.className = 'help-send-log-status success';
+        sendLogStatus.textContent = t('help.logSent', result.email || '');
+      } else {
+        sendLogStatus.className = 'help-send-log-status error';
+        if (result.error === 'notLoggedIn') sendLogStatus.textContent = t('help.logNotLoggedIn');
+        else if (result.error === 'noLog') sendLogStatus.textContent = t('help.logEmpty');
+        else if (result.error === 'sessionExpired') sendLogStatus.textContent = t('help.logSessionExpired');
+        else if (result.error === 'network') sendLogStatus.textContent = t('help.logNetwork');
+        else sendLogStatus.textContent = t('help.logFailed');
+      }
     });
   }
 })();
@@ -2220,13 +2387,32 @@ function showRecordingWarnModal() {
   if (modal) modal.classList.remove('hidden');
 }
 
+function stopAllRecordings() {
+  const delegated = appSettings.multiWindow && !stationWindowId;
+  for (const [sid, st] of stations) {
+    if (st.state !== 'recording') continue;
+    logClient(`[${sid}] stop-all requested`);
+    if (delegated) pushToStationWindow(sid, { type: 'stop-recording' });
+    stopRecording(sid);
+  }
+  notifyRecordingState();
+}
+
 function initRecordingWarnModal() {
   const modal = document.getElementById('recording-warn-modal');
   if (!modal) return;
   const okBtn   = document.getElementById('recording-warn-ok-btn');
+  const stopBtn = document.getElementById('recording-warn-stop-btn');
   const backdrop = modal.querySelector('.help-modal-backdrop');
   const close = () => modal.classList.add('hidden');
   if (okBtn)    okBtn.addEventListener('click', close);
+  if (stopBtn) {
+    stopBtn.addEventListener('click', () => {
+      stopAllRecordings();
+      close();
+      switchTab('settings', true);
+    });
+  }
   if (backdrop) backdrop.addEventListener('click', close);
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
@@ -2281,10 +2467,14 @@ function initTabs() {
   });
 }
 
-function switchTab(tabId) {
-  if (tabId === 'settings' && isAnyRecording()) {
+function switchTab(tabId, force = false) {
+  if (tabId === 'settings' && !force && isAnyRecording()) {
     showRecordingWarnModal();
     return;
+  }
+  const ae = document.activeElement;
+  if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) {
+    ae.blur();
   }
   document.querySelectorAll('.tab-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.tab === tabId)

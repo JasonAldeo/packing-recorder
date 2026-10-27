@@ -55,6 +55,14 @@
     'help.l3.title':   'Paid but License Didn\'t Appear?',
     'help.l3.desc':    'Click Check My Payment on the purchase screen to update your license status manually.',
     'help.fullGuide':  'Open full guide on website \u2197',
+    'help.sendLog':    'Send log to support',
+    'help.logSending': 'Sending log\u2026',
+    'help.logSent':    (email) => `Log sent${email ? ' for ' + email : ''}. Thank you!`,
+    'help.logNotLoggedIn': 'Please log in to send the log.',
+    'help.logEmpty':   'No log file found yet.',
+    'help.logSessionExpired': 'Session expired. Please log in again.',
+    'help.logNetwork': 'Could not reach the server. Check your connection.',
+    'help.logFailed':  'Could not send the log. Please try again.',
 
     // Auth overlay
     'overlay.authSub': 'Sign in to your account to continue.',
@@ -124,12 +132,15 @@
     'status.manualRecording': 'Manual Recording',
     'status.shippingCode': (code) => `Shipping Code: ${code}`,
     'status.duplicate': (code, n) => `\u26A0 Duplicate! \u201C${code}\u201D already has ${n} recording(s).`,
+    'status.duplicateShort': (code) => `\u26A0 Duplicate: ${code}`,
     'status.switchToSearch': (code) => `Shipping Code: ${code} \u2014 switch to Search tab to view it.`,
     'status.saved': (filename) => `Saved: ${filename}`,
     'status.savedInfo': (filename, size) => `File: ${filename} \u2014 Size: ${size} KB`,
     'status.errorSaving': (msg) => `Error saving video: ${msg}`,
     'status.processing':  'Processing recording\u2026',
     'status.regularInProgress': '\u26A0 Regular recording in progress. Finish it first.',
+    'status.finishCurrentFirst': (code) => `\u26A0 Still recording \u201C${code}\u201D. Scan the same code to stop first.`,
+    'status.scanTooShort': (n) => `\u26A0 Scan ignored (only ${n} character${n === 1 ? '' : 's'}). Scan the waybill again.`,
     'status.scanStationFirst': '\u26A0 Scan a station QR code first to activate a station.',
     'status.stationArmed': (label) => `\u23F3 ${label}: waiting for barcode or manual QR\u2026`,
     'status.stationArmedCancel': 'Scan station QR again to cancel.',
@@ -262,6 +273,7 @@
     // Recording-active warning modal
     'warn.recordingActiveTitle': 'Recording in Progress',
     'warn.recordingActiveBody':  'Stop all recordings before opening Settings.',
+    'warn.stopAll':              '\u25A0 Stop Recording',
     'warn.ok':                   'OK',
 
     // App version & updates
@@ -339,6 +351,14 @@
     'help.l3.title':   'Sudah Bayar Tapi Belum Aktif?',
     'help.l3.desc':    'Klik tombol Cek Pembayaran Saya di layar pembelian untuk memperbarui status lisensi.',
     'help.fullGuide':  'Buka panduan lengkap di website \u2197',
+    'help.sendLog':    'Kirim log ke dukungan',
+    'help.logSending': 'Mengirim log\u2026',
+    'help.logSent':    (email) => `Log terkirim${email ? ' untuk ' + email : ''}. Terima kasih!`,
+    'help.logNotLoggedIn': 'Silakan masuk untuk mengirim log.',
+    'help.logEmpty':   'File log belum tersedia.',
+    'help.logSessionExpired': 'Sesi berakhir. Silakan masuk lagi.',
+    'help.logNetwork': 'Tidak dapat menghubungi server. Periksa koneksi Anda.',
+    'help.logFailed':  'Gagal mengirim log. Silakan coba lagi.',
 
     // Auth overlay
     'overlay.authSub': 'Masuk ke akun Anda untuk melanjutkan.',
@@ -408,12 +428,15 @@
     'status.manualRecording': 'Rekaman Manual',
     'status.shippingCode': (code) => `Kode Pengiriman: ${code}`,
     'status.duplicate': (code, n) => `\u26A0 Duplikat! \u201C${code}\u201D sudah memiliki ${n} rekaman.`,
+    'status.duplicateShort': (code) => `\u26A0 Duplikat: ${code}`,
     'status.switchToSearch': (code) => `Kode Pengiriman: ${code} \u2014 beralih ke tab Cari untuk melihatnya.`,
     'status.saved': (filename) => `Tersimpan: ${filename}`,
     'status.savedInfo': (filename, size) => `File: ${filename} \u2014 Ukuran: ${size} KB`,
     'status.errorSaving': (msg) => `Kesalahan menyimpan video: ${msg}`,
     'status.processing':  'Memproses rekaman\u2026',
     'status.regularInProgress': '\u26A0 Rekaman reguler sedang berjalan. Selesaikan terlebih dahulu.',
+    'status.finishCurrentFirst': (code) => `\u26A0 Masih merekam \u201C${code}\u201D. Pindai kode yang sama untuk berhenti dulu.`,
+    'status.scanTooShort': (n) => `\u26A0 Pemindaian diabaikan (hanya ${n} karakter). Pindai ulang resi.`,
     'status.scanStationFirst': '\u26A0 Scan kode QR stasiun terlebih dahulu untuk mengaktifkan stasiun.',
     'status.stationArmed': (label) => `\u23F3 ${label}: menunggu barcode atau QR manual\u2026`,
     'status.stationArmedCancel': 'Scan QR stasiun lagi untuk membatalkan.',
@@ -546,6 +569,7 @@
     // Recording-active warning modal
     'warn.recordingActiveTitle': 'Sedang Merekam',
     'warn.recordingActiveBody':  'Hentikan semua rekaman sebelum membuka Pengaturan.',
+    'warn.stopAll':              '\u25A0 Hentikan Rekaman',
     'warn.ok':                   'OK',
 
     // App version & updates

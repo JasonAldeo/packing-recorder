@@ -502,7 +502,8 @@ body {
 
 #camera-preview {
   width: 100%;
-  max-height: 360px;
+  max-width: 800px;
+  margin: 0 auto;
   border-radius: 12px;
   background: #0f172a;
   display: block;
@@ -1663,6 +1664,8 @@ body {
 .station-video-wrap {
   position: relative;
   width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
 .station-preview {
@@ -2269,6 +2272,29 @@ body {
   cursor: pointer;
 }
 .help-external-link:hover { text-decoration: underline; }
+.help-send-log-btn {
+  display: block;
+  margin: 0 auto 10px;
+  padding: 8px 18px;
+  border-radius: 9px;
+  border: 1.5px solid #c7d2fe;
+  background: #fff;
+  color: #3b5bdb;
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.help-send-log-btn:hover { background: #eef2ff; }
+.help-send-log-btn:disabled { opacity: 0.6; cursor: default; }
+.help-send-log-status {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+  color: #64748b;
+  min-height: 1em;
+}
+.help-send-log-status.success { color: #16a34a; }
+.help-send-log-status.error { color: #dc2626; }
 
 /* ── Recording-Active Warning Modal ── */
 .warn-modal-card {
@@ -2301,6 +2327,8 @@ body {
   margin-top: 8px;
   display: flex;
   justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 .warn-modal-actions .btn-primary {
   min-width: 100px;

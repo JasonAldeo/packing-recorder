@@ -353,7 +353,7 @@ async function checkEmailBan(email) {
 // ─── Express Setup ────────────────────────────────────────────────────────────
 const app = express();
 app.set('trust proxy', 1);
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 
 // ─── Clean URL redirects (301) — must be before express.static ───────────────
 // Preserves query strings so existing Electron app links (/purchase.html?token=)
@@ -415,6 +415,14 @@ const forgotPasswordLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
+});
+
+const sendLogLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many log uploads, please try again later.' },
 });
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
@@ -1207,6 +1215,66 @@ app.post('/set-version', async (req, res) => {
   } catch (err) {
     console.error('[set-version]', err.message);
     res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
+
+app.post('/send-log', sendLogLimiter, requireAuth, async (req, res) => {
+  if (!resend) {
+    return res.status(503).json({ error: 'Log delivery is not configured.' });
+  }
+
+  const email = req.user && req.user.email;
+  if (!email) return res.status(401).json({ error: 'Authentication required.' });
+
+  let { log, timestamp, version, platform, osRelease } = req.body || {};
+  if (!log || typeof log !== 'string') {
+    return res.status(400).json({ error: 'log is required.' });
+  }
+  const MAX_LOG = 1024 * 1024;
+  if (log.length > MAX_LOG) log = log.slice(-MAX_LOG);
+
+  const ts = (typeof timestamp === 'string' && timestamp.trim())
+    ? timestamp.trim().slice(0, 64).replace(/[\r\n]+/g, ' ')
+    : new Date().toISOString();
+  const ver = typeof version === 'string' ? version.slice(0, 32) : 'unknown';
+  const plat = typeof platform === 'string' ? platform.slice(0, 64) : 'unknown';
+  const osRel = typeof osRelease === 'string' ? osRelease.slice(0, 64) : '';
+
+  const subject = `Packing Recorder Log: ${email} at ${ts}`;
+
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to: SUPPORT_EMAIL,
+      replyTo: email,
+      subject,
+      html: `
+        <div style="font-family:sans-serif;max-width:760px;margin:0 auto;padding:24px;">
+          <h2 style="margin:0 0 12px;font-size:18px;color:#1a1a1a;">Packing Recorder log</h2>
+          <p style="margin:0 0 6px;color:#444;font-size:14px;"><strong>User:</strong> ${escapeHtml(email)}</p>
+          <p style="margin:0 0 6px;color:#444;font-size:14px;"><strong>Time:</strong> ${escapeHtml(ts)}</p>
+          <p style="margin:0 0 6px;color:#444;font-size:14px;"><strong>Version:</strong> ${escapeHtml(ver)}</p>
+          <p style="margin:0 0 18px;color:#444;font-size:14px;"><strong>System:</strong> ${escapeHtml(plat)} ${escapeHtml(osRel)}</p>
+          <pre style="background:#f6f8fa;border:1px solid #e5e7eb;border-radius:8px;padding:14px;font-size:12px;white-space:pre-wrap;word-break:break-word;max-height:600px;overflow:auto;">${escapeHtml(log)}</pre>
+        </div>
+      `,
+      attachments: [{
+        filename: 'packing-recorder-log.txt',
+        content: Buffer.from(log, 'utf8').toString('base64'),
+      }],
+    });
+
+    console.log(`[send-log] Log from ${email} sent to ${SUPPORT_EMAIL}`);
+    res.json({ ok: true, email, subject });
+  } catch (err) {
+    console.error('[send-log]', err.message);
+    res.status(500).json({ error: 'Could not send the log. Please try again.' });
   }
 });
 
