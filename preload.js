@@ -59,7 +59,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   recoverLicense:        ()                         => ipcRenderer.invoke('recover-license'),
   sendLog:               ()                         => ipcRenderer.invoke('send-log'),
   openExternalUrl:       (url)                      => ipcRenderer.invoke('open-external-url', url),
-  fetchPricing:          ()                         => ipcRenderer.invoke('fetch-pricing'),
+  fetchPricing:          (currency)                 => ipcRenderer.invoke('fetch-pricing', currency),
 
   // ─── App version & updates ─────────────────────────────────────────────────
   getAppVersion:         ()                         => ipcRenderer.invoke('get-app-version'),

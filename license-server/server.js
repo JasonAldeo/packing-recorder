@@ -44,6 +44,38 @@ const DEFAULT_PRICING = {
 
 let pricingConfig = { ...DEFAULT_PRICING };
 
+// ─── Currency display ─────────────────────────────────────────────────────────
+// Display-only conversion. Prices are always CHARGED in IDR by Midtrans; the
+// local-currency figure is an estimate so foreign customers can read the price.
+// Rates are IDR → local units, anchored to roughly USD/IDR ≈ 16,300.
+// Update these periodically (or wire an FX API) to keep the estimate close.
+const CURRENCIES = {
+  IDR: { rate: 1,          symbol: 'Rp ', locale: 'id-ID', decimals: 0 },
+  USD: { rate: 0.0000613,  symbol: '$',   locale: 'en-US', decimals: 2 },
+  PHP: { rate: 0.00350,    symbol: '₱',   locale: 'en-PH', decimals: 2 },
+  VND: { rate: 1.56,       symbol: '₫',   locale: 'vi-VN', decimals: 0 },
+  KRW: { rate: 0.0828,     symbol: '₩',   locale: 'ko-KR', decimals: 0 },
+  JPY: { rate: 0.00920,    symbol: 'JP¥', locale: 'ja-JP', decimals: 0 },
+  CNY: { rate: 0.000436,   symbol: 'CN¥', locale: 'zh-CN', decimals: 2 },
+  EUR: { rate: 0.0000564,  symbol: '€',   locale: 'de-DE', decimals: 2 },
+  SGD: { rate: 0.0000822,  symbol: 'S$',  locale: 'en-SG', decimals: 2 },
+  MYR: { rate: 0.000270,   symbol: 'RM',  locale: 'ms-MY', decimals: 2 },
+};
+const DEFAULT_CURRENCY = 'IDR';
+
+/** Returns a supported currency code, falling back to IDR. */
+function normalizeCurrency(code) {
+  const c = String(code || '').toUpperCase();
+  return CURRENCIES[c] ? c : DEFAULT_CURRENCY;
+}
+
+/** Converts an IDR amount into the target currency, rounded for display. */
+function convertCurrency(idrAmount, code) {
+  const meta = CURRENCIES[code] || CURRENCIES[DEFAULT_CURRENCY];
+  const raw = Number(idrAmount) * meta.rate;
+  return meta.decimals === 0 ? Math.round(raw) : Math.round(raw * 100) / 100;
+}
+
 /** Returns true if a promo is currently active. */
 function isPromoActive(cfg) {
   return !!(cfg.promoEndsAt && new Date(cfg.promoEndsAt) > new Date());
@@ -1282,11 +1314,16 @@ app.post('/send-log', sendLogLimiter, requireAuth, async (req, res) => {
 // ─── Pricing ──────────────────────────────────────────────────────────────────
 
 /**
- * GET /pricing
+ * GET /pricing?currency=PHP
  * Public. Returns current pricing config and effective price.
+ * The `local` block holds display-only converted amounts; `effectivePrice`
+ * and friends remain the authoritative IDR amounts that Midtrans charges.
  */
 app.get('/pricing', (req, res) => {
   const promoActive = isPromoActive(pricingConfig);
+  const currency = normalizeCurrency(req.query.currency);
+  const meta = CURRENCIES[currency];
+  const toLocal = n => convertCurrency(n, currency);
   res.json({
     publishedPrice: pricingConfig.publishedPrice,
     rsp:            pricingConfig.rsp,
@@ -1303,6 +1340,21 @@ app.get('/pricing', (req, res) => {
     yearlyPrice:      getYearlyPrice(pricingConfig),
     yearlyCompareAt:  getYearlyCompareAt(pricingConfig),
     yearlyDiscountPct: pricingConfig.yearlyDiscountPct,
+    // ── Local-currency display (estimate; charge is always IDR) ──
+    currency,
+    currencySymbol: meta.symbol,
+    currencyLocale: meta.locale,
+    currencyDecimals: meta.decimals,
+    fxRate: meta.rate,
+    local: {
+      publishedPrice:  toLocal(pricingConfig.publishedPrice),
+      effectivePrice:  toLocal(getEffectivePrice(pricingConfig)),
+      yearlyPrice:     toLocal(getYearlyPrice(pricingConfig)),
+      yearlyCompareAt: toLocal(getYearlyCompareAt(pricingConfig)),
+    },
+    currencies: Object.entries(CURRENCIES).map(([code, m]) => ({
+      code, symbol: m.symbol, locale: m.locale, decimals: m.decimals,
+    })),
   });
 });
 

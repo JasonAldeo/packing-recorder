@@ -696,6 +696,36 @@
       color: var(--light);
       margin-bottom: 20px;
     }
+    .pricing-currency-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin: -6px 0 20px;
+    }
+    .pricing-currency-row label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--light);
+    }
+    #pricing-currency {
+      font-family: inherit;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--blue);
+      background: #fff;
+      border: 1px solid #c7d2fe;
+      border-radius: 8px;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+    #pricing-currency:hover { border-color: var(--blue); }
+    .pricing-idr-note {
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--light);
+      margin-top: 16px;
+    }
     .pricing-features {
       list-style: none;
       margin-bottom: 24px;
@@ -1595,6 +1625,11 @@
     <h2 class="section-title" data-i18n="pricing.title">Harga yang terjangkau</h2>
     <p class="section-sub" data-i18n="pricing.sub">Mulai gratis, bayar hanya saat butuh. Tidak ada kontrak, tidak ada biaya tersembunyi.</p>
 
+    <div class="pricing-currency-row">
+      <label for="pricing-currency" data-i18n="pricing.currency">Mata uang</label>
+      <select id="pricing-currency"></select>
+    </div>
+
     <div class="pricing-grid">
       <!-- Free Trial -->
       <div class="pricing-card">
@@ -1644,6 +1679,8 @@
         <div class="pricing-note" data-i18n="plan3.note">Bayar via GoPay, transfer bank, QRIS, dan lainnya di dalam aplikasi.</div>
       </div>
     </div>
+
+    <div id="pricing-idr-note" class="pricing-idr-note" style="display:none;"></div>
 
     <p class="pricing-cta-note">
       <strong data-i18n="pricing.ctaNote">Pembelian dilakukan di dalam aplikasi</strong>
@@ -1792,6 +1829,8 @@
       'pricing.label':          'Harga',
       'pricing.title':          'Harga yang terjangkau',
       'pricing.sub':            'Mulai gratis, bayar hanya saat butuh. Tidak ada kontrak, tidak ada biaya tersembunyi.',
+      'pricing.currency':       'Mata uang',
+      'pricing.idrNote':        'Harga perkiraan. Pembayaran ditagih dalam IDR ({amount}).',
       'plan1.name':             'Percobaan Gratis',
       'plan1.period':           '14 hari pertama',
       'plan1.f1':               'Semua fitur tersedia',
@@ -1910,6 +1949,8 @@
       'pricing.label':          'Pricing',
       'pricing.title':          'Simple, affordable pricing',
       'pricing.sub':            'Start free, pay only when you need it. No contracts, no hidden fees.',
+      'pricing.currency':       'Currency',
+      'pricing.idrNote':        'Estimated price. Payment is charged in IDR ({amount}).',
       'plan1.name':             'Free Trial',
       'plan1.period':           'First 14 days',
       'plan1.f1':               'All features included',
@@ -1954,6 +1995,55 @@
   // ── Language switcher ───────────────────────────────────────────────────────
   let currentLang = localStorage.getItem('pr_site_lang') || 'en';
   let _pricingData = null; // cached so setLang can re-render promo elements
+  let _pricingCurrency = localStorage.getItem('pr_pricing_currency') || detectPricingCurrency();
+
+  const CURRENCY_OPTIONS = [
+    ['IDR', 'Rp'], ['USD', '$'], ['PHP', '₱'], ['VND', '₫'], ['KRW', '₩'],
+    ['JPY', 'JP¥'], ['CNY', 'CN¥'], ['EUR', '€'], ['SGD', 'S$'], ['MYR', 'RM'],
+  ];
+
+  /** Picks a display currency from the browser locale. */
+  function detectPricingCurrency() {
+    const lang = (navigator.language || '').toLowerCase();
+    if (lang.startsWith('ko')) return 'KRW';
+    if (lang.startsWith('ja')) return 'JPY';
+    if (lang.startsWith('zh')) return 'CNY';
+    if (lang.startsWith('fil') || lang.startsWith('tl') || lang === 'en-ph') return 'PHP';
+    if (lang.startsWith('vi')) return 'VND';
+    if (lang.startsWith('ms')) return 'MYR';
+    if (lang.startsWith('en-sg')) return 'SGD';
+    if (lang.startsWith('de') || lang.startsWith('fr') || lang.startsWith('es') ||
+        lang.startsWith('it') || lang.startsWith('nl')) return 'EUR';
+    if (lang.startsWith('en-us')) return 'USD';
+    return 'IDR';
+  }
+
+  /** Formats an amount in the currency returned by /pricing. */
+  function fmtLocal(n) {
+    const d = _pricingData || {};
+    const symbol = d.currencySymbol || 'Rp ';
+    const locale = d.currencyLocale || 'id-ID';
+    const decimals = d.currencyDecimals != null ? d.currencyDecimals : 0;
+    return symbol + Number(n).toLocaleString(locale, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    });
+  }
+
+  function fmtIdr(n) { return 'Rp ' + Number(n).toLocaleString('id-ID'); }
+
+  function populateCurrencySelect() {
+    const sel = document.getElementById('pricing-currency');
+    if (!sel || sel.options.length) return;
+    if (!CURRENCY_OPTIONS.some(([code]) => code === _pricingCurrency)) _pricingCurrency = 'IDR';
+    CURRENCY_OPTIONS.forEach(([code, sym]) => {
+      const opt = document.createElement('option');
+      opt.value = code;
+      opt.textContent = `${code} ${sym}`;
+      sel.appendChild(opt);
+    });
+    sel.value = _pricingCurrency;
+  }
 
   function setLang(lang) {
     currentLang = lang;
@@ -1970,29 +2060,9 @@
       }
     });
 
-    // Re-render promo elements that were set imperatively from fetch data
+    // Re-render prices and promo elements that were set imperatively
     if (_pricingData) {
-      const fmt = n => 'Rp ' + Number(n).toLocaleString('id-ID');
-
-      // Re-render price labels for the current language
-      const effectiveEl = document.getElementById('pricing-effective');
-      if (effectiveEl) effectiveEl.innerHTML = `${fmt(_pricingData.effectivePrice)} <span>${lang === 'id' ? '/ 30 hari' : '/ 30 days'}</span>`;
-      const yearlyPriceEl = document.getElementById('pricing-yearly');
-      if (yearlyPriceEl) yearlyPriceEl.innerHTML = `${fmt(_pricingData.yearlyPrice)} <span>${lang === 'id' ? '/ 1 tahun' : '/ 1 year'}</span>`;
-
-      const promoBadge  = document.getElementById('pricing-promo-badge');
-      const promoEndsEl = document.getElementById('pricing-promo-ends');
-
-      if (promoBadge && promoBadge.style.display !== 'none') {
-        promoBadge.textContent = lang === 'id' ? _pricingData.promoLabelId : _pricingData.promoLabelEn;
-      }
-      if (promoEndsEl && _pricingData.promoEndsAt && promoEndsEl.style.display !== 'none') {
-        const d = new Date(_pricingData.promoEndsAt);
-        const dateStr = d.toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-        promoEndsEl.textContent = lang === 'id' ? `Promo s.d. ${dateStr}` : `Promo until ${dateStr}`;
-      }
-
-      // Update bottom promo banner if visible
+      renderPricing();
       renderPromoBanner(lang);
     }
   }
@@ -2026,50 +2096,89 @@
     .catch(() => { /* silently ignore if server unreachable */ });
 
   // ── Pricing ─────────────────────────────────────────────────────────────────
-  fetch('/pricing')
-    .then(r => r.json())
-    .then(data => {
-      _pricingData = data;
-      const perLabel = currentLang === 'id' ? '/ 30 hari' : '/ 30 days';
-      const fmt = n => 'Rp ' + Number(n).toLocaleString('id-ID');
+  function renderPricing() {
+    const data = _pricingData;
+    if (!data) return;
+    const local = data.local || {
+      effectivePrice: data.effectivePrice,
+      publishedPrice: data.publishedPrice,
+      yearlyPrice: data.yearlyPrice,
+      yearlyCompareAt: data.yearlyCompareAt,
+    };
+    const perLabel = currentLang === 'id' ? '/ 30 hari' : '/ 30 days';
+    const yearlyPer = currentLang === 'id' ? '/ 1 tahun' : '/ 1 year';
 
-      const effectiveEl = document.getElementById('pricing-effective');
-      const originalEl  = document.getElementById('pricing-original');
-      const promoBadge  = document.getElementById('pricing-promo-badge');
-      const promoEndsEl = document.getElementById('pricing-promo-ends');
+    const effectiveEl = document.getElementById('pricing-effective');
+    const originalEl  = document.getElementById('pricing-original');
+    const promoBadge  = document.getElementById('pricing-promo-badge');
+    const promoEndsEl = document.getElementById('pricing-promo-ends');
 
-      if (effectiveEl) effectiveEl.innerHTML = `${fmt(data.effectivePrice)} <span>${perLabel}</span>`;
+    if (effectiveEl) effectiveEl.innerHTML = `${fmtLocal(local.effectivePrice)} <span>${perLabel}</span>`;
 
-      // Yearly card — always show compare-at (published x 12) + discounted price
-      const yearlyPriceEl = document.getElementById('pricing-yearly');
-      const yearlyOrigEl  = document.getElementById('pricing-yearly-original');
-      if (yearlyPriceEl) yearlyPriceEl.innerHTML = `${fmt(data.yearlyPrice)} <span>${currentLang === 'id' ? '/ 1 tahun' : '/ 1 year'}</span>`;
-      if (yearlyOrigEl)  { yearlyOrigEl.textContent = fmt(data.yearlyCompareAt); yearlyOrigEl.style.display = ''; }
+    // Yearly card — always show compare-at (published x 12) + discounted price
+    const yearlyPriceEl = document.getElementById('pricing-yearly');
+    const yearlyOrigEl  = document.getElementById('pricing-yearly-original');
+    if (yearlyPriceEl) yearlyPriceEl.innerHTML = `${fmtLocal(local.yearlyPrice)} <span>${yearlyPer}</span>`;
+    if (yearlyOrigEl)  { yearlyOrigEl.textContent = fmtLocal(local.yearlyCompareAt); yearlyOrigEl.style.display = ''; }
 
-      if (data.promoActive) {
-        if (originalEl)  { originalEl.textContent = fmt(data.publishedPrice); originalEl.style.display = ''; }
-        if (promoBadge)  {
-          promoBadge.textContent = currentLang === 'id' ? data.promoLabelId : data.promoLabelEn;
-          promoBadge.style.display = '';
-        }
-        if (promoEndsEl && data.promoEndsAt) {
-          const d = new Date(data.promoEndsAt);
-          const dateStr = d.toLocaleDateString(currentLang === 'id' ? 'id-ID' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-          const label = currentLang === 'id' ? `Promo s.d. ${dateStr}` : `Promo until ${dateStr}`;
-          promoEndsEl.textContent = label;
-          promoEndsEl.style.display = '';
-        }
-        // Show promo banner (bottom pill) unless dismissed this session
-        if (!sessionStorage.getItem('promoBannerDismissed')) {
+    if (data.promoActive) {
+      if (originalEl)  { originalEl.textContent = fmtLocal(local.publishedPrice); originalEl.style.display = ''; }
+      if (promoBadge)  {
+        promoBadge.textContent = currentLang === 'id' ? data.promoLabelId : data.promoLabelEn;
+        promoBadge.style.display = '';
+      }
+      if (promoEndsEl && data.promoEndsAt) {
+        const d = new Date(data.promoEndsAt);
+        const dateStr = d.toLocaleDateString(currentLang === 'id' ? 'id-ID' : 'en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+        promoEndsEl.textContent = currentLang === 'id' ? `Promo s.d. ${dateStr}` : `Promo until ${dateStr}`;
+        promoEndsEl.style.display = '';
+      }
+    } else {
+      if (originalEl)  originalEl.style.display = 'none';
+      if (promoBadge)  promoBadge.style.display = 'none';
+      if (promoEndsEl) promoEndsEl.style.display = 'none';
+    }
+
+    // Local-currency note (charges always settle in IDR)
+    const noteEl = document.getElementById('pricing-idr-note');
+    if (noteEl) {
+      if (data.currency === 'IDR') {
+        noteEl.style.display = 'none';
+      } else {
+        const tmpl = (TEXTS[currentLang] || {})['pricing.idrNote'] || '';
+        noteEl.textContent = tmpl.replace('{amount}', fmtIdr(data.effectivePrice));
+        noteEl.style.display = '';
+      }
+    }
+  }
+
+  function loadPricing(currency) {
+    fetch(`/pricing?currency=${encodeURIComponent(currency || 'IDR')}`)
+      .then(r => r.json())
+      .then(data => {
+        _pricingData = data;
+        renderPricing();
+        if (data.promoActive && !sessionStorage.getItem('promoBannerDismissed')) {
           renderPromoBanner(currentLang);
           setTimeout(() => {
             const b = document.getElementById('promo-banner');
             if (b) b.classList.add('visible');
           }, 500);
         }
-      }
-    })
-    .catch(() => { /* silently ignore */ });
+      })
+      .catch(() => { /* silently ignore */ });
+  }
+
+  populateCurrencySelect();
+  const pricingCurrencySelect = document.getElementById('pricing-currency');
+  if (pricingCurrencySelect) {
+    pricingCurrencySelect.addEventListener('change', () => {
+      _pricingCurrency = pricingCurrencySelect.value;
+      localStorage.setItem('pr_pricing_currency', _pricingCurrency);
+      loadPricing(_pricingCurrency);
+    });
+  }
+  loadPricing(_pricingCurrency);
 
   // ── Download banner ──────────────────────────────────────────────────────────
   function showDownloadBanner() {
@@ -2084,14 +2193,14 @@
   // ── Promo banner ─────────────────────────────────────────────────────────────
   function renderPromoBanner(lang) {
     if (!_pricingData || !_pricingData.promoActive) return;
-    const fmt = n => 'Rp ' + Number(n).toLocaleString('id-ID');
+    const local = _pricingData.local || { effectivePrice: _pricingData.effectivePrice };
 
     const labelEl  = document.getElementById('promo-banner-label');
     const detailEl = document.getElementById('promo-banner-detail');
     const linkEl   = document.getElementById('promo-banner-link');
 
     const promoLabel = lang === 'id' ? _pricingData.promoLabelId : _pricingData.promoLabelEn;
-    const price      = fmt(_pricingData.effectivePrice);
+    const price      = fmtLocal(local.effectivePrice);
     const period     = lang === 'id' ? '/ 30 hari' : '/ 30 days';
 
     let detail = `${price} ${period}`;

@@ -73,7 +73,7 @@ function serverRequest(method, urlPath, body, token) {
     const options = {
       hostname: url.hostname,
       port: url.port || (isHttps ? 443 : 80),
-      path: url.pathname,
+      path: url.pathname + (url.search || ''),
       method,
       headers,
     };
@@ -355,9 +355,10 @@ ipcMain.handle('open-external-url', (event, url) => {
 });
 
 // IPC: fetch live pricing from server — used to display dynamic prices in the buy overlay
-ipcMain.handle('fetch-pricing', async () => {
+ipcMain.handle('fetch-pricing', async (event, currency) => {
   try {
-    const resp = await serverRequest('GET', '/pricing');
+    const qs = currency ? `?currency=${encodeURIComponent(currency)}` : '';
+    const resp = await serverRequest('GET', `/pricing${qs}`);
     if (resp.status === 200) return resp.body;
   } catch (_) {}
   return null;

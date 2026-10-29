@@ -197,6 +197,26 @@
       text-decoration: line-through;
       margin-bottom: 2px;
     }
+    .currency-row {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .currency-row label { font-size: 0.78rem; font-weight: 600; color: #64748b; }
+    #purchase-currency {
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #3b5bdb;
+      background: #fff;
+      border: 1px solid #c7d2fe;
+      border-radius: 8px;
+      padding: 5px 8px;
+      cursor: pointer;
+    }
+    #purchase-currency:hover { border-color: #3b5bdb; }
     .plan-promo-badge {
       display: none;
       font-size: 0.62rem;
@@ -359,6 +379,11 @@
       <li>License tied to your account, not to a computer</li>
     </ul>
 
+    <div class="currency-row">
+      <label for="purchase-currency">Currency</label>
+      <select id="purchase-currency"></select>
+    </div>
+
     <div class="plan-selector" id="plan-selector">
       <label class="plan-option selected" id="plan-card-monthly">
         <input type="radio" name="plan" value="monthly" checked />
@@ -382,6 +407,8 @@
         <div class="plan-note">Save 10% — pay once a year</div>
       </label>
     </div>
+
+    <div id="purchase-idr-note" class="price-note" style="display:none;"></div>
 
     <button class="btn-primary" id="pay-btn">Pay Now &rarr;</button>
     <div id="payment-notice" class="payment-notice hidden">
@@ -419,43 +446,125 @@
 
   // ── Load dynamic pricing + client key ────────────────────────────────────
   let selectedPlan = 'monthly';
-  fetch(`${SERVER}/pricing`)
-    .then(r => r.json())
-    .then(data => {
-      const fmt = n => 'Rp ' + Number(n).toLocaleString('en-US');
 
-      // Monthly plan
-      const monthlyPriceEl = document.getElementById('plan-monthly-price');
-      const monthlyOrigEl  = document.getElementById('plan-monthly-original');
-      const monthlyBadgeEl = document.getElementById('plan-monthly-badge');
-      if (monthlyPriceEl) monthlyPriceEl.textContent = fmt(data.effectivePrice);
-      if (data.promoActive) {
-        if (monthlyOrigEl)  { monthlyOrigEl.textContent = fmt(data.publishedPrice); monthlyOrigEl.style.display = ''; }
-        if (monthlyBadgeEl) { monthlyBadgeEl.textContent = data.promoLabelId; monthlyBadgeEl.style.display = 'block'; }
-      }
+  // ── Currency selector (display-only; charge is always IDR) ────────────────
+  const CURRENCY_OPTIONS = [
+    ['IDR', 'Rp'], ['USD', '$'], ['PHP', '₱'], ['VND', '₫'], ['KRW', '₩'],
+    ['JPY', 'JP¥'], ['CNY', 'CN¥'], ['EUR', '€'], ['SGD', 'S$'], ['MYR', 'RM'],
+  ];
+  let _pricingCurrency = localStorage.getItem('pr_pricing_currency') || detectPricingCurrency();
 
-      // Yearly plan — always show compare-at (published x 12) + discounted price
-      const yearlyPriceEl = document.getElementById('plan-yearly-price');
-      const yearlyOrigEl  = document.getElementById('plan-yearly-original');
-      if (yearlyPriceEl) yearlyPriceEl.textContent = fmt(data.yearlyPrice);
-      if (yearlyOrigEl)  {
-        yearlyOrigEl.textContent = fmt(data.yearlyCompareAt);
-        yearlyOrigEl.style.display = '';
-      }
+  function detectPricingCurrency() {
+    const lang = (navigator.language || '').toLowerCase();
+    if (lang.startsWith('ko')) return 'KRW';
+    if (lang.startsWith('ja')) return 'JPY';
+    if (lang.startsWith('zh')) return 'CNY';
+    if (lang.startsWith('fil') || lang.startsWith('tl') || lang === 'en-ph') return 'PHP';
+    if (lang.startsWith('vi')) return 'VND';
+    if (lang.startsWith('ms')) return 'MYR';
+    if (lang.startsWith('en-sg')) return 'SGD';
+    if (lang.startsWith('de') || lang.startsWith('fr') || lang.startsWith('es') ||
+        lang.startsWith('it') || lang.startsWith('nl')) return 'EUR';
+    if (lang.startsWith('en-us')) return 'USD';
+    return 'IDR';
+  }
 
-      if (data.paymentDisabled) {
-        if (paymentNotice) paymentNotice.classList.remove('hidden');
-        if (payBtn) { payBtn.disabled = true; payBtn.style.opacity = '0.5'; payBtn.style.cursor = 'not-allowed'; }
+  function fmtLocal(n, data) {
+    const symbol = data.currencySymbol || 'Rp ';
+    const locale = data.currencyLocale || 'id-ID';
+    const decimals = data.currencyDecimals != null ? data.currencyDecimals : 0;
+    return symbol + Number(n).toLocaleString(locale, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    });
+  }
+
+  function fmtIdr(n) { return 'Rp ' + Number(n).toLocaleString('id-ID'); }
+
+  function populatePurchaseCurrency() {
+    const sel = document.getElementById('purchase-currency');
+    if (!sel || sel.options.length) return;
+    if (!CURRENCY_OPTIONS.some(([code]) => code === _pricingCurrency)) _pricingCurrency = 'IDR';
+    CURRENCY_OPTIONS.forEach(([code, sym]) => {
+      const opt = document.createElement('option');
+      opt.value = code;
+      opt.textContent = `${code} ${sym}`;
+      sel.appendChild(opt);
+    });
+    sel.value = _pricingCurrency;
+  }
+
+  function renderPurchasePricing(data) {
+    const local = data.local || {
+      effectivePrice: data.effectivePrice,
+      publishedPrice: data.publishedPrice,
+      yearlyPrice: data.yearlyPrice,
+      yearlyCompareAt: data.yearlyCompareAt,
+    };
+
+    // Monthly plan
+    const monthlyPriceEl = document.getElementById('plan-monthly-price');
+    const monthlyOrigEl  = document.getElementById('plan-monthly-original');
+    const monthlyBadgeEl = document.getElementById('plan-monthly-badge');
+    if (monthlyPriceEl) monthlyPriceEl.textContent = fmtLocal(local.effectivePrice, data);
+    if (data.promoActive) {
+      if (monthlyOrigEl)  { monthlyOrigEl.textContent = fmtLocal(local.publishedPrice, data); monthlyOrigEl.style.display = ''; }
+      if (monthlyBadgeEl) { monthlyBadgeEl.textContent = data.promoLabelId; monthlyBadgeEl.style.display = 'block'; }
+    } else {
+      if (monthlyOrigEl)  monthlyOrigEl.style.display = 'none';
+      if (monthlyBadgeEl) monthlyBadgeEl.style.display = 'none';
+    }
+
+    // Yearly plan — always show compare-at (published x 12) + discounted price
+    const yearlyPriceEl = document.getElementById('plan-yearly-price');
+    const yearlyOrigEl  = document.getElementById('plan-yearly-original');
+    if (yearlyPriceEl) yearlyPriceEl.textContent = fmtLocal(local.yearlyPrice, data);
+    if (yearlyOrigEl)  {
+      yearlyOrigEl.textContent = fmtLocal(local.yearlyCompareAt, data);
+      yearlyOrigEl.style.display = '';
+    }
+
+    // Local-currency note (charges always settle in IDR)
+    const noteEl = document.getElementById('purchase-idr-note');
+    if (noteEl) {
+      if (data.currency === 'IDR') {
+        noteEl.style.display = 'none';
+      } else {
+        noteEl.textContent = `Estimated price. Payment is charged in IDR (${fmtIdr(data.effectivePrice)}).`;
+        noteEl.style.display = '';
       }
-      // Dynamically inject the Midtrans Snap SDK with the client key
-      if (data.clientKey) {
-        const snapScript = document.createElement('script');
-        snapScript.src = data.snapJsUrl || 'https://app.midtrans.com/snap/snap.js';
-        snapScript.setAttribute('data-client-key', data.clientKey);
-        document.head.appendChild(snapScript);
-      }
-    })
-    .catch(() => { /* silently ignore */ });
+    }
+
+    if (data.paymentDisabled) {
+      if (paymentNotice) paymentNotice.classList.remove('hidden');
+      if (payBtn) { payBtn.disabled = true; payBtn.style.opacity = '0.5'; payBtn.style.cursor = 'not-allowed'; }
+    }
+    // Dynamically inject the Midtrans Snap SDK with the client key
+    if (data.clientKey && !document.querySelector('script[data-client-key]')) {
+      const snapScript = document.createElement('script');
+      snapScript.src = data.snapJsUrl || 'https://app.midtrans.com/snap/snap.js';
+      snapScript.setAttribute('data-client-key', data.clientKey);
+      document.head.appendChild(snapScript);
+    }
+  }
+
+  function loadPurchasePricing(currency) {
+    fetch(`${SERVER}/pricing?currency=${encodeURIComponent(currency || 'IDR')}`)
+      .then(r => r.json())
+      .then(data => renderPurchasePricing(data))
+      .catch(() => { /* silently ignore */ });
+  }
+
+  populatePurchaseCurrency();
+  const purchaseCurrencySelect = document.getElementById('purchase-currency');
+  if (purchaseCurrencySelect) {
+    purchaseCurrencySelect.addEventListener('change', () => {
+      _pricingCurrency = purchaseCurrencySelect.value;
+      localStorage.setItem('pr_pricing_currency', _pricingCurrency);
+      loadPurchasePricing(_pricingCurrency);
+    });
+  }
+  loadPurchasePricing(_pricingCurrency);
 
   // ── Plan selection ─────────────────────────────────────────────────────────
   document.querySelectorAll('input[name="plan"]').forEach(radio => {

@@ -26,6 +26,56 @@ const stations = new Map();
 // Settings cache
 let appSettings = {};
 
+// ─── Currency display ────────────────────────────────────────────────────────
+// Display-only. Prices are always charged in IDR; local currency is an estimate.
+// Rates mirror license-server/server.js (IDR → local units).
+const CURRENCIES = {
+  IDR: { rate: 1,         symbol: 'Rp ', locale: 'id-ID', decimals: 0 },
+  USD: { rate: 0.0000613, symbol: '$',   locale: 'en-US', decimals: 2 },
+  PHP: { rate: 0.00350,   symbol: '₱',   locale: 'en-PH', decimals: 2 },
+  VND: { rate: 1.56,      symbol: '₫',   locale: 'vi-VN', decimals: 0 },
+  KRW: { rate: 0.0828,    symbol: '₩',   locale: 'ko-KR', decimals: 0 },
+  JPY: { rate: 0.00920,   symbol: 'JP¥', locale: 'ja-JP', decimals: 0 },
+  CNY: { rate: 0.000436,  symbol: 'CN¥', locale: 'zh-CN', decimals: 2 },
+  EUR: { rate: 0.0000564, symbol: '€',   locale: 'de-DE', decimals: 2 },
+  SGD: { rate: 0.0000822, symbol: 'S$',  locale: 'en-SG', decimals: 2 },
+  MYR: { rate: 0.000270,  symbol: 'RM',  locale: 'ms-MY', decimals: 2 },
+};
+let overlayCurrency = 'IDR';
+
+/** Picks a display currency from the OS/browser locale. */
+function detectCurrency() {
+  const lang = (navigator.language || '').toLowerCase();
+  if (lang.startsWith('ko')) return 'KRW';
+  if (lang.startsWith('ja')) return 'JPY';
+  if (lang.startsWith('zh')) return 'CNY';
+  if (lang.startsWith('fil') || lang.startsWith('tl') || lang === 'en-ph') return 'PHP';
+  if (lang.startsWith('vi')) return 'VND';
+  if (lang.startsWith('ms')) return 'MYR';
+  if (lang.startsWith('id')) return 'IDR';
+  if (lang.startsWith('en-sg')) return 'SGD';
+  if (lang.startsWith('de') || lang.startsWith('fr') || lang.startsWith('es') ||
+      lang.startsWith('it') || lang.startsWith('nl')) return 'EUR';
+  if (lang.startsWith('en-us')) return 'USD';
+  return 'IDR';
+}
+
+/** Formats an amount in the given currency using its locale/symbol. */
+function formatMoney(amount, code) {
+  const c = CURRENCIES[code] || CURRENCIES.IDR;
+  return c.symbol + Number(amount).toLocaleString(c.locale, {
+    minimumFractionDigits: c.decimals,
+    maximumFractionDigits: c.decimals,
+  });
+}
+
+/** Offline fallback: converts an IDR amount with the static rate table. */
+function convertStatic(idrAmount, code) {
+  const c = CURRENCIES[code] || CURRENCIES.IDR;
+  const raw = Number(idrAmount) * c.rate;
+  return c.decimals === 0 ? Math.round(raw) : Math.round(raw * 100) / 100;
+}
+
 // Whether this window is a station window (loaded with ?station=X)
 const urlParams = new URLSearchParams(window.location.search);
 const stationWindowId = urlParams.get('station'); // e.g. 'station1' or null
@@ -108,6 +158,10 @@ const cameraWarningEl      = document.getElementById('camera-warning');
     if (appSettings.locale) {
       window._i18n.setLocale(appSettings.locale);
     }
+
+    // Currency selector for the buy overlay
+    overlayCurrency = appSettings.currency || detectCurrency();
+    initOverlayCurrency();
 
     if (stationWindowId) {
       // This is a station-specific window — render only that station
@@ -2333,25 +2387,61 @@ function showBuyOverlay(mode) {
   }
 }
 
+/** Populates the overlay currency dropdown and persists the user's choice. */
+function initOverlayCurrency() {
+  const select = document.getElementById('overlay-currency-select');
+  if (!select) return;
+  if (!CURRENCIES[overlayCurrency]) overlayCurrency = detectCurrency();
+  select.innerHTML = '';
+  Object.keys(CURRENCIES).forEach(code => {
+    const opt = document.createElement('option');
+    opt.value = code;
+    opt.textContent = `${code} ${CURRENCIES[code].symbol.trim()}`;
+    select.appendChild(opt);
+  });
+  select.value = overlayCurrency;
+  select.addEventListener('change', async () => {
+    overlayCurrency = select.value;
+    await window.electronAPI.saveSettings({ currency: overlayCurrency });
+    appSettings.currency = overlayCurrency;
+    updateOverlayPricing();
+  });
+}
+
 /** Fetches /pricing and updates the overlay price display dynamically. */
 function updateOverlayPricing() {
   const effectiveEl = document.getElementById('overlay-price-effective');
   const originalEl  = document.getElementById('overlay-price-original');
   const badgeEl     = document.getElementById('overlay-promo-badge');
-  const fmt = n => 'Rp ' + Number(n).toLocaleString('id-ID');
+  const noteEl      = document.getElementById('overlay-price-note');
   const voiceLocale = appSettings.voiceLocale || 'id';
+  const code        = overlayCurrency || 'IDR';
+  const fmtIdr      = n => 'Rp ' + Number(n).toLocaleString('id-ID');
 
-  window.electronAPI.fetchPricing()
+  const applyNote = idrAmount => {
+    if (!noteEl) return;
+    if (code === 'IDR') { noteEl.classList.add('hidden'); return; }
+    const amount = fmtIdr(idrAmount);
+    const raw = t('overlay.chargedInIdr', amount);
+    noteEl.textContent = typeof raw === 'string' ? raw.replace('{amount}', amount) : String(raw);
+    noteEl.classList.remove('hidden');
+  };
+
+  window.electronAPI.fetchPricing(code)
     .then(data => {
       if (!data) return;
-      if (effectiveEl) effectiveEl.textContent = fmt(data.effectivePrice);
+      const local = data.local || {};
+      const eff   = local.effectivePrice != null ? local.effectivePrice : convertStatic(data.effectivePrice, code);
+      if (effectiveEl) effectiveEl.textContent = formatMoney(eff, code);
       if (data.promoActive) {
-        if (originalEl) { originalEl.textContent = fmt(data.publishedPrice); originalEl.classList.remove('hidden'); }
+        const orig = local.publishedPrice != null ? local.publishedPrice : convertStatic(data.publishedPrice, code);
+        if (originalEl) { originalEl.textContent = formatMoney(orig, code); originalEl.classList.remove('hidden'); }
         if (badgeEl)    { badgeEl.textContent = voiceLocale === 'id' ? data.promoLabelId : data.promoLabelEn; badgeEl.classList.remove('hidden'); }
       } else {
         if (originalEl) originalEl.classList.add('hidden');
         if (badgeEl)    badgeEl.classList.add('hidden');
       }
+      applyNote(data.effectivePrice);
     })
     .catch(() => { /* silently keep static fallback */ });
 }
