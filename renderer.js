@@ -56,7 +56,6 @@ function detectCurrency() {
   if (lang.startsWith('en-sg')) return 'SGD';
   if (lang.startsWith('de') || lang.startsWith('fr') || lang.startsWith('es') ||
       lang.startsWith('it') || lang.startsWith('nl')) return 'EUR';
-  if (lang.startsWith('en-us')) return 'USD';
   return 'IDR';
 }
 
