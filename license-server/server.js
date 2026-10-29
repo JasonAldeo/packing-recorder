@@ -724,16 +724,16 @@ app.post('/midtrans-webhook', async (req, res) => {
       transaction_status === 'settlement';
 
     if (isPaid) {
-      const existing = await pool.query(
-        'SELECT status, user_id, plan_days FROM orders WHERE order_id = $1',
+      // Atomically claim the order: a later settlement must upgrade an earlier
+      // deny/cancel/expire status, while duplicate notifications must not stack twice.
+      const claimed = await pool.query(
+        `UPDATE orders SET status = 'paid', recovered_at = NOW()
+          WHERE order_id = $1 AND status <> 'paid'
+          RETURNING user_id, plan_days`,
         [order_id]
       );
-      if (existing.rows.length > 0 && existing.rows[0].status === 'pending') {
-        const { user_id, plan_days } = existing.rows[0];
-        await pool.query(
-          "UPDATE orders SET status = 'paid', recovered_at = NOW() WHERE order_id = $1",
-          [order_id]
-        );
+      if (claimed.rows.length > 0) {
+        const { user_id, plan_days } = claimed.rows[0];
         if (user_id) {
           const newExpiry = await stackLicense(user_id, plan_days || LICENSE_DAYS);
           console.log(`[webhook] Order ${order_id} paid. License stacked ${plan_days || LICENSE_DAYS} days until ${newExpiry.toISOString()} for user ${user_id}.`);
