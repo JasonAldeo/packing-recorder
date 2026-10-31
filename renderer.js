@@ -16,6 +16,8 @@ const MIN_RECORDING_MS = 2000;
 // Scans that are links (a "contact us"/website QR printed next to the waybill)
 // are never valid waybill codes.
 const URL_SCAN_RE = /^[a-z][a-z0-9+.-]*:\/\//i;
+// Same idea for the station QR: a double read must not arm-then-cancel.
+const STATION_QR_DEBOUNCE_MS = 2000;
 
 // ─── Global state ─────────────────────────────────────────────────────────────
 let trialDaysLeft = null;
@@ -1244,6 +1246,18 @@ function getArmedStation() {
 function handleStationQR(sid) {
   const st = stations.get(sid);
   if (!st) return;
+
+  // A sensitive scanner can read the same station QR twice in a fraction of a
+  // second. Without this, the first read arms the station and the second read
+  // immediately cancels it, so the operator thinks the station is armed while
+  // every waybill scan is rejected with "scan a station QR first".
+  const now = Date.now();
+  const sinceLast = now - (st.lastStationQrAt || 0);
+  if (sinceLast < STATION_QR_DEBOUNCE_MS) {
+    logClient(`[${sid}] station QR re-read ignored (${sinceLast}ms after arm/cancel)`);
+    return;
+  }
+  st.lastStationQrAt = now;
 
   if (st.state === 'idle') {
     // Find any currently armed station that will be displaced

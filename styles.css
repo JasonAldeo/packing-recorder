@@ -2289,6 +2289,25 @@ body {
   line-height: 1.5;
 }
 
+/* Tip box at the end of a help tab */
+.help-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+.help-note-icon {
+  flex-shrink: 0;
+  line-height: 1.5;
+}
+
 /* Help modal footer */
 .help-modal-footer {
   padding: 14px 24px;
