@@ -552,6 +552,7 @@ app.whenReady().then(() => {
 
   createWindow();
   runAutoDelete();
+  purgeEmptyRecordings();
   appendAppLog(`app started v${app.getVersion()} electron=${process.versions.electron}`);
 
   // ─── Application menu ────────────────────────────────────────────────────────
@@ -803,6 +804,14 @@ ipcMain.handle('end-video-write', (event, stationId) => {
       try {
         fs.renameSync(state.tempPath, state.finalPath);
         const stats = fs.statSync(state.finalPath);
+        if (stats.size === 0) {
+          // No video data was captured. Keep the empty file out of the folder —
+          // an unplayable 0-byte "recording" would otherwise block this waybill
+          // as a duplicate forever.
+          try { fs.unlinkSync(state.finalPath); } catch (_) {}
+          appendAppLog(`[write] discarded empty recording ${state.filename}`);
+          return resolve({ empty: true, filename: state.filename });
+        }
         appendAppLog(`[write] saved ${state.filename} (${stats.size} bytes)`);
         resolve({ filename: state.filename, filePath: state.finalPath, size: stats.size });
       } catch (e) {
@@ -914,21 +923,50 @@ function isRecordingFile(name) {
   return /\.(webm|mp4)$/i.test(name);
 }
 
-// Search for video by shipping code
-ipcMain.handle('search-video', (event, shippingCode) => {
+// True when a recording file belongs to exactly this (sanitized) shipping code.
+// Filenames are: [stationN_]<code>[_<13-digit collision timestamp>].<ext>
+// Matching is exact (and case-insensitive, like the Windows filesystem) so a
+// recording of a different-but-similar code (e.g. "ABC123" vs "ABC1234") can
+// never count as a duplicate.
+function isExactRecordingMatch(filename, sanitizedCode) {
+  if (!isRecordingFile(filename)) return false;
+  const base = filename.replace(/\.(webm|mp4)$/i, '');
+  const escaped = sanitizedCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`^(?:station\\d+_)?${escaped}(?:_\\d{13})?$`, 'i').test(base);
+}
+
+// Search for video by shipping code.
+// options.exact — only recordings of this exact code (used by the duplicate check).
+//                 Without it, the code is matched as a substring (free-text search).
+ipcMain.handle('search-video', (event, shippingCode, options = {}) => {
   const videosDir = getVideosDir();
   if (!fs.existsSync(videosDir)) return [];
 
-  const sanitizedCode = shippingCode.replace(/[^a-zA-Z0-9_\-]/g, '_');
+  const sanitizedCode = String(shippingCode || '').replace(/[^a-zA-Z0-9_\-]/g, '_');
+  if (!sanitizedCode) return [];
+  const exact = !!(options && options.exact);
   const files = fs.readdirSync(videosDir);
-  const matches = files
-    .filter(f => f.includes(sanitizedCode) && isRecordingFile(f))
-    .map(f => ({
-      filename: f,
-      filePath: path.join(videosDir, f),
-      size: fs.statSync(path.join(videosDir, f)).size,
-      modified: fs.statSync(path.join(videosDir, f)).mtimeMs
-    }));
+  const matches = [];
+
+  for (const f of files) {
+    if (!isRecordingFile(f)) continue;
+    if (exact ? !isExactRecordingMatch(f, sanitizedCode) : !f.includes(sanitizedCode)) continue;
+    const filePath = path.join(videosDir, f);
+    try {
+      const stats = fs.statSync(filePath);
+      if (stats.size === 0) {
+        // Empty leftovers from an aborted/instantly-stopped recording can never
+        // be played or recovered. Drop them so they don't block the waybill.
+        try { fs.unlinkSync(filePath); } catch (_) {}
+        appendAppLog(`[search] removed empty recording ${f}`);
+        continue;
+      }
+      matches.push({ filename: f, filePath, size: stats.size, modified: stats.mtimeMs });
+    } catch (_) {
+      // File was removed between readdir and stat (e.g. deleted outside the
+      // app) — skip it instead of failing the whole lookup.
+    }
+  }
 
   return matches;
 });
@@ -947,6 +985,9 @@ ipcMain.handle('list-all-videos', () => {
     .filter(f => isRecordingFile(f))
     .map(f => {
       const stats = fs.statSync(path.join(videosDir, f));
+      // Empty leftovers (aborted / instantly-stopped recordings) are junk —
+      // never list them, purgeEmptyRecordings() removes them at startup.
+      if (stats.size === 0) return null;
       // Parse: stationN_SHIPPINGCODE[_timestamp].webm|.mp4
       const base = f.replace(/\.(webm|mp4)$/i, '');
       // Try to extract station prefix
@@ -972,6 +1013,7 @@ ipcMain.handle('list-all-videos', () => {
         modified: stats.mtimeMs
       };
     })
+    .filter(Boolean)
     .sort((a, b) => b.modified - a.modified);
 });
 
@@ -1024,6 +1066,28 @@ ipcMain.handle('save-settings', (event, patch) => {
   saveSettings({ ...current, ...patch });
 });
 
+// Remove 0-byte leftover recordings (aborted or instantly-stopped recordings).
+// They can't be played and they would block their waybill as a "duplicate"
+// forever, so they are always safe to drop.
+function purgeEmptyRecordings() {
+  const videosDir = getVideosDir();
+  if (!fs.existsSync(videosDir)) return 0;
+  let removed = 0;
+  fs.readdirSync(videosDir)
+    .filter(f => isRecordingFile(f))
+    .forEach(f => {
+      const fp = path.join(videosDir, f);
+      try {
+        if (fs.statSync(fp).size === 0) {
+          fs.unlinkSync(fp);
+          removed++;
+          appendAppLog(`[delete] removed empty recording ${f}`);
+        }
+      } catch (_) {}
+    });
+  return removed;
+}
+
 // Delete recordings older than autoDeleteDays
 function runAutoDelete() {
   const settings = loadSettings();
@@ -1041,6 +1105,7 @@ function runAutoDelete() {
         if (fs.statSync(fp).mtimeMs < cutoff) {
           fs.unlinkSync(fp);
           deleted++;
+          appendAppLog(`[delete] auto-removed ${f} (older than ${days}d)`);
         }
       } catch (_) {}
     });
@@ -1052,16 +1117,23 @@ ipcMain.handle('delete-old-recordings', () => {
   const days = parseInt(settings.autoDeleteDays, 10);
   if (!days || days <= 0) return { deleted: 0, disabled: true };
   const deleted = runAutoDelete();
+  if (deleted > 0) appendAppLog(`[delete] auto-delete removed ${deleted} recording(s) older than ${days}d`);
   return { deleted, disabled: false };
 });
 
 // Delete a single recording by file path
 ipcMain.handle('delete-video', (event, filePath) => {
   try {
-    if (!fs.existsSync(filePath)) return { success: false, error: 'File not found' };
+    if (!fs.existsSync(filePath)) {
+      appendAppLog(`[delete] not found ${path.basename(filePath)}`);
+      return { success: false, error: 'File not found' };
+    }
+    const size = fs.statSync(filePath).size;
     fs.unlinkSync(filePath);
+    appendAppLog(`[delete] removed ${path.basename(filePath)} (${size} bytes)`);
     return { success: true };
   } catch (err) {
+    appendAppLog(`[delete] failed ${path.basename(filePath)}: ${err.message}`);
     return { success: false, error: err.message };
   }
 });

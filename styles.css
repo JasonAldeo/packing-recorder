@@ -493,6 +493,11 @@ body {
   font-weight: 500;
 }
 
+/* Nothing was captured (empty recording discarded) */
+.saved-info.warning {
+  color: #f59e0b;
+}
+
 /* ── Camera ── */
 .video-wrapper {
   position: relative;

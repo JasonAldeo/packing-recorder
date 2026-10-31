@@ -15,7 +15,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   abortVideoWrite:       (stationId)                => ipcRenderer.invoke('abort-video-write', stationId),
 
   // ─── Recordings ────────────────────────────────────────────────────────────
-  searchVideo:           (code)                     => ipcRenderer.invoke('search-video', code),
+  searchVideo:           (code, options)            => ipcRenderer.invoke('search-video', code, options),
   readVideo:             (filePath)                 => ipcRenderer.invoke('read-video', filePath),
   listAllVideos:         ()                         => ipcRenderer.invoke('list-all-videos'),
   saveVideoAs:           (opts)                     => ipcRenderer.invoke('save-video-as', opts),

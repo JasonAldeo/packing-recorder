@@ -8,6 +8,14 @@ const DEFAULT_ARMED_TIMEOUT_MS = 15000;
 const MAX_STATIONS = 6;
 const BARCODE_IDLE_RESET_MS = 1500;
 const MIN_BARCODE_LENGTH = 4;
+// A scanner often fires the same code twice in quick succession (trigger held a
+// moment too long / double read). Treat a "stop" scan within this window as that
+// double read instead of stopping the recording, otherwise every accidental
+// double read leaves a sub-second junk file behind that blocks the waybill.
+const MIN_RECORDING_MS = 2000;
+// Scans that are links (a "contact us"/website QR printed next to the waybill)
+// are never valid waybill codes.
+const URL_SCAN_RE = /^[a-z][a-z0-9+.-]*:\/\//i;
 
 // ─── Global state ─────────────────────────────────────────────────────────────
 let trialDaysLeft = null;
@@ -1164,6 +1172,17 @@ window.addEventListener('blur', () => {
 
 
 function routeBarcode(code) {
+  // A URL/QR code (e.g. a "contact us"/website QR printed next to the waybill
+  // label) is never a waybill. Recording it would start a stray recording that
+  // blocks every following waybill scan until it is stopped by hand.
+  // Checked here so every entry point is covered (keyboard wedge, test-mode
+  // simulate controls, relayed scans from station windows).
+  if (URL_SCAN_RE.test(code)) {
+    logClient(`scan rejected (link, not a waybill): ${JSON.stringify(code)}`);
+    showGlobalWarning(t('status.scanNotWaybill'));
+    return;
+  }
+
   // Station QR code
   if (code.startsWith(STATION_QR_PREFIX)) {
     const sid = 'station' + code.slice(STATION_QR_PREFIX.length);
@@ -1327,11 +1346,16 @@ async function handleCodeForStation(sid, code) {
       clearArmedTimer(sid);
       st.state = 'recording';
       st.currentShippingCode = name;
+      st.recordingStartedAt = Date.now();
       notifyRecordingState();
       if (delegated) setStationStatus(sid, 'recording');
       pushToStationWindow(sid, { type: 'start-recording', code: name });
       if (!delegated) await startRecording(sid, name);
     } else if (st.currentShippingCode.startsWith('MANUAL_')) {
+      if (Date.now() - (st.recordingStartedAt || 0) < MIN_RECORDING_MS) {
+        logClient(`[${sid}] stop ignored: MANUALSCAN re-read right after start`);
+        return;
+      }
       logClient(`[${sid}] stop manual recording: ${st.currentShippingCode}`);
       pushToStationWindow(sid, { type: 'stop-recording' });
       if (!delegated) stopRecording(sid);
@@ -1348,10 +1372,12 @@ async function handleCodeForStation(sid, code) {
   }
 
   if (!st.currentShippingCode) {
-    // Check for duplicates
-    const existing = await window.electronAPI.searchVideo(code);
+    // Check for duplicates — exact code match only (a recording of a different
+    // but similar code must never block this waybill).
+    const existing = await window.electronAPI.searchVideo(code, { exact: true });
     if (existing.length > 0) {
-      logClient(`[${sid}] duplicate blocked: ${JSON.stringify(code)} (${existing.length} file(s))`);
+      const blocking = existing.map(e => e.filename).join(', ');
+      logClient(`[${sid}] duplicate blocked: ${JSON.stringify(code)} (${existing.length} file(s): ${blocking})`);
       clearArmedTimer(sid);
       st.state = 'idle';
       setStationStatus(sid, 'idle');
@@ -1378,11 +1404,18 @@ async function handleCodeForStation(sid, code) {
     clearArmedTimer(sid);
     st.state = 'recording';
     st.currentShippingCode = code;
+    st.recordingStartedAt = Date.now();
     notifyRecordingState();
     if (delegated) setStationStatus(sid, 'recording');
     pushToStationWindow(sid, { type: 'start-recording', code });
     if (!delegated) await startRecording(sid, code);
   } else if (code === st.currentShippingCode) {
+    const elapsed = Date.now() - (st.recordingStartedAt || 0);
+    if (elapsed < MIN_RECORDING_MS) {
+      // Scanner double read, not an intentional stop — don't create a junk file.
+      logClient(`[${sid}] stop ignored: same code re-read ${elapsed}ms after start`);
+      return;
+    }
     logClient(`[${sid}] stop recording: ${JSON.stringify(code)}`);
     pushToStationWindow(sid, { type: 'stop-recording' });
     if (!delegated) stopRecording(sid);
@@ -1573,17 +1606,35 @@ async function saveStationRecording(sid) {
 
   try {
     const result = await window.electronAPI.endVideoWrite(sid);
-    const sizeKb = (result.size / 1024).toFixed(1);
-    logClient(`[${sid}] saved ${result.filename} (${sizeKb} KB)`);
-    speak('voice.saved', sid);
-    if (stations.size === 1 && statusMessage) {
-      setStatus('saved', t('status.saved', result.filename));
-      if (savedInfo) {
-        savedInfo.textContent = t('status.savedInfo', result.filename, sizeKb);
-        savedInfo.classList.remove('hidden');
+    if (result && result.empty) {
+      // No video data was captured (recording stopped immediately, camera not
+      // delivering frames, …). main.js already deleted the file — never keep an
+      // empty "recording", it would block this waybill as a duplicate forever.
+      eventType = 'recording-aborted';
+      logClient(`[${sid}] discarded empty recording for ${JSON.stringify(savedCode)}`);
+      if (stations.size === 1 && statusMessage) {
+        setStatus('warning', t('status.emptyRecording'));
       }
+      const emptyInfo = st.elements.savedInfo;
+      if (emptyInfo) {
+        emptyInfo.textContent = t('status.emptyRecording');
+        emptyInfo.classList.remove('hidden');
+        emptyInfo.classList.add('warning');
+      }
+      if (st.elements.codeLabel) st.elements.codeLabel.textContent = '';
+    } else {
+      const sizeKb = (result.size / 1024).toFixed(1);
+      logClient(`[${sid}] saved ${result.filename} (${sizeKb} KB)`);
+      speak('voice.saved', sid);
+      if (stations.size === 1 && statusMessage) {
+        setStatus('saved', t('status.saved', result.filename));
+        if (savedInfo) {
+          savedInfo.textContent = t('status.savedInfo', result.filename, sizeKb);
+          savedInfo.classList.remove('hidden', 'warning');
+        }
+      }
+      if (st.elements.codeLabel) st.elements.codeLabel.textContent = '';
     }
-    if (st.elements.codeLabel) st.elements.codeLabel.textContent = '';
   } catch (err) {
     eventType = 'recording-aborted';
     logClient(`[${sid}] save failed: ${err.message}`);
@@ -2571,6 +2622,9 @@ function switchTab(tabId, force = false) {
   document.querySelectorAll('.tab-panel').forEach(p =>
     p.classList.toggle('active', p.id === `tab-${tabId}`)
   );
+  // Re-read the folder so recordings added/removed outside the app (e.g. a file
+  // deleted from the folder in Explorer) are reflected instead of a stale list.
+  if (tabId === 'recordings') loadRecordingsList().catch(() => {});
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
@@ -3108,10 +3162,7 @@ btn.addEventListener('click', async () => {
         if (!(await window.confirmDeleteModal(btn.dataset.name, btn))) return;
         const result = await window.electronAPI.deleteVideo(btn.dataset.path);
         if (result.success) {
-          if (currentPlayingPath === btn.dataset.path) {
-            if (playbackSection) playbackSection.classList.add('hidden');
-            currentPlayingPath = null;
-          }
+          if (currentPlayingPath === btn.dataset.path) stopPlayback();
           await loadRecordingsList();
           await doSearch();
           // Deleting removes the focused delete button, so focus falls to <body>.
@@ -3150,6 +3201,31 @@ async function playVideo(filePath, filename) {
   } catch (err) {
     if (searchError) { searchError.textContent = t('search.playbackError', err.message); searchError.classList.remove('hidden'); }
   }
+}
+
+// Release the handle the <video> element keeps on the played file. On Windows a
+// loaded file can stay locked, which makes Explorer refuse to delete/rename the
+// recording until the app is restarted.
+function stopPlayback() {
+  if (playbackVideo) {
+    try {
+      playbackVideo.pause();
+      playbackVideo.removeAttribute('src');
+      playbackVideo.load();
+    } catch (_) {}
+  }
+  currentPlayingPath = null;
+  if (playbackSection) playbackSection.classList.add('hidden');
+}
+
+// Don't keep the file open after playback finishes (see stopPlayback above).
+if (playbackVideo) {
+  playbackVideo.addEventListener('ended', () => {
+    try {
+      playbackVideo.removeAttribute('src');
+      playbackVideo.load();
+    } catch (_) {}
+  });
 }
 
 if (saveAsBtn) {
@@ -3191,12 +3267,10 @@ function attachRecListEvents(listEl) {
       if (!(await window.confirmDeleteModal(btn.dataset.name, btn))) return;
       const result = await window.electronAPI.deleteVideo(btn.dataset.path);
       if (result.success) {
-        if (currentPlayingPath === btn.dataset.path) {
-          if (playbackSection) playbackSection.classList.add('hidden');
-          currentPlayingPath = null;
-        }
+        if (currentPlayingPath === btn.dataset.path) stopPlayback();
         await loadRecordingsList();
       } else {
+        logClient(`[rec] delete failed for ${btn.dataset.name}: ${result.error}`);
         console.error(t('rec.deleteFailed', result.error));
       }
     });
